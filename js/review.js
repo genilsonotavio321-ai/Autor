@@ -243,16 +243,20 @@ const Review = (function () {
 
     // cabeçalho
     const header = App.el('div', 'rp-header');
-    header.appendChild(App.el('span', null, '🔎 Revisão de texto'));
-    const closeBtn = App.el('button', 'icon-btn', '✕');
+    const hSpan = App.el('span');
+    hSpan.innerHTML = (window.App && App.icon ? App.icon('search') : '') + ' Revisão de texto';
+    header.appendChild(hSpan);
+    const closeBtn = App.el('button', 'icon-btn');
+    closeBtn.innerHTML = (window.App && App.icon ? App.icon('x') : '✕');
     closeBtn.title = 'Fechar painel';
+    closeBtn.setAttribute('aria-label', 'Fechar painel');
     closeBtn.addEventListener('click', function () { panel.classList.add('hidden'); });
     header.appendChild(closeBtn);
     panel.appendChild(header);
 
     // abas
     const tabs = App.el('div', 'rp-tabs');
-    [['offline', '⚡ Rápida (offline)'], ['ai', '✨ Com IA']].forEach(function (t) {
+    [['offline', 'Rápida (offline)'], ['ai', 'Com IA']].forEach(function (t) {
       const b = App.el('button', 'rp-tab' + (tab === t[0] ? ' active' : ''), t[1]);
       b.addEventListener('click', function () { tab = t[0]; render(); });
       tabs.appendChild(b);
@@ -273,11 +277,13 @@ const Review = (function () {
     const issues = analyze(text);
 
     const toolbar = App.el('div', 'rp-toolbar');
-    const fixAllBtn = App.el('button', 'btn small primary', '✔ Corrigir tudo (' + issues.filter(function (i) { return i.replacement != null; }).length + ')');
+    const fixAllBtn = App.el('button', 'btn small primary');
+    fixAllBtn.innerHTML = App.icon('check') + ' Corrigir tudo (' + issues.filter(function (i) { return i.replacement != null; }).length + ')';
     fixAllBtn.addEventListener('click', fixAll);
     toolbar.appendChild(fixAllBtn);
 
-    const reBtn = App.el('button', 'btn small', '↻ Analisar');
+    const reBtn = App.el('button', 'btn small');
+    reBtn.innerHTML = App.icon('refresh') + ' Analisar';
     reBtn.addEventListener('click', function () { dismissed = new Set(); render(); });
     toolbar.appendChild(reBtn);
 
@@ -293,7 +299,7 @@ const Review = (function () {
     body.appendChild(App.el('p', 'rp-summary',
       issues.length
         ? counts.fix + ' erro(s) provável(is) · ' + counts.style + ' de estilo · ' + counts.info + ' aviso(s)'
-        : 'Nenhum problema encontrado nas regras rápidas. 🎉'));
+        : 'Nenhum problema encontrado nas regras rápidas.'));
 
     if (!issues.length) {
       body.appendChild(App.el('p', 'ai-note',
@@ -379,19 +385,22 @@ const Review = (function () {
     if (!cfg.key) {
       body.appendChild(App.el('p', 'ai-note',
         'A revisão com IA é opcional e requer uma chave de API compatível com OpenAI (a revisão rápida offline continua funcionando sem nada aqui). A chave fica salva somente neste navegador.'));
-      const cfgBtn = App.el('button', 'btn small primary', '⚙️ Configurar IA');
+      const cfgBtn = App.el('button', 'btn small primary');
+      cfgBtn.innerHTML = App.icon('settings') + ' Configurar IA';
       cfgBtn.addEventListener('click', function () { App.settingsModal(); });
       body.appendChild(cfgBtn);
       return;
     }
 
     const toolbar = App.el('div', 'rp-toolbar');
-    const runBtn = App.el('button', 'btn small primary', aiBusy ? '⏳ Revisando…' : '✨ Revisar com IA');
+    const runBtn = App.el('button', 'btn small primary');
+    runBtn.innerHTML = App.icon('sparkles') + (aiBusy ? ' Revisando…' : ' Revisar com IA');
     runBtn.disabled = aiBusy;
     runBtn.addEventListener('click', runAIReview);
     toolbar.appendChild(runBtn);
     if (aiSuggestions.length) {
-      const allBtn = App.el('button', 'btn small', '✔ Aplicar todas (' + aiSuggestions.length + ')');
+      const allBtn = App.el('button', 'btn small');
+      allBtn.innerHTML = App.icon('check') + ' Aplicar todas (' + aiSuggestions.length + ')';
       allBtn.addEventListener('click', applyAllAI);
       toolbar.appendChild(allBtn);
       const clrBtn = App.el('button', 'btn small ghost', 'Limpar');
@@ -550,7 +559,7 @@ const Review = (function () {
       setProgress('');
       App.toast(aiSuggestions.length
         ? aiSuggestions.length + ' sugestão(ões) recebida(s).'
-        : 'Nenhuma correção necessária. 👏');
+        : 'Nenhuma correção necessária.');
     } catch (err) {
       setProgress('');
       App.toast('Falha na revisão com IA: ' + err.message, 'error');
@@ -616,10 +625,15 @@ const Review = (function () {
     }
   }
 
-  return {
+  const api = {
     reset: reset,
     toggle: toggle,
     open: openPanel,
     testAI: testAI
   };
+
+  // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
+  window.Review = api;
+
+  return api;
 })();

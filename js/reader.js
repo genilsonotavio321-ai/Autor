@@ -29,7 +29,7 @@ const Reader = (function () {
     view.setAttribute('data-reader-theme', theme);
 
     themeSelect.value = theme;
-    serifBtn.textContent = font === 'serif' ? 'Serif ✓' : 'Serif';
+    serifBtn.textContent = font === 'serif' ? 'Serif' : 'Serif';
     serifBtn.classList.toggle('primary', font === 'sans');
   }
 
@@ -139,5 +139,10 @@ const Reader = (function () {
     applyPrefs();
   });
 
-  return { open: open };
+  const api = { open: open };
+
+  // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
+  window.Reader = api;
+
+  return api;
 })();

@@ -188,13 +188,13 @@ const Exporter = (function () {
     body.innerHTML =
       '<p class="muted" style="margin-top:0">Escolha o formato:</p>' +
       '<div class="row" style="flex-wrap:wrap">' +
-      '<button class="btn" data-fmt="txt">📄 TXT</button>' +
-      '<button class="btn" data-fmt="doc">📝 Word (.doc)</button>' +
-      '<button class="btn" data-fmt="pdf">📕 PDF (imprimir)</button>' +
+      '<button class="btn" data-fmt="txt">' + App.icon('file-text') + ' TXT</button>' +
+      '<button class="btn" data-fmt="doc">' + App.icon('edit') + ' Word (.doc)</button>' +
+      '<button class="btn" data-fmt="pdf">' + App.icon('download') + ' PDF (imprimir)</button>' +
       '</div>' +
       '<p class="muted" style="font-size:.8rem;margin-bottom:0">O PDF é gerado pela janela de impressão do navegador — escolha "Salvar como PDF".</p>';
 
-    const m = App.openModal({ title: '⬇ Exportar — ' + opts.title, body: body });
+    const m = App.openModal({ title: '<span>' + App.icon('download') + ' Exportar — ' + App.esc(opts.title) + '</span>', body: body });
     body.querySelectorAll('[data-fmt]').forEach(function (btn) {
       btn.addEventListener('click', function () {
         const fmt = btn.getAttribute('data-fmt');
@@ -301,7 +301,7 @@ const Exporter = (function () {
       '<p class="muted">O que deseja fazer?</p>';
 
     const m = App.openModal({
-      title: '⬆ Importar backup',
+      title: '<span>' + App.icon('upload') + ' Importar backup</span>',
       body: body,
       actions: [{ label: 'Cancelar' }]
     });
@@ -372,10 +372,15 @@ const Exporter = (function () {
     App.renderShelf();
   }
 
-  return {
+  const api = {
     bookDialog: bookDialog,
     chapterDialog: chapterDialog,
     exportBackup: exportBackup,
     importBackup: importBackup
   };
+
+  // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
+  window.Exporter = api;
+
+  return api;
 })();

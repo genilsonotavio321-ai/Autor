@@ -13,9 +13,9 @@
   window.App = App;
 
   const STATUS = {
-    rascunho: { label: 'Rascunho', icon: '📝' },
-    revisao: { label: 'Em revisão', icon: '🔎' },
-    concluido: { label: 'Concluído', icon: '✅' }
+    rascunho: { label: 'Rascunho' },
+    revisao: { label: 'Em revisão' },
+    concluido: { label: 'Concluído' }
   };
   App.STATUS = STATUS;
 
@@ -38,9 +38,15 @@
     });
   }
 
+  function icon(name, size) {
+    const cls = size ? 'ic ic-' + size : 'ic';
+    return '<svg class="' + cls + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
+  }
+
   App.esc = esc;
   App.el = el;
   App.$ = $;
+  App.icon = icon;
 
   App.countWords = function (text) {
     const t = (text || '').trim();
@@ -66,13 +72,24 @@
   App.openModal = function (opts) {
     const overlay = el('div', 'modal-overlay');
     const modal = el('div', 'modal' + (opts.wide ? ' wide' : ''));
+    const previouslyFocused = document.activeElement;
 
     const header = el('div', 'modal-header');
-    header.appendChild(el('span', null, opts.title || ''));
-    const closeBtn = el('button', 'icon-btn', '✕');
+    const titleSpan = el('span');
+    // títulos podem conter ícones SVG (HTML); conteúdo vindo do usuário é escapado pelo chamador
+    titleSpan.innerHTML = opts.title || '';
+    header.appendChild(titleSpan);
+    const closeBtn = el('button', 'icon-btn');
+    closeBtn.innerHTML = icon('x');
     closeBtn.title = 'Fechar';
+    closeBtn.setAttribute('aria-label', 'Fechar');
     header.appendChild(closeBtn);
     modal.appendChild(header);
+
+    // diálogo acessível
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-label', titleSpan.textContent.trim() || 'Diálogo');
 
     const body = el('div', 'modal-body');
     if (typeof opts.body === 'string') body.innerHTML = opts.body;
@@ -83,9 +100,31 @@
     function close() {
       overlay.remove();
       document.removeEventListener('keydown', onKey);
+      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+    }
+    function focusableIn() {
+      return Array.prototype.filter.call(
+        modal.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'),
+        function (n) { return !n.disabled && n.offsetParent !== null; }
+      );
     }
     function onKey(ev) {
-      if (ev.key === 'Escape') close();
+      if (ev.key === 'Escape') { close(); return; }
+      if (ev.key !== 'Tab') return;
+      // foco preso dentro do diálogo
+      const f = focusableIn();
+      if (!f.length) return;
+      const first = f[0], last = f[f.length - 1];
+      if (!modal.contains(document.activeElement)) {
+        ev.preventDefault();
+        (ev.shiftKey ? last : first).focus();
+      } else if (ev.shiftKey && document.activeElement === first) {
+        ev.preventDefault();
+        last.focus();
+      } else if (!ev.shiftKey && document.activeElement === last) {
+        ev.preventDefault();
+        first.focus();
+      }
     }
     (opts.actions || []).forEach(function (act) {
       const b = el('button', 'btn ' + (act.className || ''), act.label);
@@ -106,9 +145,9 @@
     overlay.appendChild(modal);
     $('#modal-root').appendChild(overlay);
 
-    // foca o primeiro campo editável
+    // foca o primeiro campo editável (com fallback para o botão Fechar)
     setTimeout(function () {
-      const f = modal.querySelector('input, textarea, select, button.primary');
+      const f = modal.querySelector('input, textarea, select, button.primary') || closeBtn;
       if (f) f.focus();
     }, 30);
 
@@ -196,19 +235,21 @@
   };
 
   function bookCard(book, stats) {
-    const card = el('div', 'book-card');
+    const card = el('button', 'book-card');
+    card.type = 'button';
     card.style.setProperty('--spine', spineColor(book.id));
     const st = STATUS[book.status] || STATUS.rascunho;
     card.innerHTML =
-      '<h3>' + esc(book.title) + '</h3>' +
-      (book.author ? '<p class="author">por ' + esc(book.author) + '</p>' : '') +
-      (book.description ? '<p class="desc">' + esc(book.description) + '</p>' : '') +
-      '<div class="card-meta">' +
-        '<span class="badge ' + esc(book.status) + '">' + st.icon + ' ' + st.label + '</span>' +
+      '<span class="card-title">' + esc(book.title) + '</span>' +
+      (book.author ? '<span class="author">por ' + esc(book.author) + '</span>' : '') +
+      (book.description ? '<span class="desc">' + esc(book.description) + '</span>' : '') +
+      '<span class="card-meta">' +
+        '<span class="badge ' + esc(book.status) + '">' + st.label + '</span>' +
         '<span>' + numberFmt.format(stats.chapters) + (stats.chapters === 1 ? ' capítulo' : ' capítulos') +
         ' · ' + numberFmt.format(stats.words) + ' pal.</span>' +
-      '</div>';
-    card.title = 'Abrir " ' + book.title + ' "';
+      '</span>';
+    card.title = 'Abrir "' + book.title + '"';
+    card.setAttribute('aria-label', 'Abrir o livro ' + book.title);
     card.addEventListener('click', function () { App.openBook(book.id); });
     return card;
   }
@@ -224,12 +265,12 @@
       '<div class="field"><label for="bf-author">Autor(a)</label>' +
       '<input id="bf-author" type="text" value="' + esc(isNew ? (Store.Settings.get('authorName', '')) : bookOrNull.author) + '" placeholder="Seu nome"></div>' +
       '<div class="field"><label for="bf-desc">Descrição / sinopse (opcional)</label>' +
-      '<textarea id="bf-desc" placeholder="Sobre o que é esta obra...">' + esc(isNew ? '' : bookOrNull.description) + '</textarea></div>' +
+      '<textarea id="bf-desc" placeholder="Sobre o que é esta obra…">' + esc(isNew ? '' : bookOrNull.description) + '</textarea></div>' +
       '<div class="field"><label for="bf-status">Status</label>' +
       '<select id="bf-status">' +
-        '<option value="rascunho">📝 Rascunho</option>' +
-        '<option value="revisao">🔎 Em revisão</option>' +
-        '<option value="concluido">✅ Concluído</option>' +
+        '<option value="rascunho">Rascunho</option>' +
+        '<option value="revisao">Em revisão</option>' +
+        '<option value="concluido">Concluído</option>' +
       '</select></div>';
     body.querySelector('#bf-status').value = isNew ? 'rascunho' : bookOrNull.status;
 
@@ -295,20 +336,22 @@
       const li = el('li', 'chapter-item');
       li.innerHTML =
         '<span class="ch-num">' + (i + 1) + '</span>' +
-        '<div class="ch-main">' +
+        '<button type="button" class="ch-main">' +
           '<span class="ch-title">' + esc(ch.title) + '</span>' +
           '<span class="ch-meta muted">' + numberFmt.format(App.countWords(ch.content)) + ' palavras</span>' +
-        '</div>' +
+        '</button>' +
         '<div class="ch-actions">' +
-          '<button class="icon-btn" data-act="up" title="Mover para cima">↑</button>' +
-          '<button class="icon-btn" data-act="down" title="Mover para baixo">↓</button>' +
-          '<button class="icon-btn" data-act="dup" title="Duplicar capítulo">⧉</button>' +
-          '<button class="icon-btn" data-act="del" title="Excluir capítulo">🗑️</button>' +
+          '<button class="icon-btn" data-act="up" title="Mover para cima" aria-label="Mover para cima">' + icon('arrow-up') + '</button>' +
+          '<button class="icon-btn" data-act="down" title="Mover para baixo" aria-label="Mover para baixo">' + icon('arrow-down') + '</button>' +
+          '<button class="icon-btn" data-act="dup" title="Duplicar capítulo" aria-label="Duplicar capítulo">' + icon('copy') + '</button>' +
+          '<button class="icon-btn" data-act="del" title="Excluir capítulo" aria-label="Excluir capítulo">' + icon('trash') + '</button>' +
         '</div>';
 
-      li.querySelector('.ch-main').addEventListener('click', function () {
+      const chMain = li.querySelector('.ch-main');
+      chMain.addEventListener('click', function () {
         App.openChapter(ch.id);
       });
+      chMain.setAttribute('aria-label', 'Abrir o capítulo ' + ch.title);
 
       li.querySelectorAll('[data-act]').forEach(function (btn) {
         btn.addEventListener('click', async function () {
@@ -362,7 +405,7 @@
   App.searchModal = function () {
     const body = el('div');
     body.innerHTML =
-      '<div class="field"><input id="gs-input" type="search" placeholder="Buscar títulos, autores e palavras dentro dos textos..."></div>' +
+      '<div class="field"><input id="gs-input" type="search" placeholder="Buscar títulos, autores e palavras dentro dos textos…"></div>' +
       '<div id="gs-results" class="search-results"><p class="muted">Digite para buscar em todas as obras.</p></div>';
 
     const input = body.querySelector('#gs-input');
@@ -395,7 +438,7 @@
         if ((b.title + ' ' + b.author + ' ' + (b.description || '')).toLowerCase().indexOf(ql) < 0) return;
         count++;
         const btn = el('button', 'search-result');
-        btn.innerHTML = '<span class="sr-title">📕 ' + esc(b.title) + '</span><br>' +
+        btn.innerHTML = '<span class="sr-title">' + icon('book') + esc(b.title) + '</span><br>' +
           '<span class="sr-ctx">Livro' + (b.author ? ' de ' + esc(b.author) : '') + '</span>';
         btn.addEventListener('click', function () { modalRef.close(); App.openBook(b.id); });
         results.appendChild(btn);
@@ -414,7 +457,7 @@
         const pos = content.slice(idx + q.length, to) + (to < content.length ? '…' : '');
         const btn = el('button', 'search-result');
         btn.innerHTML =
-          '<span class="sr-title">📄 ' + esc(ch.title) + '</span> ' +
+          '<span class="sr-title">' + icon('file-text') + esc(ch.title) + '</span> ' +
           '<span class="sr-ctx muted">(' + esc(bookTitleMap[ch.bookId] || 'sem livro') + ')</span><br>' +
           '<span class="sr-ctx">' + esc(pre) + '<mark>' + esc(mid) + '</mark>' + esc(pos).replace(/\n/g, ' ') + '</span>';
         btn.addEventListener('click', function () {
@@ -427,7 +470,7 @@
       if (!count) results.innerHTML = '<p class="muted">Nada encontrado para "' + esc(q) + '".</p>';
     }
 
-    const ref = App.openModal({ title: '🔍 Buscar', body: body, wide: true });
+    const ref = App.openModal({ title: '<span>' + icon('search') + ' Buscar</span>', body: body, wide: true });
     modalRef.close = ref.close;
     setTimeout(function () { input.focus(); }, 40);
   };
@@ -452,7 +495,7 @@
         : 'Capítulo · excluído em ' + when;
 
       row.innerHTML =
-        '<div class="ti-main"><div class="ti-title">' + (isBook ? '📕 ' : '📄 ') + esc(title) + '</div>' +
+        '<div class="ti-main"><div class="ti-title">' + icon(isBook ? 'book' : 'file-text') + esc(title) + '</div>' +
         '<div class="ti-meta">' + esc(meta) + '</div></div>';
 
       const restoreBtn = el('button', 'btn small', 'Restaurar');
@@ -487,7 +530,7 @@
       });
     }
 
-    App.openModal({ title: '🗑️ Lixeira', body: body, actions: actions, wide: true });
+    App.openModal({ title: '<span>' + icon('trash') + ' Lixeira</span>', body: body, actions: actions, wide: true });
   };
 
   /* ================= tema ================= */
@@ -495,7 +538,13 @@
   App.applyTheme = function () {
     const theme = Store.Settings.get('theme', 'light');
     document.documentElement.setAttribute('data-theme', theme);
-    $('#btn-theme').textContent = theme === 'dark' ? '☀️' : '🌙';
+    const themeBtn = $('#btn-theme');
+    if (themeBtn) {
+      themeBtn.querySelector('use') && (themeBtn.querySelector('use').setAttribute('href', theme === 'dark' ? '#i-sun' : '#i-moon'));
+      themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro');
+    }
+    const meta = document.getElementById('meta-theme-color');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#09090b' : '#fafafa');
   };
 
   /* ================= configurações ================= */
@@ -505,26 +554,26 @@
 
     body.innerHTML =
       '<div class="settings-section">' +
-        '<h3>✍️ Revisão com IA (opcional)</h3>' +
+        '<h3>' + icon('sparkles') + ' Revisão com IA (opcional)</h3>' +
         '<p class="hint">A revisão rápida offline funciona sem nada aqui. Configure uma chave de API compatível com OpenAI (OpenAI, DeepSeek, Groq etc.) para ativar sugestões inteligentes. A chave fica somente neste navegador.</p>' +
         '<div class="field"><label for="set-ai-url">Endpoint (URL base)</label>' +
         '<input id="set-ai-url" type="text" placeholder="https://api.openai.com/v1"></div>' +
         '<div class="field"><label for="set-ai-key">Chave de API</label>' +
-        '<input id="set-ai-key" type="password" placeholder="sk-..."></div>' +
+        '<input id="set-ai-key" type="password" placeholder="sk-…"></div>' +
         '<div class="row">' +
           '<div class="field"><label for="set-ai-model">Modelo</label>' +
           '<input id="set-ai-model" type="text" placeholder="gpt-4o-mini"></div>' +
         '</div>' +
-        '<button id="set-ai-test" class="btn small">🔌 Testar conexão</button> ' +
+        '<button id="set-ai-test" class="btn small">' + icon('zap') + ' Testar conexão</button> ' +
         '<span id="set-ai-test-result" class="muted"></span>' +
       '</div>' +
       '<div class="settings-section">' +
-        '<h3>💾 Seus dados</h3>' +
+        '<h3>' + icon('database') + ' Seus dados</h3>' +
         '<p class="hint">Tudo é salvo apenas neste dispositivo. Faça backups com frequência. Modo de armazenamento atual: <strong>' +
         (Store.isFallbackMode() ? 'localStorage (emergência)' : 'IndexedDB') + '</strong>.</p>' +
         '<div class="row">' +
-          '<button id="set-backup" class="btn">⬇ Exportar backup (.json)</button>' +
-          '<button id="set-import" class="btn">⬆ Importar backup</button>' +
+          '<button id="set-backup" class="btn">' + icon('download') + ' Exportar backup (.json)</button>' +
+          '<button id="set-import" class="btn">' + icon('upload') + ' Importar backup</button>' +
         '</div>' +
       '</div>';
 
@@ -534,13 +583,17 @@
 
     body.querySelector('#set-ai-test').addEventListener('click', async function () {
       const out = body.querySelector('#set-ai-test-result');
-      out.textContent = ' Testando…';
+      out.innerHTML = 'Testando…';
       const ok = await Review.testAI(
         body.querySelector('#set-ai-url').value,
         body.querySelector('#set-ai-key').value,
         body.querySelector('#set-ai-model').value
       );
-      out.textContent = ok === true ? ' ✓ Conexão OK!' : ' ✗ ' + ok;
+      if (ok === true) {
+        out.innerHTML = '<span style="color:var(--ok)">' + icon('check-circle') + ' Conexão OK</span>';
+      } else {
+        out.innerHTML = '<span style="color:var(--danger)">' + icon('alert') + ' ' + esc(ok) + '</span>';
+      }
     });
 
     body.querySelector('#set-backup').addEventListener('click', function () {
@@ -551,7 +604,7 @@
     });
 
     App.openModal({
-      title: '⚙️ Configurações',
+      title: '<span>' + icon('settings') + ' Configurações</span>',
       body: body,
       wide: true,
       actions: [

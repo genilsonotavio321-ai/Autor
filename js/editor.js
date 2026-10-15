@@ -81,12 +81,14 @@ const Editor = (function () {
     if (dirty) await saveNow();
   }
 
+  function icon(name) { return (window.App && App.icon ? App.icon(name) : ''); }
+
   function setSaveState(state) {
     if (state === 'saving') {
-      saveIndicator.textContent = 'Salvando…';
+      saveIndicator.innerHTML = 'Salvando…';
       saveIndicator.classList.add('saving');
     } else {
-      saveIndicator.textContent = '✓ Salvo';
+      saveIndicator.innerHTML = icon('check') + ' Salvo';
       saveIndicator.classList.remove('saving');
     }
   }
@@ -135,7 +137,7 @@ const Editor = (function () {
     if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 's') {
       if (App.view !== 'editor') return;
       ev.preventDefault();
-      saveNow().then(function () { App.toast('✓ Salvo'); });
+      saveNow().then(function () { App.toast('Salvo'); });
     }
   });
 
@@ -178,7 +180,7 @@ const Editor = (function () {
     if (document.visibilityState === 'hidden' && dirty) saveNow();
   });
 
-  return {
+  const api = {
     open: open,
     flush: flush,
     saveNow: saveNow,
@@ -187,4 +189,9 @@ const Editor = (function () {
     setTitle: setTitle,
     isDirty: isDirty
   };
+
+  // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
+  window.Editor = api;
+
+  return api;
 })();
