@@ -1,6 +1,8 @@
 # Arquivos de ferramentas (não fazem parte do app)
 .agents/
 skills-lock.json
+__pycache__/
+*.pyc
 
 # Sistema
 Thumbs.db

@@ -95,6 +95,15 @@
   --shadow-lg: 0 16px 48px rgba(0, 0, 0, .65);
 }
 
+/* ---------- áreas seguras (notch / indicador inicial do iOS) ---------- */
+:root {
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --topbar-full: calc(var(--topbar-h) + var(--safe-top));
+}
+
 /* ---------- base ---------- */
 * { box-sizing: border-box; }
 
@@ -102,6 +111,9 @@ html, body {
   margin: 0;
   padding: 0;
   height: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  overscroll-behavior: none;
 }
 
 body {
@@ -177,10 +189,11 @@ button { font: inherit; color: inherit; cursor: pointer; touch-action: manipulat
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  height: var(--topbar-h);
-  padding: 0 18px;
+  height: var(--topbar-full);
+  padding: var(--safe-top) calc(18px + var(--safe-right)) 0 calc(18px + var(--safe-left));
   background: var(--surface);
   background: color-mix(in srgb, var(--surface) 82%, transparent);
+  -webkit-backdrop-filter: blur(12px) saturate(1.4);
   backdrop-filter: blur(12px) saturate(1.4);
   border-bottom: 1px solid var(--border);
 }
@@ -300,7 +313,7 @@ input:focus, select:focus, textarea:focus {
 #main {
   max-width: 1120px;
   margin: 0 auto;
-  padding: 32px 20px 96px;
+  padding: 32px calc(20px + var(--safe-right)) calc(96px + var(--safe-bottom)) calc(20px + var(--safe-left));
 }
 
 .view { display: none; }
@@ -513,8 +526,8 @@ input:focus, select:focus, textarea:focus {
 #view-editor.active {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--topbar-h) - 48px);
-  height: calc(100dvh - var(--topbar-h) - 48px);
+  height: calc(100vh - var(--topbar-full) - 48px);
+  height: calc(100dvh - var(--topbar-full) - 48px);
 }
 
 .editor-topbar {
@@ -583,7 +596,7 @@ input:focus, select:focus, textarea:focus {
   display: flex;
   justify-content: space-between;
   gap: 14px;
-  padding: 12px 4px 0;
+  padding: 12px 4px var(--safe-bottom);
   font-size: var(--fs-xs);
   flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
@@ -727,8 +740,8 @@ input:focus, select:focus, textarea:focus {
 #view-reader.active {
   display: flex;
   flex-direction: column;
-  height: calc(100vh - var(--topbar-h) - 48px);
-  height: calc(100dvh - var(--topbar-h) - 48px);
+  height: calc(100vh - var(--topbar-full) - 48px);
+  height: calc(100dvh - var(--topbar-full) - 48px);
 }
 
 .reader-topbar {
@@ -802,11 +815,12 @@ input:focus, select:focus, textarea:focus {
   position: fixed;
   inset: 0;
   background: rgba(9, 9, 11, .55);
+  -webkit-backdrop-filter: blur(3px);
   backdrop-filter: blur(3px);
   display: grid;
   place-items: center;
   z-index: 100;
-  padding: 20px;
+  padding: calc(20px + var(--safe-top)) calc(20px + var(--safe-right)) calc(20px + var(--safe-bottom)) calc(20px + var(--safe-left));
   overscroll-behavior: contain;
   animation: overlay-in .14s ease;
 }
@@ -820,6 +834,7 @@ input:focus, select:focus, textarea:focus {
   width: 100%;
   max-width: 460px;
   max-height: 88vh;
+  max-height: 88dvh;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -908,7 +923,7 @@ input:focus, select:focus, textarea:focus {
 .toast {
   position: fixed;
   left: 50%;
-  bottom: 26px;
+  bottom: calc(26px + var(--safe-bottom));
   transform: translateX(-50%);
   background: var(--text);
   color: var(--bg);
@@ -937,7 +952,7 @@ input:focus, select:focus, textarea:focus {
 
   .review-panel {
     position: fixed;
-    inset: var(--topbar-h) 0 0 0;
+    inset: var(--topbar-full) 0 0 0;
     width: auto;
     border-radius: 0;
     border-left: none;
@@ -945,14 +960,27 @@ input:focus, select:focus, textarea:focus {
     z-index: 60;
     box-shadow: var(--shadow-lg);
   }
+  .review-panel .rp-body {
+    padding-bottom: calc(14px + var(--safe-bottom));
+  }
 }
 
 @media (max-width: 640px) {
-  #main { padding: 20px 14px 80px; }
-  .topbar { padding: 0 12px; }
+  #main { padding: 20px calc(14px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(14px + var(--safe-left)); }
+  .topbar { padding: var(--safe-top) calc(12px + var(--safe-right)) 0 calc(12px + var(--safe-left)); }
   .book-grid { grid-template-columns: 1fr; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
+}
+
+/* ---------- toque (iOS/Android): evita o zoom automático ao focar campos ---------- */
+@media (hover: none) and (pointer: coarse) {
+  input:not([type]), input[type="text"], input[type="search"], input[type="password"], select, textarea {
+    font-size: 16px;
+  }
+  /* preserva os tamanhos maiores definidos pelo design */
+  #chapter-title { font-size: var(--fs-lg); }
+  #chapter-content { font-size: var(--editor-font); }
 }
 
 /* ---------- movimento reduzido ---------- */

@@ -700,9 +700,26 @@
     });
   }
 
+  /* ================= PWA (app instalável) ================= */
+
+  function setupPWA() {
+    // O service worker só se aplica quando o app é servido por http(s).
+    // Em file:// (duplo clique) o app continua funcionando normalmente.
+    if ('serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('sw.js').catch(function () { /* silencioso */ });
+      });
+    }
+    // pede armazenamento persistente (reduz o risco de o navegador limpar os dados sozinho)
+    if (navigator.storage && typeof navigator.storage.persist === 'function') {
+      navigator.storage.persist().catch(function () { /* opcional */ });
+    }
+  }
+
   /* ================= início ================= */
 
   document.addEventListener('DOMContentLoaded', async function () {
+    setupPWA();
     await Store.init();
     bindEvents();
     App.applyTheme();
