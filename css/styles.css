@@ -15,6 +15,7 @@
   --surface-2: #fafafa;
   --text: #18181b;
   --muted: #71717a;
+  --muted-strong: #52525b; /* texto apagado com contraste AA sobre --bg-soft */
 
   /* linhas */
   --border: #e4e4e7;
@@ -73,6 +74,7 @@
   --surface-2: #1f1f23;
   --text: #fafafa;
   --muted: #a1a1aa;
+  --muted-strong: #d4d4d8; /* texto apagado com contraste AA sobre --bg-soft */
 
   --border: #27272a;
   --border-strong: #3f3f46;
@@ -600,7 +602,7 @@ button.badge:hover { border-color: currentColor; }
   align-items: center;
   gap: 5px;
   font-size: var(--fs-xs);
-  color: var(--muted);
+  color: var(--muted-strong);
   background: var(--bg-soft);
   border: 1px solid var(--border);
   border-radius: var(--r-full);
@@ -618,25 +620,71 @@ button.badge:hover { border-color: currentColor; }
 .editor-toolbar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex-wrap: wrap;
-  padding: 8px 10px;
+  padding: 8px 12px;
   margin-bottom: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
 }
-.et-label {
+/* grupos segmentados (segmented control): peça única com divisores de 1px
+   (o fundo do contêiner aparece na folga — sem guerrear borda dos filhos) */
+.et-segment {
+  display: inline-flex;
+  align-items: stretch;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  overflow: hidden;
+}
+.et-segment > * { background: var(--surface); }
+
+/* dentro do segmento os botões de ícone mudam só o fundo */
+.et-segment .icon-btn { border-color: transparent; }
+.et-segment .icon-btn:hover { border-color: transparent; }
+.et-segment .align-btn.active { border-color: transparent; }
+
+/* foco visível: overflow:hidden cortaria um outline para fora */
+.et-segment > *:focus-visible { outline-offset: -2px; }
+
+/* botões do escopo (Parágrafo | Capítulo) */
+.et-scope-btn {
+  background: var(--surface);
+  border: none;
+  height: 36px;
+  padding: 0 12px;
   font-size: var(--fs-xs);
   font-weight: 600;
   color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: .07em;
-  margin-right: 2px;
+  transition: background .15s ease, color .15s ease;
 }
-.editor-toolbar select { font-size: var(--fs-xs); padding: 5px 8px; }
-.et-current { font-size: var(--fs-xs); color: var(--muted); margin-left: auto; }
+.et-scope-btn:hover { background: var(--bg-soft); color: var(--text); }
+.et-scope-btn.active,
+.et-scope-btn[aria-pressed="true"] {
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+}
+[data-theme="dark"] .et-scope-btn.active,
+[data-theme="dark"] .et-scope-btn[aria-pressed="true"] { color: var(--accent); }
+
+/* chip com o alinhamento efetivo do parágrafo do cursor */
+.et-current {
+  display: inline-flex;
+  align-items: center;
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--muted-strong);
+  background: var(--bg-soft);
+  border: 1px solid var(--border);
+  border-radius: var(--r-full);
+  padding: 3px 10px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.et-current:empty { display: none; }
 
 .align-btn.active {
   background: var(--accent-soft);
@@ -1129,7 +1177,7 @@ button.badge:hover { border-color: currentColor; }
   .book-header { gap: 12px; }
   .book-cover { width: 74px; height: 111px; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
-  .et-current { margin-left: 0; width: 100%; }
+  .et-current { margin-left: 0; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
 }
 

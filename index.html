@@ -185,25 +185,28 @@
           </button>
         </div>
       </div>
-      <div class="editor-toolbar" role="toolbar" aria-label="Alinhamento do texto">
-        <span class="et-label">Alinhamento</span>
-        <button type="button" class="icon-btn align-btn" data-align="e" aria-label="Alinhar à esquerda" title="Alinhar à esquerda">
-          <svg class="ic" aria-hidden="true"><use href="#i-align-left"></use></svg>
-        </button>
-        <button type="button" class="icon-btn align-btn" data-align="c" aria-label="Centralizar" title="Centralizar">
-          <svg class="ic" aria-hidden="true"><use href="#i-align-center"></use></svg>
-        </button>
-        <button type="button" class="icon-btn align-btn" data-align="d" aria-label="Alinhar à direita" title="Alinhar à direita">
-          <svg class="ic" aria-hidden="true"><use href="#i-align-right"></use></svg>
-        </button>
-        <button type="button" class="icon-btn align-btn" data-align="j" aria-label="Justificar" title="Justificar">
-          <svg class="ic" aria-hidden="true"><use href="#i-align-justify"></use></svg>
-        </button>
-        <select id="align-scope" title="Onde aplicar o alinhamento" aria-label="Onde aplicar o alinhamento">
-          <option value="para">Só este parágrafo</option>
-          <option value="chapter">Capítulo inteiro</option>
-        </select>
-        <span id="align-current" class="muted et-current" aria-live="polite"></span>
+      <div class="editor-toolbar" role="group" aria-label="Alinhamento do texto">
+        <div class="et-segment" role="group" aria-label="Alinhamento">
+          <button type="button" class="icon-btn align-btn" data-align="e" aria-label="Alinhar à esquerda" title="Alinhar à esquerda">
+            <svg class="ic" aria-hidden="true"><use href="#i-align-left"></use></svg>
+          </button>
+          <button type="button" class="icon-btn align-btn" data-align="c" aria-label="Centralizar" title="Centralizar">
+            <svg class="ic" aria-hidden="true"><use href="#i-align-center"></use></svg>
+          </button>
+          <button type="button" class="icon-btn align-btn" data-align="d" aria-label="Alinhar à direita" title="Alinhar à direita">
+            <svg class="ic" aria-hidden="true"><use href="#i-align-right"></use></svg>
+          </button>
+          <button type="button" class="icon-btn align-btn" data-align="j" aria-label="Justificar" title="Justificar">
+            <svg class="ic" aria-hidden="true"><use href="#i-align-justify"></use></svg>
+          </button>
+        </div>
+        <div class="et-segment et-scope" role="group" aria-label="Onde aplicar o alinhamento">
+          <button type="button" class="et-scope-btn active" data-scope="para" aria-pressed="true"
+            title="Aplicar só no parágrafo do cursor">Parágrafo</button>
+          <button type="button" class="et-scope-btn" data-scope="chapter" aria-pressed="false"
+            title="Definir o alinhamento padrão do capítulo inteiro">Capítulo</button>
+        </div>
+        <span id="align-current" class="et-current" aria-live="polite"></span>
       </div>
       <div class="editor-body">
         <textarea id="chapter-content" spellcheck="true" lang="pt-BR"

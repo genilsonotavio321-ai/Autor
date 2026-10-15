@@ -10,14 +10,16 @@ const Editor = (function () {
   const saveIndicator = document.getElementById('save-indicator');
   const statsEl = document.getElementById('editor-stats');
   const statusSelect = document.getElementById('chapter-status');
-  const alignScope = document.getElementById('align-scope');
   const alignCurrent = document.getElementById('align-current');
   const alignButtons = Array.prototype.slice.call(document.querySelectorAll('.align-btn'));
+  const scopeButtons = Array.prototype.slice.call(document.querySelectorAll('.et-scope-btn'));
 
   let dirty = false;
   let saveTimer = null;
   let pendingSelect = null;
   let lastCaret = 0; // última posição conhecida do cursor (para a barra de alinhamento)
+  let scopeMode = 'para'; // onde o próximo clique de alinhamento é aplicado
+  let lastAlignUI = ''; // guarda para não reescrever o DOM sem mudança
   const numberFmt = new Intl.NumberFormat('pt-BR');
 
   /* ---------------- abrir / salvar ---------------- */
@@ -37,7 +39,9 @@ const Editor = (function () {
     titleInput.value = chapter.title || '';
     contentEl.value = chapter.content || '';
     statusSelect.value = chapter.status || 'rascunho';
-    if (alignScope) alignScope.value = 'para';
+    scopeMode = 'para';
+    syncScopeUI();
+    lastAlignUI = '';
     lastCaret = 0;
     dirty = false;
     setSaveState('saved');
@@ -146,22 +150,37 @@ const Editor = (function () {
   }
 
   /* o textarea inteiro segue o padrão do capítulo; a barra mostra o
-     alinhamento efetivo do parágrafo onde está o cursor */
+     alinhamento efetivo do parágrafo onde está o cursor.
+     O DOM só é tocado quando algo muda — evita re-render a cada tecla
+     e mantém o aria-live anunciando apenas mudanças reais. */
   function updateAlignUI() {
     contentEl.style.textAlign = App.ALIGN_CSS[chapterAlign()] || 'justify';
     const eff = currentParagraphAlign();
+    const label = 'Parágrafo: ' + (App.ALIGN_LABEL[eff] || '');
+    const key = eff + '|' + label;
+    if (key === lastAlignUI) return;
+    lastAlignUI = key;
     alignButtons.forEach(function (b) {
       const on = b.getAttribute('data-align') === eff;
       b.classList.toggle('active', on);
       b.setAttribute('aria-pressed', on ? 'true' : 'false');
     });
-    if (alignCurrent) alignCurrent.textContent = 'Parágrafo: ' + (App.ALIGN_LABEL[eff] || '');
+    if (alignCurrent) alignCurrent.textContent = label;
+  }
+
+  /* estado dos botões de escopo (Parágrafo | Capítulo) */
+  function syncScopeUI() {
+    scopeButtons.forEach(function (b) {
+      const on = b.getAttribute('data-scope') === scopeMode;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-pressed', on ? 'true' : 'false');
+    });
   }
 
   function applyAlign(code) {
     if (!App.chapter || !code) return;
     const base = chapterAlign();
-    const scope = alignScope ? alignScope.value : 'para';
+    const scope = scopeMode;
 
     if (scope === 'chapter') {
       // novo padrão do capítulo: marcadores iguais ao novo padrão viram ruído
@@ -365,10 +384,15 @@ const Editor = (function () {
     btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
     btn.addEventListener('click', function () { applyAlign(btn.getAttribute('data-align')); });
   });
-  if (alignScope) {
-    alignScope.addEventListener('change', function () {
-      contentEl.focus();
-      updateAlignUI();
+  if (scopeButtons.length) {
+    scopeButtons.forEach(function (btn) {
+      // impede que o clique roube a seleção do textarea
+      btn.addEventListener('mousedown', function (ev) { ev.preventDefault(); });
+      btn.addEventListener('click', function () {
+        scopeMode = btn.getAttribute('data-scope') || 'para';
+        syncScopeUI();
+        updateAlignUI();
+      });
     });
   }
 
