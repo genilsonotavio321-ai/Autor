@@ -702,7 +702,9 @@ button.badge:hover { border-color: currentColor; }
 
 #chapter-content {
   flex: 1;
-  resize: none;
+  position: relative;
+  overflow-y: auto;
+  border: 1px solid var(--border);
   border-radius: var(--r-lg);
   padding: 26px 30px;
   font-family: var(--font-read);
@@ -713,6 +715,34 @@ button.badge:hover { border-color: currentColor; }
   max-width: 76ch;
   margin: 0 auto;
   box-shadow: var(--shadow-sm);
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+}
+#chapter-content:focus { border-color: var(--accent); }
+
+/* Cada parágrafo é um bloco com alinhamento próprio (data-align);
+   sem data-align ele segue o padrão do capítulo. */
+#chapter-content .para {
+  margin: 0 0 1em;
+  min-height: 1.78em;
+}
+#chapter-content .para:last-child { margin-bottom: 0; }
+#chapter-content [data-align="e"] { text-align: left; }
+#chapter-content [data-align="c"] { text-align: center; }
+#chapter-content [data-align="d"] { text-align: right; }
+#chapter-content [data-align="j"] { text-align: justify; }
+
+/* Dica de escrita quando o capítulo está vazio (não é conteúdo do texto) */
+#chapter-content.is-empty::before {
+  content: attr(data-placeholder);
+  position: absolute;
+  top: 26px;
+  left: 30px;
+  right: 30px;
+  color: var(--muted);
+  white-space: pre-wrap;
+  text-align: left;
+  pointer-events: none;
 }
 
 .editor-footer {
@@ -1179,6 +1209,7 @@ button.badge:hover { border-color: currentColor; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
   .et-current { margin-left: 0; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
+  #chapter-content.is-empty::before { top: 20px; left: 18px; right: 18px; }
 }
 
 /* ---------- toque (iOS/Android): evita o zoom automático ao focar campos ---------- */
