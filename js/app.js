@@ -88,10 +88,16 @@
 
   /* ---------------- escolha de imagem (capas) ----------------
      Redimensiona no navegador com <canvas> e devolve um data URL JPEG.
-     Sem servidor: por isso o limite de tamanho e a qualidade. */
+     Sem servidor: por isso o limite de resolução e a qualidade.
+     Limites por orientação (proporção preservada, sem ampliar):
+       · retrato/vertical   → até 400×600
+       · paisagem/horizontal → até 600×400
+     Assim todas as miniaturas ficam homogêneas. */
   App.pickImage = function (opts) {
     opts = opts || {};
-    const maxDim = opts.maxDim || 1200;
+    const PORTRAIT = { w: 400, h: 600 };
+    const LANDSCAPE = { w: 600, h: 400 };
+    const quality = typeof opts.quality === 'number' ? opts.quality : 0.9;
     return new Promise(function (resolve) {
       const input = document.createElement('input');
       input.type = 'file';
@@ -105,7 +111,8 @@
           img.onload = function () {
             try {
               let w = img.naturalWidth, h = img.naturalHeight;
-              const scale = Math.min(1, maxDim / Math.max(w, h));
+              const box = (w > h) ? LANDSCAPE : PORTRAIT;
+              const scale = Math.min(1, box.w / w, box.h / h);
               w = Math.max(1, Math.round(w * scale));
               h = Math.max(1, Math.round(h * scale));
               const canvas = document.createElement('canvas');
@@ -115,7 +122,7 @@
               ctx.fillStyle = '#ffffff'; // imagens com transparência ganham fundo branco
               ctx.fillRect(0, 0, w, h);
               ctx.drawImage(img, 0, 0, w, h);
-              resolve(canvas.toDataURL('image/jpeg', 0.86));
+              resolve(canvas.toDataURL('image/jpeg', quality));
             } catch (err) {
               App.toast('Não foi possível processar a imagem.', 'error');
               resolve(null);
@@ -318,7 +325,9 @@
     card.style.setProperty('--spine', spineColor(book.id));
     const st = STATUS[book.status] || STATUS.rascunho;
     card.innerHTML =
-      (book.cover ? '<img class="card-cover" src="' + esc(book.cover) + '" alt="">' : '') +
+      (book.cover
+        ? '<img class="card-cover" src="' + esc(book.cover) + '" alt="">'
+        : '<span class="card-cover card-cover-empty" aria-hidden="true">' + icon('image') + '</span>') +
       '<span class="card-title">' + esc(book.title) + '</span>' +
       (book.author ? '<span class="author">por ' + esc(book.author) + '</span>' : '') +
       (book.description ? '<span class="desc">' + esc(book.description) + '</span>' : '') +
@@ -359,7 +368,7 @@
           '<button type="button" class="btn small" id="bf-cover-pick">' + icon('image') + ' Escolher imagem</button>' +
           '<button type="button" class="btn small ghost hidden" id="bf-cover-remove">' + icon('trash') + ' Remover capa</button>' +
         '</div>' +
-        '<p class="hint cover-hint">A imagem é reduzida no próprio aparelho (máx. 1200px) e fica salva só no seu dispositivo.</p>' +
+        '<p class="hint cover-hint">A imagem é reduzida no próprio aparelho (até 400×600 no retrato ou 600×400 na paisagem) e fica salva só no seu dispositivo.</p>' +
       '</div></div>';
     body.querySelector('#bf-status').value = isNew ? 'rascunho' : bookOrNull.status;
 
@@ -379,7 +388,7 @@
     syncCoverPreview();
 
     body.querySelector('#bf-cover-pick').addEventListener('click', async function () {
-      const url = await App.pickImage({ maxDim: 1200 });
+      const url = await App.pickImage();
       if (!url) return;
       cover = url;
       syncCoverPreview();
@@ -478,13 +487,9 @@
 
     const coverEl = $('#book-cover');
     if (book.cover) {
-      coverEl.src = book.cover;
-      coverEl.alt = 'Capa de ' + book.title;
-      coverEl.classList.remove('hidden');
+      coverEl.innerHTML = '<img src="' + esc(book.cover) + '" alt="Capa de ' + esc(book.title) + '">';
     } else {
-      coverEl.removeAttribute('src');
-      coverEl.alt = '';
-      coverEl.classList.add('hidden');
+      coverEl.innerHTML = '<svg class="ic" aria-hidden="true"><use href="#i-image"></use></svg>';
     }
 
     await renderChapters();

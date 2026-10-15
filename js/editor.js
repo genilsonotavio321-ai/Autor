@@ -641,7 +641,7 @@ const Editor = (function () {
           '<button type="button" class="btn small" id="cc-pick">' + icon('image') + ' Escolher imagem</button>' +
           '<button type="button" class="btn small ghost hidden" id="cc-remove">' + icon('trash') + ' Remover capa</button>' +
         '</div>' +
-        '<p class="hint cover-hint">A capa aparece na lista de capítulos, no leitor e nas exportações. A imagem é reduzida aqui no aparelho (máx. 1200px).</p>' +
+        '<p class="hint cover-hint">A capa aparece na lista de capítulos, no leitor e nas exportações. A imagem é reduzida aqui no aparelho (até 400×600 no retrato ou 600×400 na paisagem).</p>' +
       '</div>';
 
     const preview = body.querySelector('#cc-preview');
@@ -660,7 +660,7 @@ const Editor = (function () {
     sync();
 
     body.querySelector('#cc-pick').addEventListener('click', async function () {
-      const url = await App.pickImage({ maxDim: 1200 });
+      const url = await App.pickImage();
       if (!url) return;
       cover = url;
       sync();

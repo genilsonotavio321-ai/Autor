@@ -397,6 +397,16 @@ input:focus, select:focus, textarea:focus {
   border-bottom: 1px solid var(--border);
   background: var(--bg-soft);
 }
+.book-card .card-cover.card-cover-empty {
+  display: grid;
+  place-items: center;
+  color: var(--muted);
+}
+.book-card .card-cover.card-cover-empty .ic {
+  width: 40px;
+  height: 40px;
+  opacity: .8;
+}
 
 .book-card .card-title {
   margin: 0 0 4px;
@@ -478,11 +488,24 @@ input:focus, select:focus, textarea:focus {
   flex: none;
   width: 96px;
   height: 144px;
-  object-fit: cover;
   border-radius: var(--r-md);
   border: 1px solid var(--border);
   background: var(--bg-soft);
   box-shadow: var(--shadow-md);
+  overflow: hidden;
+  display: grid;
+  place-items: center;
+}
+.book-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.book-cover .ic {
+  width: 36px;
+  height: 36px;
+  color: var(--muted);
 }
 .book-header-info { flex: 1; min-width: 0; }
 
@@ -1207,6 +1230,7 @@ button.badge:hover { border-color: currentColor; }
   .book-grid { grid-template-columns: 1fr; }
   .book-header { gap: 12px; }
   .book-cover { width: 74px; height: 111px; }
+  .book-cover .ic { width: 32px; height: 32px; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
   .et-current { margin-left: 0; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
@@ -1221,6 +1245,31 @@ button.badge:hover { border-color: currentColor; }
   /* preserva os tamanhos maiores definidos pelo design */
   #chapter-title { font-size: var(--fs-lg); }
   #chapter-content { font-size: var(--editor-font); }
+}
+
+@media (max-width: 560px) {
+  /* lista de capítulos: título em linha própria e ações em segunda linha */
+  .chapter-item {
+    display: grid;
+    grid-template-columns: auto auto 1fr;
+    grid-template-areas:
+      "cover num  main"
+      "badge badge actions";
+    align-items: center;
+    column-gap: 10px;
+    row-gap: 10px;
+  }
+  .ch-cover { grid-area: cover; width: 40px; height: 56px; }
+  .ch-num { grid-area: num; }
+  .ch-main { grid-area: main; }
+  .chapter-item > button.badge { grid-area: badge; justify-self: start; }
+  .ch-actions { grid-area: actions; justify-self: end; gap: 4px; }
+  .ch-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
 }
 
 /* ---------- movimento reduzido ---------- */
