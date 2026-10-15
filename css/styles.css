@@ -389,8 +389,9 @@ input:focus, select:focus, textarea:focus {
 /* capa da prateleira: imagem sangrada no topo do card (2:3), texto embaixo */
 .book-card .card-cover {
   display: block;
+  /* sangra até as bordas do card: padding 24px (esq.) + 18px (dir.) = 42px */
   margin: -18px -18px 14px -24px;
-  width: auto;
+  width: calc(100% + 42px);
   aspect-ratio: 2 / 3;
   object-fit: cover;
   border-bottom: 1px solid var(--border);
