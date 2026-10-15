@@ -46,9 +46,14 @@ const Reader = (function () {
     const parts = [];
     parts.push('<h1>' + App.esc(chapters._bookTitle || 'Leitura') + '</h1>');
     if (chapters._bookAuthor) parts.push('<p class="muted" style="text-align:center">por ' + App.esc(chapters._bookAuthor) + '</p>');
+    if (chapters._bookCover) parts.push('<img class="reader-cover" src="' + App.esc(chapters._bookCover) + '" alt="Capa">');
 
     chapters.forEach(function (ch, i) {
+      const chapterAlign = ch.align || 'j';
       parts.push('<section class="chapter-block" data-index="' + i + '">');
+      if (ch.cover) {
+        parts.push('<img class="reader-ch-cover" src="' + App.esc(ch.cover) + '" alt="">');
+      }
       parts.push('<h2>' + (chapters._bookTitle ? (i + 1) + '. ' : '') + App.esc(ch.title || 'Sem título') + '</h2>');
       const blocks = (ch.content || '').split(/\n{2,}/);
       blocks.forEach(function (block) {
@@ -58,7 +63,9 @@ const Reader = (function () {
           parts.push('<hr class="pagebreak">');
           return;
         }
-        parts.push('<p>' + App.esc(trimmed).replace(/\n/g, '<br>') + '</p>');
+        const align = App.ALIGN_CSS[App.paraAlign(trimmed, chapterAlign)] || 'justify';
+        parts.push('<p style="text-align:' + align + '">' +
+          App.esc(App.stripParaMarker(trimmed)).replace(/\n/g, '<br>') + '</p>');
       });
       parts.push('</section>');
     });
@@ -77,7 +84,9 @@ const Reader = (function () {
       if (!ch) { App.toast('Capítulo não encontrado.', 'error'); return; }
       const book = await Store.Books.get(ch.bookId);
       chapterCount = 0;
-      progressEl.textContent = book ? book.title : '';
+      const words = App.countWords(ch.content);
+      progressEl.textContent =
+        (book ? book.title + ' · ' : '') + (words ? App.readTime(words) : '');
       const list = [ch];
       list._bookTitle = null;
       renderContent(list);
@@ -90,6 +99,7 @@ const Reader = (function () {
       progressEl.textContent = '';
       chapters._bookTitle = book.title;
       chapters._bookAuthor = book.author;
+      chapters._bookCover = book.cover || null;
       renderContent(chapters);
     }
 

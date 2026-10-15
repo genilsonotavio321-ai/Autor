@@ -49,7 +49,7 @@
   App.icon = icon;
 
   App.countWords = function (text) {
-    const t = (text || '').trim();
+    const t = App.stripAlignMarkers(text).trim();
     if (!t) return 0;
     return t.split(/\s+/).length;
   };
@@ -57,6 +57,84 @@
   App.readTime = function (words) {
     const min = Math.max(1, Math.round(words / 200));
     return '~' + min + ' min de leitura';
+  };
+
+  /* ---------------- alinhamento por parágrafo ----------------
+     O marcador vive no início do parágrafo (o próprio app escreve/apaga):
+     ⟦e⟧ esquerda · ⟦c⟧ centralizado · ⟦d⟧ direita · ⟦j⟧ justificado.
+     Ele só existe quando o parágrafo difere do alinhamento padrão do
+     capítulo, e é ignorado na contagem de palavras, na busca, no leitor,
+     nas exportações e no texto enviado à IA. */
+  App.ALIGN_LABEL = { e: 'Esquerda', c: 'Centralizado', d: 'Direita', j: 'Justificado' };
+  App.ALIGN_CSS = { e: 'left', c: 'center', d: 'right', j: 'justify' };
+  App.ALIGN_KEYS = ['e', 'c', 'd', 'j'];
+
+  const ALIGN_MARKER_RE = /(^|\n{2,})⟦([ecjd])⟧ ?/g;
+
+  App.stripAlignMarkers = function (text) {
+    return String(text == null ? '' : text).replace(ALIGN_MARKER_RE, '$1');
+  };
+
+  /* alinhamento efetivo de um parágrafo: marcador, senão o padrão do capítulo */
+  App.paraAlign = function (paragraphText, defaultAlign) {
+    const m = /^\s*⟦([ecjd])⟧ ?/.exec(paragraphText || '');
+    return m ? m[1] : (defaultAlign || 'j');
+  };
+
+  /* remove o marcador de alinhamento (usado no leitor, exportações, IA…) */
+  App.stripParaMarker = function (paragraphText) {
+    return String(paragraphText == null ? '' : paragraphText).replace(/^\s*⟦([ecjd])⟧ ?/, '');
+  };
+
+  /* ---------------- escolha de imagem (capas) ----------------
+     Redimensiona no navegador com <canvas> e devolve um data URL JPEG.
+     Sem servidor: por isso o limite de tamanho e a qualidade. */
+  App.pickImage = function (opts) {
+    opts = opts || {};
+    const maxDim = opts.maxDim || 1200;
+    return new Promise(function (resolve) {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = 'image/*';
+      input.addEventListener('change', function () {
+        const file = input.files && input.files[0];
+        if (!file) { resolve(null); return; }
+        const reader = new FileReader();
+        reader.onload = function () {
+          const img = new Image();
+          img.onload = function () {
+            try {
+              let w = img.naturalWidth, h = img.naturalHeight;
+              const scale = Math.min(1, maxDim / Math.max(w, h));
+              w = Math.max(1, Math.round(w * scale));
+              h = Math.max(1, Math.round(h * scale));
+              const canvas = document.createElement('canvas');
+              canvas.width = w;
+              canvas.height = h;
+              const ctx = canvas.getContext('2d');
+              ctx.fillStyle = '#ffffff'; // imagens com transparência ganham fundo branco
+              ctx.fillRect(0, 0, w, h);
+              ctx.drawImage(img, 0, 0, w, h);
+              resolve(canvas.toDataURL('image/jpeg', 0.86));
+            } catch (err) {
+              App.toast('Não foi possível processar a imagem.', 'error');
+              resolve(null);
+            }
+          };
+          img.onerror = function () {
+            App.toast('Este arquivo não parece ser uma imagem válida.', 'error');
+            resolve(null);
+          };
+          img.src = reader.result;
+        };
+        reader.onerror = function () {
+          App.toast('Não foi possível ler o arquivo.', 'error');
+          resolve(null);
+        };
+        reader.readAsDataURL(file);
+      });
+      input.click();
+    });
   };
 
   let toastTimer = null;
@@ -240,6 +318,7 @@
     card.style.setProperty('--spine', spineColor(book.id));
     const st = STATUS[book.status] || STATUS.rascunho;
     card.innerHTML =
+      (book.cover ? '<img class="card-cover" src="' + esc(book.cover) + '" alt="">' : '') +
       '<span class="card-title">' + esc(book.title) + '</span>' +
       (book.author ? '<span class="author">por ' + esc(book.author) + '</span>' : '') +
       (book.description ? '<span class="desc">' + esc(book.description) + '</span>' : '') +
@@ -258,6 +337,7 @@
 
   App.bookFormModal = function (bookOrNull) {
     const isNew = !bookOrNull;
+    let cover = isNew ? null : (bookOrNull.cover || null);
     const body = el('div');
     body.innerHTML =
       '<div class="field"><label for="bf-title">Título *</label>' +
@@ -271,8 +351,43 @@
         '<option value="rascunho">Rascunho</option>' +
         '<option value="revisao">Em revisão</option>' +
         '<option value="concluido">Concluído</option>' +
-      '</select></div>';
+      '</select></div>' +
+      '<div class="field"><label>Capa da obra</label>' +
+      '<div class="cover-picker">' +
+        '<img id="bf-cover-preview" class="cover-thumb hidden" alt="Pré-visualização da capa">' +
+        '<div class="cover-actions">' +
+          '<button type="button" class="btn small" id="bf-cover-pick">' + icon('image') + ' Escolher imagem</button>' +
+          '<button type="button" class="btn small ghost hidden" id="bf-cover-remove">' + icon('trash') + ' Remover capa</button>' +
+        '</div>' +
+        '<p class="hint cover-hint">A imagem é reduzida no próprio aparelho (máx. 1200px) e fica salva só no seu dispositivo.</p>' +
+      '</div></div>';
     body.querySelector('#bf-status').value = isNew ? 'rascunho' : bookOrNull.status;
+
+    const coverPreview = body.querySelector('#bf-cover-preview');
+    const coverRemove = body.querySelector('#bf-cover-remove');
+    function syncCoverPreview() {
+      if (cover) {
+        coverPreview.src = cover;
+        coverPreview.classList.remove('hidden');
+        coverRemove.classList.remove('hidden');
+      } else {
+        coverPreview.removeAttribute('src');
+        coverPreview.classList.add('hidden');
+        coverRemove.classList.add('hidden');
+      }
+    }
+    syncCoverPreview();
+
+    body.querySelector('#bf-cover-pick').addEventListener('click', async function () {
+      const url = await App.pickImage({ maxDim: 1200 });
+      if (!url) return;
+      cover = url;
+      syncCoverPreview();
+    });
+    coverRemove.addEventListener('click', function () {
+      cover = null;
+      syncCoverPreview();
+    });
 
     App.openModal({
       title: isNew ? 'Novo livro' : 'Editar livro',
@@ -289,7 +404,8 @@
               title: title,
               author: body.querySelector('#bf-author').value,
               description: body.querySelector('#bf-desc').value,
-              status: body.querySelector('#bf-status').value
+              status: body.querySelector('#bf-status').value,
+              cover: cover
             };
             if (isNew) {
               const book = await Store.Books.create(data);
@@ -312,6 +428,43 @@
     });
   };
 
+  /* ================= status do capítulo ================= */
+
+  App.chapterStatusModal = function (chapter, onSaved) {
+    const current = chapter.status || 'rascunho';
+    const descs = {
+      rascunho: 'Ainda em escrita — texto solto, ideias em construção.',
+      revisao: 'Escrito e agora em processo de revisão.',
+      concluido: 'Revisado e considerado pronto.'
+    };
+    const body = el('div');
+    body.innerHTML =
+      '<p class="muted" style="margin-top:0">Em que fase está este capítulo?</p>' +
+      '<div class="status-options">' +
+      ['rascunho', 'revisao', 'concluido'].map(function (k) {
+        return '<button type="button" class="status-option' + (k === current ? ' selected' : '') + '" data-status="' + k + '">' +
+          '<span class="badge ' + k + '">' + STATUS[k].label + '</span>' +
+          '<span class="so-desc">' + descs[k] + '</span>' +
+          '</button>';
+      }).join('') +
+      '</div>';
+
+    const m = App.openModal({
+      title: '<span>' + icon('check-circle') + ' Status do capítulo</span>',
+      body: body
+    });
+
+    body.querySelectorAll('[data-status]').forEach(function (btn) {
+      btn.addEventListener('click', async function () {
+        chapter.status = btn.getAttribute('data-status');
+        await Store.Chapters.save(chapter);
+        m.close();
+        App.toast('Status do capítulo: ' + STATUS[chapter.status].label + '.');
+        if (typeof onSaved === 'function') onSaved();
+      });
+    });
+  };
+
   /* ================= tela do livro ================= */
 
   App.openBook = async function (id) {
@@ -322,6 +475,18 @@
     $('#book-author').textContent = book.author ? 'por ' + book.author : '';
     $('#book-desc').textContent = book.description || '';
     $('#book-status').value = book.status;
+
+    const coverEl = $('#book-cover');
+    if (book.cover) {
+      coverEl.src = book.cover;
+      coverEl.alt = 'Capa de ' + book.title;
+      coverEl.classList.remove('hidden');
+    } else {
+      coverEl.removeAttribute('src');
+      coverEl.alt = '';
+      coverEl.classList.add('hidden');
+    }
+
     await renderChapters();
     App.navigate('book');
   };
@@ -334,18 +499,33 @@
 
     chapters.forEach(function (ch, i) {
       const li = el('li', 'chapter-item');
-      li.innerHTML =
+      const chStatus = ch.status || 'rascunho';
+      const st = STATUS[chStatus] || STATUS.rascunho;
+      const words = App.countWords(ch.content);
+
+      li.innerHTML = '';
+      if (ch.cover) {
+        const img = el('img', 'ch-cover');
+        img.src = ch.cover;
+        img.alt = '';
+        li.appendChild(img);
+      }
+      li.insertAdjacentHTML('beforeend',
         '<span class="ch-num">' + (i + 1) + '</span>' +
         '<button type="button" class="ch-main">' +
           '<span class="ch-title">' + esc(ch.title) + '</span>' +
-          '<span class="ch-meta muted">' + numberFmt.format(App.countWords(ch.content)) + ' palavras</span>' +
+          '<span class="ch-meta muted">' + numberFmt.format(words) + (words === 1 ? ' palavra' : ' palavras') +
+            (words ? ' · ' + App.readTime(words) : '') + '</span>' +
         '</button>' +
+        '<button type="button" class="badge ' + esc(chStatus) + '" data-act="status" ' +
+          'title="Alterar o status do capítulo" aria-label="Status do capítulo: ' + esc(st.label) + '. Clique para mudar.">' +
+          esc(st.label) + '</button>' +
         '<div class="ch-actions">' +
           '<button class="icon-btn" data-act="up" title="Mover para cima" aria-label="Mover para cima">' + icon('arrow-up') + '</button>' +
           '<button class="icon-btn" data-act="down" title="Mover para baixo" aria-label="Mover para baixo">' + icon('arrow-down') + '</button>' +
           '<button class="icon-btn" data-act="dup" title="Duplicar capítulo" aria-label="Duplicar capítulo">' + icon('copy') + '</button>' +
           '<button class="icon-btn" data-act="del" title="Excluir capítulo" aria-label="Excluir capítulo">' + icon('trash') + '</button>' +
-        '</div>';
+        '</div>');
 
       const chMain = li.querySelector('.ch-main');
       chMain.addEventListener('click', function () {
@@ -362,6 +542,8 @@
           } else if (act === 'dup') {
             const copy = await Store.Chapters.duplicate(ch.id);
             if (copy) { App.toast('Capítulo duplicado.'); renderChapters(); }
+          } else if (act === 'status') {
+            App.chapterStatusModal(ch, renderChapters);
           } else if (act === 'del') {
             const ok = await App.confirm(
               'Excluir o capítulo "' + ch.title + '"? Ele irá para a lixeira.',
@@ -446,7 +628,7 @@
 
       // ocorrências no conteúdo dos capítulos
       chapters.forEach(function (ch) {
-        const content = ch.content || '';
+        const content = App.stripAlignMarkers(ch.content || '');
         const idx = content.toLowerCase().indexOf(ql);
         if (idx < 0) return;
         count++;

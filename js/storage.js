@@ -170,6 +170,7 @@ window.Store = (function () {
         author: (data.author || '').trim(),
         description: (data.description || '').trim(),
         status: data.status || 'rascunho',
+        cover: data.cover || null,
         createdAt: now,
         updatedAt: now
       };
@@ -218,6 +219,9 @@ window.Store = (function () {
         bookId: bookId,
         title: (title || '').trim() || 'Novo capítulo',
         content: '',
+        status: 'rascunho',
+        cover: null,
+        align: 'j', // alinhamento padrão do capítulo: j=justificado
         order: existing.length ? existing[existing.length - 1].order + 1 : 0,
         createdAt: Date.now(),
         updatedAt: Date.now()

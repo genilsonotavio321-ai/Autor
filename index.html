@@ -52,6 +52,12 @@
     <symbol id="i-alert" viewBox="0 0 24 24"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></symbol>
     <symbol id="i-file-text" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></symbol>
     <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></symbol>
+    <symbol id="i-align-left" viewBox="0 0 24 24"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></symbol>
+    <symbol id="i-align-center" viewBox="0 0 24 24"><line x1="17" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="7" y2="18"/></symbol>
+    <symbol id="i-align-right" viewBox="0 0 24 24"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></symbol>
+    <symbol id="i-align-justify" viewBox="0 0 24 24"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></symbol>
   </svg>
 
   <!-- ===================== BARRA SUPERIOR ===================== -->
@@ -125,16 +131,19 @@
         </div>
       </div>
       <div class="book-header">
-        <h1 id="book-title"></h1>
-        <p id="book-author" class="muted"></p>
-        <p id="book-desc"></p>
-        <div class="book-meta">
-          <select id="book-status" title="Status da obra" aria-label="Status da obra">
-            <option value="rascunho">Rascunho</option>
-            <option value="revisao">Em revisão</option>
-            <option value="concluido">Concluído</option>
-          </select>
-          <span id="book-stats" class="muted"></span>
+        <img id="book-cover" class="book-cover hidden" alt="">
+        <div class="book-header-info">
+          <h1 id="book-title"></h1>
+          <p id="book-author" class="muted"></p>
+          <p id="book-desc"></p>
+          <div class="book-meta">
+            <select id="book-status" title="Status da obra" aria-label="Status da obra">
+              <option value="rascunho">Rascunho</option>
+              <option value="revisao">Em revisão</option>
+              <option value="concluido">Concluído</option>
+            </select>
+            <span id="book-stats" class="muted"></span>
+          </div>
         </div>
       </div>
       <div class="view-subheader">
@@ -159,6 +168,12 @@
           <button id="btn-review" class="btn">
             <svg class="ic" aria-hidden="true"><use href="#i-search"></use></svg> Revisar
           </button>
+          <button id="btn-replace" class="btn" title="Substituir uma palavra em todo o capítulo (Ctrl+H)">
+            <svg class="ic" aria-hidden="true"><use href="#i-repeat"></use></svg> Substituir
+          </button>
+          <button id="btn-chapter-cover" class="btn" title="Escolher uma capa para o capítulo">
+            <svg class="ic" aria-hidden="true"><use href="#i-image"></use></svg> Capa
+          </button>
           <button id="btn-read-chapter" class="btn">
             <svg class="ic" aria-hidden="true"><use href="#i-book-open"></use></svg> Ler
           </button>
@@ -170,13 +185,41 @@
           </button>
         </div>
       </div>
+      <div class="editor-toolbar" role="toolbar" aria-label="Alinhamento do texto">
+        <span class="et-label">Alinhamento</span>
+        <button type="button" class="icon-btn align-btn" data-align="e" aria-label="Alinhar à esquerda" title="Alinhar à esquerda">
+          <svg class="ic" aria-hidden="true"><use href="#i-align-left"></use></svg>
+        </button>
+        <button type="button" class="icon-btn align-btn" data-align="c" aria-label="Centralizar" title="Centralizar">
+          <svg class="ic" aria-hidden="true"><use href="#i-align-center"></use></svg>
+        </button>
+        <button type="button" class="icon-btn align-btn" data-align="d" aria-label="Alinhar à direita" title="Alinhar à direita">
+          <svg class="ic" aria-hidden="true"><use href="#i-align-right"></use></svg>
+        </button>
+        <button type="button" class="icon-btn align-btn" data-align="j" aria-label="Justificar" title="Justificar">
+          <svg class="ic" aria-hidden="true"><use href="#i-align-justify"></use></svg>
+        </button>
+        <select id="align-scope" title="Onde aplicar o alinhamento" aria-label="Onde aplicar o alinhamento">
+          <option value="para">Só este parágrafo</option>
+          <option value="chapter">Capítulo inteiro</option>
+        </select>
+        <span id="align-current" class="muted et-current" aria-live="polite"></span>
+      </div>
       <div class="editor-body">
         <textarea id="chapter-content" spellcheck="true" lang="pt-BR"
           placeholder="Comece a escrever…&#10;&#10;Dica: use três travessões (---) em uma linha vazia para marcar uma quebra de página no PDF."></textarea>
         <aside id="review-panel" class="review-panel hidden"></aside>
       </div>
       <div class="editor-footer">
-        <span id="editor-stats" class="muted"></span>
+        <span class="footer-left">
+          <label class="muted" for="chapter-status">Status</label>
+          <select id="chapter-status" title="Status do capítulo" aria-label="Status do capítulo">
+            <option value="rascunho">Rascunho</option>
+            <option value="revisao">Em revisão</option>
+            <option value="concluido">Concluído</option>
+          </select>
+          <span id="editor-stats" class="muted"></span>
+        </span>
         <span class="muted spellcheck-hint"
           title="A ortografia é conferida pelo corretor do navegador em português (pt-BR). Clique com o botão direito em palavras sublinhadas de vermelho.">
           Ortografia nativa (pt-BR) ativa

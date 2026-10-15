@@ -13,6 +13,11 @@ const Review = (function () {
   let aiSuggestions = [];
   let aiBusy = false;
 
+  /* substituição em massa (aba "Substituir") */
+  const replaceState = { find: '', with: '', wholeWord: true, ignoreCase: true };
+  const REPLACE_LIST_LIMIT = 150;
+  let replaceRefreshTimer = null;
+
   /* ============================================================
      REGRAS OFFLINE
      Cada regra retorna uma lista de ocorrências:
@@ -256,7 +261,7 @@ const Review = (function () {
 
     // abas
     const tabs = App.el('div', 'rp-tabs');
-    [['offline', 'Rápida (offline)'], ['ai', 'Com IA']].forEach(function (t) {
+    [['offline', 'Rápida (offline)'], ['replace', 'Substituir'], ['ai', 'Com IA']].forEach(function (t) {
       const b = App.el('button', 'rp-tab' + (tab === t[0] ? ' active' : ''), t[1]);
       b.addEventListener('click', function () { tab = t[0]; render(); });
       tabs.appendChild(b);
@@ -267,7 +272,215 @@ const Review = (function () {
     panel.appendChild(body);
 
     if (tab === 'offline') renderOffline(body);
+    else if (tab === 'replace') renderReplace(body);
     else renderAI(body);
+  }
+
+  /* ============================================================
+     ABA: SUBSTITUIÇÃO EM MASSA
+     O usuário digita a palavra errada e a corrigida; o painel conta
+     as ocorrências, lista cada ponto e permite ir até ele ou
+     substituir uma a uma / todas de uma vez.
+     ============================================================ */
+
+  function replaceRegex() {
+    const find = replaceState.find;
+    if (!find) return null;
+    const escaped = find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const boundary = replaceState.wholeWord
+      ? '(?<![\\p{L}\\p{N}_])' + escaped + '(?![\\p{L}\\p{N}_])'
+      : escaped;
+    try {
+      return new RegExp(boundary, 'g' + (replaceState.ignoreCase ? 'iu' : 'u'));
+    } catch (e) {
+      // navegador sem lookbehind: cai para busca simples
+      try {
+        return new RegExp(boundary, 'g' + (replaceState.ignoreCase ? 'i' : ''));
+      } catch (e2) {
+        return new RegExp(escaped, 'g' + (replaceState.ignoreCase ? 'i' : ''));
+      }
+    }
+  }
+
+  function replaceMatches(text) {
+    const re = replaceRegex();
+    if (!re) return [];
+    const out = [];
+    let m;
+    while ((m = re.exec(text)) !== null) {
+      out.push({ start: m.index, length: m[0].length, text: m[0] });
+      if (re.lastIndex === m.index) re.lastIndex++;
+    }
+    return out;
+  }
+
+  function renderReplace(body) {
+    const form = App.el('div', 'replace-form');
+    form.innerHTML =
+      '<div class="field"><label for="rp-find">Palavra ou trecho a corrigir</label>' +
+      '<input id="rp-find" type="text" placeholder="Ex.: Raghata" autocomplete="off" spellcheck="false"></div>' +
+      '<div class="field"><label for="rp-with">Substituir por</label>' +
+      '<input id="rp-with" type="text" placeholder="Ex.: Ragatah" autocomplete="off" spellcheck="false"></div>' +
+      '<div class="replace-options">' +
+        '<label class="check"><input type="checkbox" id="rp-word"' + (replaceState.wholeWord ? ' checked' : '') + '> Palavra inteia</label>' +
+        '<label class="check"><input type="checkbox" id="rp-case"' + (replaceState.ignoreCase ? ' checked' : '') + '> Ignorar maiúsculas/minúsculas</label>' +
+      '</div>';
+    body.appendChild(form);
+
+    const findInput = form.querySelector('#rp-find');
+    const withInput = form.querySelector('#rp-with');
+    const wordBox = form.querySelector('#rp-word');
+    const caseBox = form.querySelector('#rp-case');
+    findInput.value = replaceState.find;
+    withInput.value = replaceState.with;
+
+    const results = App.el('div', 'replace-results');
+    body.appendChild(results);
+
+    let timer = null;
+    function refresh(immediate) {
+      replaceState.find = findInput.value;
+      replaceState.with = withInput.value;
+      clearTimeout(timer);
+      if (immediate) renderReplaceResults(results);
+      else timer = setTimeout(function () { renderReplaceResults(results); }, 160);
+    }
+    findInput.addEventListener('input', function () { refresh(); });
+    withInput.addEventListener('input', function () { refresh(); });
+    wordBox.addEventListener('change', function () { replaceState.wholeWord = wordBox.checked; refresh(true); });
+    caseBox.addEventListener('change', function () { replaceState.ignoreCase = caseBox.checked; refresh(true); });
+
+    renderReplaceResults(results);
+    setTimeout(function () { findInput.focus(); }, 40);
+  }
+
+  function renderReplaceResults(container) {
+    container.innerHTML = '';
+    const find = replaceState.find;
+    if (!find) {
+      container.appendChild(App.el('p', 'rp-summary',
+        'Escreva a palavra errada para contar as ocorrências e montar a lista clicável.'));
+      return;
+    }
+
+    const text = Editor.getText();
+    const matches = replaceMatches(text);
+
+    const toolbar = App.el('div', 'rp-toolbar');
+    const allBtn = App.el('button', 'btn small primary');
+    allBtn.innerHTML = App.icon('repeat') + ' Substituir todas (' + matches.length + ')';
+    allBtn.disabled = !matches.length || !replaceState.with;
+    allBtn.addEventListener('click', function () { replaceAll(matches); });
+    toolbar.appendChild(allBtn);
+
+    const goBtn = App.el('button', 'btn small');
+    goBtn.innerHTML = App.icon('search') + ' Ir para a 1ª';
+    goBtn.disabled = !matches.length;
+    goBtn.addEventListener('click', function () {
+      if (matches.length) Editor.selectRange(matches[0].start, matches[0].start + matches[0].length);
+    });
+    toolbar.appendChild(goBtn);
+    container.appendChild(toolbar);
+
+    container.appendChild(App.el('p', 'rp-summary',
+      matches.length
+        ? matches.length + (matches.length === 1 ? ' ocorrência encontrada' : ' ocorrências encontradas') +
+          ' — clique em um item para ir até o ponto exato no texto.'
+        : 'Nenhuma ocorrência de "' + find + '" neste capítulo.'));
+
+    const limit = Math.min(matches.length, REPLACE_LIST_LIMIT);
+    for (let i = 0; i < limit; i++) {
+      container.appendChild(replaceNode(text, matches[i], i, matches.length));
+    }
+    if (matches.length > limit) {
+      container.appendChild(App.el('p', 'rp-summary',
+        'Mostrando os primeiros ' + limit + ' de ' + matches.length +
+        ' — "Substituir todas" pega a lista inteira.'));
+    }
+  }
+
+  function replaceNode(text, m, idx, total) {
+    const node = App.el('div', 'issue replace-hit');
+    const from = Math.max(0, m.start - 45);
+    const to = Math.min(text.length, m.start + m.length + 55);
+    const pre = (from > 0 ? '…' : '') + text.slice(from, m.start);
+    const pos = text.slice(m.start + m.length, to) + (to < text.length ? '…' : '');
+    const line = text.slice(0, m.start).split('\n').length;
+
+    const ctx = App.el('div', 'ctx');
+    ctx.innerHTML = App.esc(pre.replace(/\n/g, ' ')) +
+      '<mark>' + App.esc(m.text.replace(/\n/g, ' ')) + '</mark>' +
+      App.esc(pos.replace(/\n/g, ' '));
+    node.appendChild(ctx);
+
+    node.appendChild(App.el('div', 'msg',
+      'linha ' + line + ' · ' + (idx + 1) + ' de ' + total));
+
+    const goTo = function () {
+      Editor.selectRange(m.start, m.start + m.length);
+    };
+    node.setAttribute('role', 'button');
+    node.setAttribute('tabindex', '0');
+    node.setAttribute('title', 'Ir até esta ocorrência no texto');
+    node.addEventListener('click', function (ev) {
+      if (ev.target.closest('button')) return;
+      goTo();
+    });
+    node.addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); goTo(); }
+    });
+
+    const actions = App.el('div', 'issue-actions');
+    const oneBtn = App.el('button', 'btn small primary', 'Substituir só esta');
+    oneBtn.addEventListener('click', function (ev) { ev.stopPropagation(); replaceOne(m); });
+    actions.appendChild(oneBtn);
+    node.appendChild(actions);
+    return node;
+  }
+
+  async function replaceOne(m) {
+    const text = Editor.getText();
+    const novo = replaceState.with;
+    if (!novo) { App.toast('Escreva a palavra corrigida.', 'error'); return; }
+    const newText = text.slice(0, m.start) + novo + text.slice(m.start + m.length);
+    await Editor.setText(newText);
+    Editor.selectRange(m.start + novo.length, m.start + novo.length);
+    render();
+    App.toast('Ocorrência substituída.');
+  }
+
+  async function replaceAll(matches) {
+    if (!matches.length) return;
+    const novo = replaceState.with;
+    if (!novo) { App.toast('Escreva a palavra corrigida.', 'error'); return; }
+    const text = Editor.getText();
+    let newText = text;
+    // de trás para frente mantém os offsets válidos
+    for (let i = matches.length - 1; i >= 0; i--) {
+      const m = matches[i];
+      newText = newText.slice(0, m.start) + novo + newText.slice(m.start + m.length);
+    }
+    await Editor.setText(newText);
+    render();
+    App.toast(matches.length + ' ocorrência(s) substituída(s).');
+  }
+
+  /* o texto mudou no editor: reconta as ocorrências (sem mexer nos campos) */
+  function onTextChange() {
+    if (panel.classList.contains('hidden') || tab !== 'replace') return;
+    clearTimeout(replaceRefreshTimer);
+    replaceRefreshTimer = setTimeout(function () {
+      const results = panel.querySelector('.replace-results');
+      if (results) renderReplaceResults(results);
+    }, 250);
+  }
+
+  /* abre o painel já na aba escolhida */
+  function openTab(name) {
+    if (!App.chapter) return;
+    tab = name;
+    panel.classList.remove('hidden');
+    render();
   }
 
   /* ---------------- aba offline ---------------- */
@@ -536,7 +749,9 @@ const Review = (function () {
     render();
 
     try {
-      const chunks = chunkText(text, 9000);
+      // envia o texto SEM os marcadores de alinhamento; as sugestões da IA
+      // são filtradas contra o texto real, então nada fora do lugar entra
+      const chunks = chunkText(App.stripAlignMarkers(text), 9000);
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress('Revisando parte ' + (i + 1) + ' de ' + chunks.length + '…');
         else setProgress('Revisando com IA…');
@@ -629,6 +844,8 @@ const Review = (function () {
     reset: reset,
     toggle: toggle,
     open: openPanel,
+    openTab: openTab,
+    onTextChange: onTextChange,
     testAI: testAI
   };
 

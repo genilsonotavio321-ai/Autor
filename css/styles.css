@@ -384,6 +384,17 @@ input:focus, select:focus, textarea:focus {
   background: linear-gradient(180deg, var(--spine, var(--accent)), color-mix(in srgb, var(--spine, var(--accent)) 55%, var(--surface)));
 }
 
+/* capa da prateleira: imagem sangrada no topo do card (2:3), texto embaixo */
+.book-card .card-cover {
+  display: block;
+  margin: -18px -18px 14px -24px;
+  width: auto;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
 .book-card .card-title {
   margin: 0 0 4px;
   font-size: var(--fs-md);
@@ -452,8 +463,26 @@ input:focus, select:focus, textarea:focus {
 .empty-state p { margin: 0 0 6px; }
 
 /* ---------- tela do livro ---------- */
-.book-header { margin-bottom: 8px; }
+.book-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
+  margin-bottom: 8px;
+}
 .book-header h1 { font-size: var(--fs-2xl); overflow-wrap: anywhere; }
+
+.book-cover {
+  flex: none;
+  width: 96px;
+  height: 144px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  box-shadow: var(--shadow-md);
+}
+.book-header-info { flex: 1; min-width: 0; }
+
 #book-desc { max-width: 68ch; white-space: pre-wrap; margin: .4em 0; color: var(--muted); }
 
 .book-meta {
@@ -521,6 +550,21 @@ input:focus, select:focus, textarea:focus {
 
 .ch-actions { display: flex; gap: 2px; flex: none; }
 
+/* miniatura da capa do capítulo na linha */
+.ch-cover {
+  flex: none;
+  width: 36px;
+  height: 50px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+/* badge de status do capítulo: é um botão à parte (clicável) */
+button.badge { cursor: pointer; transition: border-color .15s ease; }
+button.badge:hover { border-color: currentColor; }
+
 /* ---------- editor ---------- */
 #view-editor { display: none; }
 #view-editor.active {
@@ -570,6 +614,37 @@ input:focus, select:focus, textarea:focus {
 
 .editor-actions { display: flex; gap: 6px; }
 
+/* barra de alinhamento (abaixo do topo do editor) */
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+.et-label {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: .07em;
+  margin-right: 2px;
+}
+.editor-toolbar select { font-size: var(--fs-xs); padding: 5px 8px; }
+.et-current { font-size: var(--fs-xs); color: var(--muted); margin-left: auto; }
+
+.align-btn.active {
+  background: var(--accent-soft);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  color: var(--accent-strong);
+}
+[data-theme="dark"] .align-btn.active { color: var(--accent); }
+
 .editor-body {
   flex: 1;
   display: flex;
@@ -603,6 +678,48 @@ input:focus, select:focus, textarea:focus {
 }
 
 .spellcheck-hint { cursor: help; }
+
+.editor-footer .footer-left {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+#chapter-status { font-size: var(--fs-xs); padding: 3px 6px; }
+
+/* capas (modal do livro e do capítulo) */
+.cover-picker { display: flex; flex-direction: column; gap: 10px; }
+.cover-thumb {
+  width: 116px;
+  height: 174px;
+  object-fit: cover;
+  border-radius: var(--r-md);
+  border: 1px solid var(--border);
+  background: var(--bg-soft);
+  box-shadow: var(--shadow-sm);
+}
+.cover-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.cover-hint { margin: 0; }
+
+/* status do capítulo: três opções clicáveis */
+.status-options { display: flex; flex-direction: column; gap: 8px; }
+.status-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, background .15s ease;
+}
+.status-option:hover { border-color: var(--border-strong); background: var(--bg-soft); }
+.status-option.selected { border-color: var(--accent); background: var(--accent-soft); }
+.status-option .badge { flex: none; }
+.so-desc { font-size: var(--fs-sm); color: var(--muted); }
 
 /* ---------- painel de revisão ---------- */
 .review-panel {
@@ -639,10 +756,13 @@ input:focus, select:focus, textarea:focus {
   background: none;
   border: none;
   border-bottom: 2px solid transparent;
-  padding: 10px 6px;
+  padding: 10px 4px;
   font-size: var(--fs-sm);
   font-weight: 550;
   color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   transition: color .15s ease, border-color .15s ease, background .15s ease;
 }
 .rp-tab:hover { background: var(--bg-soft); color: var(--text); }
@@ -700,6 +820,25 @@ input:focus, select:focus, textarea:focus {
 .issue-actions .btn { padding: 4px 10px; font-size: var(--fs-xs); }
 
 .ai-note { font-size: var(--fs-sm); color: var(--muted); }
+
+/* aba "Substituir" */
+.replace-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-bottom: 4px;
+}
+.replace-options .check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.replace-results .rp-toolbar { margin-bottom: 10px; }
+.replace-hit { cursor: pointer; }
+.replace-hit:hover { background: var(--bg-soft); }
+.replace-hit:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 .ai-progress {
   font-size: var(--fs-sm);
@@ -781,6 +920,24 @@ input:focus, select:focus, textarea:focus {
   overflow-wrap: break-word;
 }
 .reader-content .chapter-block + .chapter-block { margin-top: 2.6em; }
+
+/* capas no leitor */
+.reader-cover {
+  display: block;
+  max-width: 190px;
+  margin: 1.4em auto 2em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-md);
+}
+.reader-ch-cover {
+  display: block;
+  max-width: 170px;
+  margin: 2em auto -1.2em;
+  border-radius: 4px;
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-sm);
+}
 .reader-content .pagebreak {
   border: none;
   border-top: 1px solid var(--border);
@@ -969,7 +1126,10 @@ input:focus, select:focus, textarea:focus {
   #main { padding: 20px calc(14px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(14px + var(--safe-left)); }
   .topbar { padding: var(--safe-top) calc(12px + var(--safe-right)) 0 calc(12px + var(--safe-left)); }
   .book-grid { grid-template-columns: 1fr; }
+  .book-header { gap: 12px; }
+  .book-cover { width: 74px; height: 111px; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
+  .et-current { margin-left: 0; width: 100%; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
 }
 

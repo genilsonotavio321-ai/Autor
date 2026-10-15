@@ -41,8 +41,10 @@ const Exporter = (function () {
   }
 
   /* converte o conteúdo de um capítulo em HTML de parágrafos
-     (linhas "----" viram quebras de página) */
-  function contentToHtml(content, pagebreakClass) {
+     (linhas "----" viram quebras de página; o alinhamento vem do marcador
+     de parágrafo ou do padrão do capítulo) */
+  function contentToHtml(content, pagebreakClass, chapterAlign) {
+    const base = chapterAlign || 'j';
     const blocks = (content || '').split(/\n{2,}/);
     return blocks.map(function (block) {
       const trimmed = block.trim();
@@ -50,8 +52,9 @@ const Exporter = (function () {
       if (/^-{3,}$/.test(trimmed)) {
         return '<hr class="' + (pagebreakClass || 'pagebreak') + '">';
       }
-      const inner = esc(trimmed).replace(/\n/g, '<br>');
-      return '<p>' + inner + '</p>';
+      const align = App.ALIGN_CSS[App.paraAlign(trimmed, base)] || 'justify';
+      const inner = esc(App.stripParaMarker(trimmed)).replace(/\n/g, '<br>');
+      return '<p style="text-align:' + align + '">' + inner + '</p>';
     }).join('\n');
   }
 
@@ -68,7 +71,7 @@ const Exporter = (function () {
       lines.push('CAPÍTULO ' + (i + 1) + (ch.title ? ': ' + ch.title : ''));
       lines.push('='.repeat(60));
       lines.push('');
-      lines.push((ch.content || '').trim());
+      lines.push(App.stripAlignMarkers(ch.content || '').trim());
       lines.push('', '');
     });
     return lines.join('\n');
@@ -78,7 +81,7 @@ const Exporter = (function () {
     const lines = [];
     lines.push(chapter.title || 'Sem título');
     if (book && book.title) lines.push('de ' + book.title + (book.author ? ' — ' + book.author : ''));
-    lines.push('', (chapter.content || '').trim(), '');
+    lines.push('', App.stripAlignMarkers(chapter.content || '').trim(), '');
     return lines.join('\n');
   }
 
@@ -89,7 +92,8 @@ const Exporter = (function () {
     const parts = [];
 
     // folha de rosto
-    parts.push('<div class="titlepage">');
+    parts.push('<div class="titlepage' + (book.cover ? ' has-cover' : '') + '">');
+    if (book.cover) parts.push('<img class="cover" src="' + esc(book.cover) + '" alt="">');
     parts.push('<h1 class="book-title">' + esc(book.title) + '</h1>');
     if (book.author) parts.push('<p class="book-author">por ' + esc(book.author) + '</p>');
     if (book.description) parts.push('<p class="book-desc">' + esc(book.description).replace(/\n/g, '<br>') + '</p>');
@@ -105,8 +109,9 @@ const Exporter = (function () {
     // capítulos
     chapters.forEach(function (ch, i) {
       parts.push('<section class="chapter' + (opts.print ? ' pagebreak' : '') + '">');
+      if (ch.cover) parts.push('<img class="cover" src="' + esc(ch.cover) + '" alt="">');
       parts.push('<h2 class="chapter-title">' + (i + 1) + '. ' + esc(ch.title || 'Sem título') + '</h2>');
-      parts.push(contentToHtml(ch.content));
+      parts.push(contentToHtml(ch.content, null, ch.align));
       parts.push('</section>');
     });
 
@@ -115,11 +120,12 @@ const Exporter = (function () {
 
   function chapterToHtml(chapter, book) {
     const parts = [];
+    if (chapter.cover) parts.push('<img class="cover" src="' + esc(chapter.cover) + '" alt="">');
     parts.push('<h1 class="book-title">' + esc(chapter.title || 'Sem título') + '</h1>');
     if (book && book.title) {
       parts.push('<p class="book-author">de ' + esc(book.title) + (book.author ? ' — ' + esc(book.author) : '') + '</p>');
     }
-    parts.push(contentToHtml(chapter.content));
+    parts.push(contentToHtml(chapter.content, null, chapter.align));
     return parts.join('\n');
   }
 
@@ -127,7 +133,10 @@ const Exporter = (function () {
     'body{font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6;' +
     'text-align:justify;margin:0;widows:2;orphans:2}' +
     '.titlepage{text-align:center;margin-top:28%;page-break-after:always}' +
+    '.titlepage.has-cover{margin-top:6%}' +
     '.book-title{font-size:26pt;font-weight:bold;margin:0 0 18pt;}' +
+    '.cover{display:block;width:auto;max-width:55%;max-height:44vh;object-fit:contain;margin:0 auto 22pt}' +
+    '.titlepage .cover{margin-bottom:26pt}' +
     '.book-author{font-size:13pt;color:#444;margin:0 0 8pt}' +
     '.book-desc{font-size:11pt;color:#555;font-style:italic;max-width:80%;margin:18pt auto}' +
     '.toc{page-break-after:always}' +
