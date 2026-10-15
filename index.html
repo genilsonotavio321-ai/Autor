@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="pt-BR" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Autor — seus livros e histórias</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+  <!-- ===================== BARRA SUPERIOR ===================== -->
+  <header class="topbar">
+    <button id="btn-home" class="brand" title="Ir para a prateleira">📚 Autor</button>
+    <div class="topbar-actions">
+      <button id="btn-global-search" class="icon-btn" title="Buscar em todas as obras (Ctrl+K)">🔍</button>
+      <button id="btn-trash-open" class="icon-btn" title="Lixeira">🗑️</button>
+      <button id="btn-settings-open" class="icon-btn" title="Configurações">⚙️</button>
+      <button id="btn-theme" class="icon-btn" title="Alternar tema">🌙</button>
+    </div>
+  </header>
+
+  <main id="main">
+
+    <!-- ===================== PRATELEIRA ===================== -->
+    <section id="view-shelf" class="view active">
+      <div class="view-header">
+        <h1>Minhas obras</h1>
+        <button id="btn-new-book" class="btn primary">+ Novo livro</button>
+      </div>
+      <div class="shelf-toolbar">
+        <input id="shelf-search" type="search" placeholder="Filtrar por título ou autor...">
+        <select id="shelf-filter" title="Filtrar por status">
+          <option value="all">Todos os status</option>
+          <option value="rascunho">📝 Rascunho</option>
+          <option value="revisao">🔎 Em revisão</option>
+          <option value="concluido">✅ Concluído</option>
+        </select>
+      </div>
+      <div id="book-grid" class="book-grid"></div>
+      <div id="shelf-empty" class="empty-state hidden">
+        <p class="big">📚</p>
+        <p>Nenhuma obra por aqui ainda.</p>
+        <p>Clique em <strong>+ Novo livro</strong> para começar a escrever.</p>
+      </div>
+    </section>
+
+    <!-- ===================== LIVRO ===================== -->
+    <section id="view-book" class="view">
+      <div class="view-header">
+        <button class="btn ghost" data-back="shelf">← Prateleira</button>
+        <div class="book-actions">
+          <button id="btn-read-book" class="btn">📖 Ler</button>
+          <button id="btn-export-book" class="btn">⬇ Exportar</button>
+          <button id="btn-edit-book" class="btn">✏️ Editar</button>
+          <button id="btn-delete-book" class="btn danger">🗑️ Excluir</button>
+        </div>
+      </div>
+      <div class="book-header">
+        <h1 id="book-title"></h1>
+        <p id="book-author" class="muted"></p>
+        <p id="book-desc"></p>
+        <div class="book-meta">
+          <select id="book-status" title="Status da obra">
+            <option value="rascunho">📝 Rascunho</option>
+            <option value="revisao">🔎 Em revisão</option>
+            <option value="concluido">✅ Concluído</option>
+          </select>
+          <span id="book-stats" class="muted"></span>
+        </div>
+      </div>
+      <div class="view-subheader">
+        <h2>Capítulos</h2>
+        <button id="btn-add-chapter" class="btn primary">+ Novo capítulo</button>
+      </div>
+      <ol id="chapter-list" class="chapter-list"></ol>
+      <p id="book-empty-chapters" class="empty-state hidden">Este livro ainda não tem capítulos. Clique em <strong>+ Novo capítulo</strong>.</p>
+    </section>
+
+    <!-- ===================== EDITOR ===================== -->
+    <section id="view-editor" class="view">
+      <div class="editor-topbar">
+        <button class="btn ghost" id="btn-back-book">← Capítulos</button>
+        <input id="chapter-title" class="chapter-title-input" placeholder="Título do capítulo" autocomplete="off">
+        <span id="save-indicator" class="save-indicator">✓ Salvo</span>
+        <div class="editor-actions">
+          <button id="btn-review" class="btn">🔎 Revisar</button>
+          <button id="btn-read-chapter" class="btn">📖 Ler</button>
+          <button id="btn-export-chapter" class="btn">⬇ Exportar</button>
+          <button id="btn-delete-chapter" class="btn danger" title="Excluir capítulo">🗑️</button>
+        </div>
+      </div>
+      <div class="editor-body">
+        <textarea id="chapter-content" spellcheck="true" lang="pt-BR"
+          placeholder="Comece a escrever...&#10;&#10;Dica: use três travessões (---) em uma linha vazia para marcar uma quebra de página no PDF."></textarea>
+        <aside id="review-panel" class="review-panel hidden"></aside>
+      </div>
+      <div class="editor-footer">
+        <span id="editor-stats" class="muted"></span>
+        <span class="muted spellcheck-hint"
+          title="A ortografia é conferida pelo corretor do navegador em português (pt-BR). Clique com o botão direito em palavras sublinhadas de vermelho.">
+          Ortografia nativa (pt-BR) ativa ✓
+        </span>
+      </div>
+    </section>
+
+    <!-- ===================== LEITOR ===================== -->
+    <section id="view-reader" class="view" data-reader-theme="light">
+      <div class="reader-topbar">
+        <button id="btn-close-reader" class="btn ghost">✕ Fechar</button>
+        <span id="reader-progress" class="muted"></span>
+        <div class="reader-controls">
+          <button id="reader-font-minus" class="icon-btn" title="Diminuir fonte">A−</button>
+          <button id="reader-font-plus" class="icon-btn" title="Aumentar fonte">A+</button>
+          <button id="reader-font-serif" class="btn small" title="Alternar entre fonte serifada e sem serifa">Serif</button>
+          <select id="reader-theme" title="Tema do leitor">
+            <option value="light">Claro</option>
+            <option value="sepia">Sépia</option>
+            <option value="dark">Escuro</option>
+          </select>
+        </div>
+      </div>
+      <article id="reader-content" class="reader-content"></article>
+    </section>
+
+  </main>
+
+  <div id="modal-root"></div>
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="js/storage.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/editor.js"></script>
+  <script src="js/review.js"></script>
+  <script src="js/export.js"></script>
+  <script src="js/reader.js"></script>
+</body>
+</html>

@@ -1,0 +1,8 @@
+# Arquivos de ferramentas (não fazem parte do app)
+.agents/
+skills-lock.json
+
+# Sistema
+Thumbs.db
+desktop.ini
+.DS_Store
