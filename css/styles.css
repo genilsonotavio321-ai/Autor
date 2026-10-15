@@ -638,7 +638,9 @@ button.badge:hover { border-color: currentColor; }
 .save-indicator .ic { width: .95em; height: .95em; }
 .save-indicator.saving { color: var(--accent-strong); background: var(--accent-soft); border-color: color-mix(in srgb, var(--accent) 25%, transparent); }
 
-.editor-actions { display: flex; gap: 6px; }
+/* as ações precisam quebrar linha: em telas estreitas elas somam mais que
+   o topo do editor e "Exportar"/"Excluir" sairiam da tela */
+.editor-actions { display: flex; gap: 6px; flex-wrap: wrap; }
 
 /* barra de alinhamento (abaixo do topo do editor) */
 .editor-toolbar {
@@ -777,6 +779,9 @@ button.badge:hover { border-color: currentColor; }
   font-size: var(--fs-xs);
   flex-wrap: wrap;
   font-variant-numeric: tabular-nums;
+  /* fica acima da área de edição (que é posicionada) para nunca ser encoberto */
+  position: relative;
+  z-index: 2;
 }
 
 .spellcheck-hint { cursor: help; }
@@ -1228,13 +1233,54 @@ button.badge:hover { border-color: currentColor; }
   #main { padding: 20px calc(14px + var(--safe-right)) calc(80px + var(--safe-bottom)) calc(14px + var(--safe-left)); }
   .topbar { padding: var(--safe-top) calc(12px + var(--safe-right)) 0 calc(12px + var(--safe-left)); }
   .book-grid { grid-template-columns: 1fr; }
+  /* Minhas obras: lista compacta, com a capa como miniatura 2:3 à esquerda
+     (a capa sangrada ocupava a largura toda e ficava gigante no celular) */
+  .book-card {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    grid-template-areas:
+      "cover title"
+      "cover author"
+      "cover desc"
+      "cover meta";
+    align-content: start;
+    column-gap: 12px;
+    padding: 12px 14px 12px 18px;
+  }
+  .book-card .card-cover {
+    grid-area: cover;
+    width: 64px;
+    height: 96px;
+    margin: 0;
+    aspect-ratio: auto;
+    border: 1px solid var(--border);
+    border-radius: var(--r-sm);
+    align-self: start;
+  }
+  .book-card .card-cover.card-cover-empty .ic { width: 26px; height: 26px; }
+  .book-card .card-title { grid-area: title; margin-bottom: 2px; }
+  .book-card .author { grid-area: author; margin-bottom: 6px; }
+  .book-card .desc { grid-area: desc; margin-bottom: 8px; }
+  .book-card .card-meta { grid-area: meta; gap: 4px 8px; }
   .book-header { gap: 12px; }
   .book-cover { width: 74px; height: 111px; }
   .book-cover .ic { width: 32px; height: 32px; }
   .chapter-title-input { order: 3; width: 100%; flex-basis: 100%; }
+  .editor-actions { width: 100%; }
   .et-current { margin-left: 0; }
   #chapter-content { padding: 20px 18px; border-radius: var(--r-md); }
   #chapter-content.is-empty::before { top: 20px; left: 18px; right: 18px; }
+}
+
+/* ---------- viewport baixo (celular na horizontal) ---------- */
+@media (max-height: 560px) {
+  /* sem isto a área de edição mantém min-height de 320px, vaza do corpo e
+     cobre o rodapé (palavras, caracteres e tempo de leitura) */
+  #chapter-content { min-height: 0; }
+  /* dica de ortografia é decorativa: libera espaço para o rodapé */
+  .spellcheck-hint { display: none; }
+  .editor-topbar { padding-bottom: 8px; }
+  .editor-toolbar { margin-bottom: 8px; }
 }
 
 /* ---------- toque (iOS/Android): evita o zoom automático ao focar campos ---------- */

@@ -6,7 +6,7 @@
    de IA configurada pelo usuário) NÃO são interceptadas.
    ============================================================ */
 
-const CACHE = 'autor-v6';
+const CACHE = 'autor-v7';
 
 const ASSETS = [
   './',
