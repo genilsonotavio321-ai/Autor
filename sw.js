@@ -6,13 +6,16 @@
    de IA configurada pelo usuário) NÃO são interceptadas.
    ============================================================ */
 
-const CACHE = 'autor-v7';
+const CACHE = 'autor-v8';
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './js/core/dom.js',
+  './js/core/content.js',
+  './js/core/ui.js',
   './js/storage.js',
   './js/app.js',
   './js/editor.js',

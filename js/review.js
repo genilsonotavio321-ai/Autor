@@ -322,7 +322,7 @@ const Review = (function () {
       '<div class="field"><label for="rp-with">Substituir por</label>' +
       '<input id="rp-with" type="text" placeholder="Ex.: Ragatah" autocomplete="off" spellcheck="false"></div>' +
       '<div class="replace-options">' +
-        '<label class="check"><input type="checkbox" id="rp-word"' + (replaceState.wholeWord ? ' checked' : '') + '> Palavra inteia</label>' +
+        '<label class="check"><input type="checkbox" id="rp-word"' + (replaceState.wholeWord ? ' checked' : '') + '> Palavra inteira</label>' +
         '<label class="check"><input type="checkbox" id="rp-case"' + (replaceState.ignoreCase ? ' checked' : '') + '> Ignorar maiúsculas/minúsculas</label>' +
       '</div>';
     body.appendChild(form);
@@ -751,7 +751,7 @@ const Review = (function () {
     try {
       // envia o texto SEM os marcadores de alinhamento; as sugestões da IA
       // são filtradas contra o texto real, então nada fora do lugar entra
-      const chunks = chunkText(App.stripAlignMarkers(text), 9000);
+      const chunks = chunkText(Content.strip(text), 9000);
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress('Revisando parte ' + (i + 1) + ' de ' + chunks.length + '…');
         else setProgress('Revisando com IA…');
@@ -851,6 +851,8 @@ const Review = (function () {
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
   window.Review = api;
+  window.Autor = window.Autor || {};
+  window.Autor.review = api;
 
   return api;
 })();

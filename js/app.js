@@ -11,6 +11,8 @@
     chapter: null   // capítulo aberto no editor (objeto)
   };
   window.App = App;
+  window.Autor = window.Autor || {};
+  window.Autor.app = App;
 
   const STATUS = {
     rascunho: { label: 'Rascunho' },
@@ -21,69 +23,23 @@
 
   const numberFmt = new Intl.NumberFormat('pt-BR');
 
-  /* ================= utilitários de UI ================= */
+  /* ================= utilitários de UI =================
+     Delegados ao core: `Autor.dom` (nós/escape) e `Autor.content`
+     (modelo de conteúdo). Mantemos aliases em App para os consumidores
+     existentes (editor, review, export, reader). */
+  const $ = Dom.$;
+  const el = Dom.el;
+  const esc = Dom.esc;
+  const icon = Dom.icon;
 
-  function $(sel) { return document.querySelector(sel); }
-
-  function el(tag, cls, text) {
-    const node = document.createElement(tag);
-    if (cls) node.className = cls;
-    if (text != null) node.textContent = text;
-    return node;
-  }
-
-  function esc(s) {
-    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
-      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
-    });
-  }
-
-  function icon(name, size) {
-    const cls = size ? 'ic ic-' + size : 'ic';
-    return '<svg class="' + cls + '" aria-hidden="true"><use href="#i-' + name + '"></use></svg>';
-  }
-
-  App.esc = esc;
-  App.el = el;
   App.$ = $;
+  App.el = el;
+  App.esc = esc;
   App.icon = icon;
-
-  App.countWords = function (text) {
-    const t = App.stripAlignMarkers(text).trim();
-    if (!t) return 0;
-    return t.split(/\s+/).length;
-  };
 
   App.readTime = function (words) {
     const min = Math.max(1, Math.round(words / 200));
     return '~' + min + ' min de leitura';
-  };
-
-  /* ---------------- alinhamento por parágrafo ----------------
-     O marcador vive no início do parágrafo (o próprio app escreve/apaga):
-     ⟦e⟧ esquerda · ⟦c⟧ centralizado · ⟦d⟧ direita · ⟦j⟧ justificado.
-     Ele só existe quando o parágrafo difere do alinhamento padrão do
-     capítulo, e é ignorado na contagem de palavras, na busca, no leitor,
-     nas exportações e no texto enviado à IA. */
-  App.ALIGN_LABEL = { e: 'Esquerda', c: 'Centralizado', d: 'Direita', j: 'Justificado' };
-  App.ALIGN_CSS = { e: 'left', c: 'center', d: 'right', j: 'justify' };
-  App.ALIGN_KEYS = ['e', 'c', 'd', 'j'];
-
-  const ALIGN_MARKER_RE = /(^|\n{2,})⟦([ecjd])⟧ ?/g;
-
-  App.stripAlignMarkers = function (text) {
-    return String(text == null ? '' : text).replace(ALIGN_MARKER_RE, '$1');
-  };
-
-  /* alinhamento efetivo de um parágrafo: marcador, senão o padrão do capítulo */
-  App.paraAlign = function (paragraphText, defaultAlign) {
-    const m = /^\s*⟦([ecjd])⟧ ?/.exec(paragraphText || '');
-    return m ? m[1] : (defaultAlign || 'j');
-  };
-
-  /* remove o marcador de alinhamento (usado no leitor, exportações, IA…) */
-  App.stripParaMarker = function (paragraphText) {
-    return String(paragraphText == null ? '' : paragraphText).replace(/^\s*⟦([ecjd])⟧ ?/, '');
   };
 
   /* ---------------- escolha de imagem (capas) ----------------
@@ -144,128 +100,11 @@
     });
   };
 
-  let toastTimer = null;
-  App.toast = function (msg, type) {
-    const t = $('#toast');
-    t.textContent = msg;
-    t.className = 'toast' + (type ? ' ' + type : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 3400);
-  };
-
-  /* modal genérico: opts = {title, body (HTMLElement|string), actions:[{label, className, onClick(close)}], wide} */
-  App.openModal = function (opts) {
-    const overlay = el('div', 'modal-overlay');
-    const modal = el('div', 'modal' + (opts.wide ? ' wide' : ''));
-    const previouslyFocused = document.activeElement;
-
-    const header = el('div', 'modal-header');
-    const titleSpan = el('span');
-    // títulos podem conter ícones SVG (HTML); conteúdo vindo do usuário é escapado pelo chamador
-    titleSpan.innerHTML = opts.title || '';
-    header.appendChild(titleSpan);
-    const closeBtn = el('button', 'icon-btn');
-    closeBtn.innerHTML = icon('x');
-    closeBtn.title = 'Fechar';
-    closeBtn.setAttribute('aria-label', 'Fechar');
-    header.appendChild(closeBtn);
-    modal.appendChild(header);
-
-    // diálogo acessível
-    modal.setAttribute('role', 'dialog');
-    modal.setAttribute('aria-modal', 'true');
-    modal.setAttribute('aria-label', titleSpan.textContent.trim() || 'Diálogo');
-
-    const body = el('div', 'modal-body');
-    if (typeof opts.body === 'string') body.innerHTML = opts.body;
-    else if (opts.body) body.appendChild(opts.body);
-    modal.appendChild(body);
-
-    const actions = el('div', 'modal-actions');
-    function close() {
-      overlay.remove();
-      document.removeEventListener('keydown', onKey);
-      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
-    }
-    function focusableIn() {
-      return Array.prototype.filter.call(
-        modal.querySelectorAll('a[href], button, input, select, textarea, [tabindex]'),
-        function (n) { return !n.disabled && n.offsetParent !== null; }
-      );
-    }
-    function onKey(ev) {
-      if (ev.key === 'Escape') { close(); return; }
-      if (ev.key !== 'Tab') return;
-      // foco preso dentro do diálogo
-      const f = focusableIn();
-      if (!f.length) return;
-      const first = f[0], last = f[f.length - 1];
-      if (!modal.contains(document.activeElement)) {
-        ev.preventDefault();
-        (ev.shiftKey ? last : first).focus();
-      } else if (ev.shiftKey && document.activeElement === first) {
-        ev.preventDefault();
-        last.focus();
-      } else if (!ev.shiftKey && document.activeElement === last) {
-        ev.preventDefault();
-        first.focus();
-      }
-    }
-    (opts.actions || []).forEach(function (act) {
-      const b = el('button', 'btn ' + (act.className || ''), act.label);
-      b.addEventListener('click', function () {
-        const result = act.onClick ? act.onClick(close) : undefined;
-        if (result !== false) close();
-      });
-      actions.appendChild(b);
-    });
-    if ((opts.actions || []).length) modal.appendChild(actions);
-
-    closeBtn.addEventListener('click', close);
-    overlay.addEventListener('click', function (ev) {
-      if (ev.target === overlay) close();
-    });
-    document.addEventListener('keydown', onKey);
-
-    overlay.appendChild(modal);
-    $('#modal-root').appendChild(overlay);
-
-    // foca o primeiro campo editável (com fallback para o botão Fechar)
-    setTimeout(function () {
-      const f = modal.querySelector('input, textarea, select, button.primary') || closeBtn;
-      if (f) f.focus();
-    }, 30);
-
-    return { close: close, body: body, modal: modal };
-  };
-
-  /* confirmação simples: retorna Promise<boolean> */
-  App.confirm = function (message, opts) {
-    opts = opts || {};
-    return new Promise(function (resolve) {
-      let settled = false;
-      const m = App.openModal({
-        title: opts.title || 'Confirmar',
-        body: el('p', null, message),
-        actions: [
-          { label: opts.cancelLabel || 'Cancelar', onClick: function () { settled = true; resolve(false); } },
-          {
-            label: opts.okLabel || 'Confirmar',
-            className: (opts.danger ? 'danger' : 'primary'),
-            onClick: function () { settled = true; resolve(true); }
-          }
-        ]
-      });
-      // fechar pelo X/ESC/overlay conta como cancelar
-      const obs = new MutationObserver(function () {
-        if (!document.body.contains(m.modal)) {
-          obs.disconnect();
-          if (!settled) resolve(false);
-        }
-      });
-      obs.observe($('#modal-root'), { childList: true, subtree: true });
-    });
-  };
+  /* ================= ui (toast, modal, confirm) =================
+     Movidos para Autor.ui (js/core/ui.js); aliases mantidos em App. */
+  App.toast = Ui.toast;
+  App.openModal = Ui.openModal;
+  App.confirm = Ui.confirm;
 
   /* ================= navegação ================= */
 
@@ -287,7 +126,7 @@
     all.forEach(function (c) {
       const s = map[c.bookId] || (map[c.bookId] = { words: 0, chapters: 0 });
       s.chapters++;
-      s.words += App.countWords(c.content);
+      s.words += Content.countWords(c.content);
     });
     return map;
   }
@@ -506,7 +345,7 @@
       const li = el('li', 'chapter-item');
       const chStatus = ch.status || 'rascunho';
       const st = STATUS[chStatus] || STATUS.rascunho;
-      const words = App.countWords(ch.content);
+      const words = Content.countWords(ch.content);
 
       li.innerHTML = '';
       if (ch.cover) {
@@ -566,7 +405,7 @@
       list.appendChild(li);
     });
 
-    const words = chapters.reduce(function (s, c) { return s + App.countWords(c.content); }, 0);
+    const words = chapters.reduce(function (s, c) { return s + Content.countWords(c.content); }, 0);
     $('#book-stats').textContent =
       numberFmt.format(chapters.length) + (chapters.length === 1 ? ' capítulo' : ' capítulos') +
       ' · ' + numberFmt.format(words) + ' palavras · ' + App.readTime(words);
@@ -577,7 +416,8 @@
 
   App.addChapter = async function () {
     if (!App.book) return;
-    const ch = await Store.Chapters.create(App.book.id, 'Capítulo ' + (App.book._count || 0));
+    const n = (await Store.Chapters.listByBook(App.book.id)).length + 1;
+    const ch = await Store.Chapters.create(App.book.id, 'Capítulo ' + n);
     await App.openChapter(ch.id);
     const titleInput = $('#chapter-title');
     titleInput.select();
@@ -633,7 +473,7 @@
 
       // ocorrências no conteúdo dos capítulos
       chapters.forEach(function (ch) {
-        const content = App.stripAlignMarkers(ch.content || '');
+        const content = Content.strip(ch.content || '');
         const idx = content.toLowerCase().indexOf(ql);
         if (idx < 0) return;
         count++;

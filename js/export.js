@@ -45,15 +45,13 @@ const Exporter = (function () {
      de parágrafo ou do padrão do capítulo) */
   function contentToHtml(content, pagebreakClass, chapterAlign) {
     const base = chapterAlign || 'j';
-    const blocks = (content || '').split(/\n{2,}/);
-    return blocks.map(function (block) {
-      const trimmed = block.trim();
-      if (!trimmed) return '';
-      if (/^-{3,}$/.test(trimmed)) {
+    const cblocks = Content.parse(content || '', base);
+    return cblocks.map(function (b) {
+      if (b.type === 'rule') {
         return '<hr class="' + (pagebreakClass || 'pagebreak') + '">';
       }
-      const align = App.ALIGN_CSS[App.paraAlign(trimmed, base)] || 'justify';
-      const inner = esc(App.stripParaMarker(trimmed)).replace(/\n/g, '<br>');
+      const align = Content.css(b.align || base);
+      const inner = esc(String(b.text == null ? '' : b.text)).replace(/\n/g, '<br>');
       return '<p style="text-align:' + align + '">' + inner + '</p>';
     }).join('\n');
   }
@@ -71,7 +69,7 @@ const Exporter = (function () {
       lines.push('CAPÍTULO ' + (i + 1) + (ch.title ? ': ' + ch.title : ''));
       lines.push('='.repeat(60));
       lines.push('');
-      lines.push(App.stripAlignMarkers(ch.content || '').trim());
+      lines.push(Content.toExport(ch.content || '', ch.align || 'j').trim());
       lines.push('', '');
     });
     return lines.join('\n');
@@ -81,7 +79,7 @@ const Exporter = (function () {
     const lines = [];
     lines.push(chapter.title || 'Sem título');
     if (book && book.title) lines.push('de ' + book.title + (book.author ? ' — ' + book.author : ''));
-    lines.push('', App.stripAlignMarkers(chapter.content || '').trim(), '');
+    lines.push('', Content.toExport(chapter.content || '', chapter.align || 'j').trim(), '');
     return lines.join('\n');
   }
 
@@ -390,6 +388,8 @@ const Exporter = (function () {
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
   window.Exporter = api;
+  window.Autor = window.Autor || {};
+  window.Autor.exporter = api;
 
   return api;
 })();

@@ -29,7 +29,7 @@ const Reader = (function () {
     view.setAttribute('data-reader-theme', theme);
 
     themeSelect.value = theme;
-    serifBtn.textContent = font === 'serif' ? 'Serif' : 'Serif';
+    serifBtn.textContent = font === 'serif' ? 'Serif' : 'Sans';
     serifBtn.classList.toggle('primary', font === 'sans');
   }
 
@@ -55,17 +55,17 @@ const Reader = (function () {
         parts.push('<img class="reader-ch-cover" src="' + App.esc(ch.cover) + '" alt="">');
       }
       parts.push('<h2>' + (chapters._bookTitle ? (i + 1) + '. ' : '') + App.esc(ch.title || 'Sem título') + '</h2>');
-      const blocks = (ch.content || '').split(/\n{2,}/);
-      blocks.forEach(function (block) {
-        const trimmed = block.trim();
-        if (!trimmed) return;
-        if (/^-{3,}$/.test(trimmed)) {
+      const cblocks = Content.parse(ch.content || '', chapterAlign);
+      cblocks.forEach(function (b) {
+        if (b.type === 'rule') {
           parts.push('<hr class="pagebreak">');
           return;
         }
-        const align = App.ALIGN_CSS[App.paraAlign(trimmed, chapterAlign)] || 'justify';
-        parts.push('<p style="text-align:' + align + '">' +
-          App.esc(App.stripParaMarker(trimmed)).replace(/\n/g, '<br>') + '</p>');
+        if (b.type === 'para') {
+          const align = Content.css(b.align || chapterAlign);
+          parts.push('<p style="text-align:' + align + '">' +
+            App.esc(String(b.text == null ? '' : b.text)).replace(/\n/g, '<br>') + '</p>');
+        }
       });
       parts.push('</section>');
     });
@@ -84,7 +84,7 @@ const Reader = (function () {
       if (!ch) { App.toast('Capítulo não encontrado.', 'error'); return; }
       const book = await Store.Books.get(ch.bookId);
       chapterCount = 0;
-      const words = App.countWords(ch.content);
+      const words = Content.countWords(ch.content);
       progressEl.textContent =
         (book ? book.title + ' · ' : '') + (words ? App.readTime(words) : '');
       const list = [ch];
@@ -153,6 +153,8 @@ const Reader = (function () {
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
   window.Reader = api;
+  window.Autor = window.Autor || {};
+  window.Autor.reader = api;
 
   return api;
 })();

@@ -122,7 +122,6 @@ const Editor = (function () {
      alinhamento próprio (data-align); o marcador ⟦x⟧ só existe no
      texto salvo, nunca na tela. */
 
-  const PARA_MARK = /^\s*⟦([ecjd])⟧ ?/; // mesmo critério de App.paraAlign
   const PARA_BREAK = /\n{2,}/;
   const MARKER_LEN = 4; // '⟦x⟧ '
 
@@ -203,19 +202,25 @@ const Editor = (function () {
   /* texto no formato salvo (com os marcadores ⟦x⟧) */
   function serialize() {
     const base = chapterAlign();
-    return paras().map(function (p) {
-      const align = p.getAttribute('data-align');
-      const body = paraText(p);
-      return (align && align !== base) ? ('⟦' + align + '⟧ ' + body) : body;
-    }).join('\n\n');
+    const blocks = paras().map(function (p) {
+      const align = p.getAttribute('data-align') || base;
+      return { type: 'para', align: align, text: paraText(p) };
+    });
+    return Content.serialize(blocks, base);
   }
 
   /* reconstrói os blocos a partir do texto salvo */
   function setDoc(text) {
     contentEl.textContent = '';
-    splitParas(String(text == null ? '' : text)).forEach(function (part) {
-      const m = PARA_MARK.exec(part.text);
-      contentEl.appendChild(makePara(part.text.replace(PARA_MARK, ''), m ? m[1] : null));
+    const base = chapterAlign();
+    const blocks = Content.parse(String(text == null ? '' : text), base);
+    blocks.forEach(function (b) {
+      if (b.type === 'rule') {
+        // regra no editor: mantida como linha divisória dentro de um parágrafo
+        contentEl.appendChild(makePara('---', base));
+      } else if (b.type === 'para') {
+        contentEl.appendChild(makePara(b.text, b.align));
+      }
     });
     if (!contentEl.firstChild) contentEl.appendChild(makePara('', null));
     lastBlock = paras()[0] || null;
@@ -418,8 +423,8 @@ const Editor = (function () {
 
   function updateStats() {
     const text = serialize();
-    const words = App.countWords(text);
-    const chars = App.stripAlignMarkers(text).length;
+    const words = Content.countWords(text);
+    const chars = Content.strip(text).length;
     statsEl.textContent =
       numberFmt.format(words) + (words === 1 ? ' palavra' : ' palavras') +
       ' · ' + numberFmt.format(chars) + ' caracteres' +
@@ -429,7 +434,7 @@ const Editor = (function () {
 
   function syncEmpty(text) {
     const t = (text == null) ? serialize() : text;
-    contentEl.classList.toggle('is-empty', t.replace(/⟦[ecjd]⟧/g, '').trim() === '');
+    contentEl.classList.toggle('is-empty', Content.strip(t).trim() === '');
   }
 
   /* ---------------- alinhamento por parágrafo ---------------- */
@@ -444,9 +449,9 @@ const Editor = (function () {
      sobrepor com data-align. A barra mostra o alinhamento do parágrafo
      do cursor e só toca o DOM quando algo muda. */
   function updateAlignUI() {
-    contentEl.style.textAlign = App.ALIGN_CSS[chapterAlign()] || 'justify';
+    contentEl.style.textAlign = Content.css(chapterAlign());
     const eff = currentParagraphAlign();
-    const label = 'Parágrafo: ' + (App.ALIGN_LABEL[eff] || '');
+    const label = 'Parágrafo: ' + Content.label(eff);
     const key = eff + '|' + label;
     if (key === lastAlignUI) return;
     lastAlignUI = key;
@@ -482,7 +487,7 @@ const Editor = (function () {
       scheduleSave();
       updateAlignUI();
       histPush();
-      App.toast('Alinhamento do capítulo: ' + App.ALIGN_LABEL[code] + '.');
+      App.toast('Alinhamento do capítulo: ' + Content.label(code) + '.');
       return;
     }
 
@@ -993,6 +998,8 @@ const Editor = (function () {
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)
   window.Editor = api;
+  window.Autor = window.Autor || {};
+  window.Autor.editor = api;
 
   return api;
 })();

@@ -388,3 +388,6 @@ window.Store = (function () {
     isFallbackMode: function () { return lsMode; }
   };
 })();
+
+window.Autor = window.Autor || {};
+window.Autor.store = window.Store;
