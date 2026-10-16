@@ -55,32 +55,68 @@
 
   /* ================= navegação ================= */
 
+  /* o selo do colofão: assinatura do app (desenha ao trocar de tela;
+     carimba ao concluir uma obra). */
+  App.colophon = function (kind) {
+    const device = document.querySelector('.brand .device');
+    if (!device) return;
+    device.classList.remove('drawing', 'stamp');
+    void device.offsetWidth; /* reinicia a animação */
+    if (kind === 'stamp') {
+      device.classList.add('stamp');
+      clearTimeout(device._stampTimer);
+      device._stampTimer = setTimeout(function () { device.classList.remove('stamp'); }, 420);
+    } else {
+      device.classList.add('drawing');
+      clearTimeout(device._drawTimer);
+      device._drawTimer = setTimeout(function () { device.classList.remove('drawing'); }, 1100);
+    }
+  };
+
   App.navigate = async function (view) {
     if (App.view === 'editor' && view !== 'editor' && window.Editor) {
       await Editor.flush();
     }
     App.view = view;
-    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
-    $('#view-' + view).classList.add('active');
+    document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active', 'view-enter'); });
+    const next = $('#view-' + view);
+    next.classList.add('active');
+    // transição: só as telas de leitura/estante — o editor e o leitor assentam de imediato
+    if (view === 'shelf' || view === 'book') {
+      next.classList.add('view-enter');
+      next.addEventListener('animationend', function handler(ev) {
+        if (ev.target !== next || ev.animationName !== 'view-in') return;
+        next.classList.remove('view-enter');
+        next.removeEventListener('animationend', handler);
+      });
+    }
     // o modo foco vale só dentro do editor; sair dele limpa a classe
     if (view !== 'editor') {
       document.body.classList.remove('focus-mode');
     }
     window.scrollTo(0, 0);
+    App.colophon('draw');
   };
 
   /* ================= tema ================= */
 
-  App.applyTheme = function () {
+  App.applyTheme = function (animate) {
     const theme = Store.Settings.get('theme', 'light');
-    document.documentElement.setAttribute('data-theme', theme);
+    const root = document.documentElement;
+    if (animate) {
+      // cross-fade só de cor: nunca anima layout
+      root.classList.add('theming');
+      clearTimeout(App._themeTimer);
+      App._themeTimer = setTimeout(function () { root.classList.remove('theming'); }, 260);
+    }
+    root.setAttribute('data-theme', theme);
     const themeBtn = $('#btn-theme');
     if (themeBtn) {
       themeBtn.querySelector('use') && (themeBtn.querySelector('use').setAttribute('href', theme === 'dark' ? '#i-sun' : '#i-moon'));
       themeBtn.setAttribute('aria-label', theme === 'dark' ? 'Ativar tema claro' : 'Ativar tema escuro');
     }
     const meta = document.getElementById('meta-theme-color');
-    if (meta) meta.setAttribute('content', theme === 'dark' ? '#09090b' : '#fafafa');
+    if (meta) meta.setAttribute('content', theme === 'dark' ? '#0e2b22' : '#12362b');
   };
 
   /* ================= eventos ================= */
@@ -106,8 +142,8 @@
     });
 
     $('#btn-new-book').addEventListener('click', function () { App.bookFormModal(null); });
-    $('#shelf-search').addEventListener('input', function () { App.renderShelf(); });
-    $('#shelf-filter').addEventListener('change', function () { App.renderShelf(); });
+    $('#shelf-search').addEventListener('input', function () { App.renderShelf({ silent: true }); });
+    $('#shelf-filter').addEventListener('change', function () { App.renderShelf({ silent: true }); });
 
     // tela do livro
     $('#btn-edit-book').addEventListener('click', function () { App.bookFormModal(App.book); });
@@ -137,6 +173,7 @@
       App.book.status = $('#book-status').value;
       await Store.Books.save(App.book);
       App.toast('Status atualizado: ' + STATUS[App.book.status].label);
+      if (App.book.status === 'concluido') App.colophon('stamp');
     });
 
     // topbar
@@ -156,7 +193,7 @@
     $('#btn-theme').addEventListener('click', async function () {
       const next = Store.Settings.get('theme', 'light') === 'dark' ? 'light' : 'dark';
       await Store.Settings.set('theme', next);
-      App.applyTheme();
+      App.applyTheme(true);
     });
 
     // atalho de busca

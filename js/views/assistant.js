@@ -137,7 +137,7 @@ window.Autor.views = window.Autor.views || {};
         return '<button type="button" class="btn small" data-tool="' + id + '">' + App.esc(TOOLS[id].label) + '</button>';
       }).join('') +
       '</div>' +
-      '<p class="muted" id="as-hint" style="font-size:.82rem;margin:12px 0 4px"></p>' +
+      '<p class="muted" id="as-hint" style="font-size:var(--fs-sm);margin:12px 0 4px"></p>' +
       '<div id="as-out" class="ai-out" aria-live="polite"></div>' +
       '<div class="row" style="gap:6px;margin-top:8px">' +
       '<button type="button" class="btn small" id="as-copy" disabled>' + icon('copy') + ' Copiar</button>' +
@@ -170,7 +170,7 @@ window.Autor.views = window.Autor.views || {};
             { role: 'user', content: req.prompt }
           ], { temperature: id === 'continue' ? 0.7 : 0.3, model: name });
           lastResult = content.trim();
-          out.innerHTML = '<div class="ai-result"></div>';
+          out.innerHTML = '<div class="ai-result settling"></div>';
           out.querySelector('.ai-result').textContent = lastResult;
           copyBtn.disabled = false;
           insertBtn.style.display = req.canInsert && App.chapter ? '' : 'none';

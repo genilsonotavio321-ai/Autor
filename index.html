@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" id="meta-theme-color" content="#fafafa">
+  <meta name="theme-color" id="meta-theme-color" content="#12362b">
   <meta name="description" content="Escreva, revise e exporte seus livros e histórias. Funciona offline; seus dados ficam apenas no seu aparelho.">
   <title>Autor — seus livros e histórias</title>
 
@@ -18,6 +18,8 @@
   <meta name="apple-mobile-web-app-title" content="Autor">
   <meta name="format-detection" content="telephone=no">
 
+  <link rel="preload" href="assets/fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/literata-latin.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -76,7 +78,13 @@
   <!-- ===================== BARRA SUPERIOR ===================== -->
   <header class="topbar">
     <button id="btn-home" class="brand" title="Ir para a prateleira">
-      <svg class="ic" aria-hidden="true"><use href="#i-feather"></use></svg>
+      <!-- o dispositivo do impressor: o selo autoral que se desenha -->
+      <svg class="device" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path class="dw" pathLength="1" d="M3.6 12a8.4 8.4 0 1 0 16.8 0a8.4 8.4 0 1 0-16.8 0"></path>
+        <path class="dw" pathLength="1" style="--dw:120ms" d="M12 6.8 17.2 12 12 17.2 6.8 12Z"></path>
+        <path class="dw" pathLength="1" style="--dw:240ms" d="M12 1.6V3.6"></path>
+        <path class="dw" pathLength="1" style="--dw:300ms" d="M12 20.4V22.4"></path>
+      </svg>
       <span translate="no">Autor</span>
     </button>
     <div class="topbar-actions">
@@ -103,7 +111,10 @@
     <!-- ===================== PRATELEIRA ===================== -->
     <section id="view-shelf" class="view active">
       <div class="view-header">
-        <h1>Minhas obras</h1>
+        <div class="view-title">
+          <h1>Prateleira</h1>
+          <p class="view-guide" id="shelf-guide">Índice da prateleira · todas as obras</p>
+        </div>
         <div class="shelf-actions">
           <button id="btn-import" class="btn" title="Importar um manuscrito (.txt, .md, .docx, .epub)">
             <svg class="ic" aria-hidden="true"><use href="#i-upload"></use></svg> Importar
@@ -297,7 +308,7 @@
           </button>
           <button id="reader-font-minus" class="icon-btn" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
           <button id="reader-font-plus" class="icon-btn" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
-          <button id="reader-font-serif" class="btn small" title="Alternar entre fonte serifada e sem serifa">Serif</button>
+          <button id="reader-font-serif" class="btn small" aria-pressed="false" title="Alternar entre fonte serifada e sem serifa">Serifada</button>
           <select id="reader-theme" title="Tema do leitor" aria-label="Tema do leitor">
             <option value="light">Claro</option>
             <option value="sepia">Sépia</option>

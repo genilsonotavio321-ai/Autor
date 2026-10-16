@@ -16,6 +16,7 @@ window.Autor.views = window.Autor.views || {};
   const icon = Dom.icon;
   const numberFmt = new Intl.NumberFormat('pt-BR');
   const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const EASE_OUT = 'cubic-bezier(.16, 1, .3, 1)';
 
   /* FLIP: posições das linhas antes de reordenar (por id) */
   function rowTops() {
@@ -41,7 +42,7 @@ window.Autor.views = window.Autor.views || {};
     moved.forEach(function (m) {
       m.el.animate(
         [{ transform: 'translateY(' + m.dy + 'px)' }, { transform: 'translateY(0)' }],
-        { duration: 220, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+        { duration: 220, easing: EASE_OUT }
       );
     });
   }
@@ -52,7 +53,7 @@ window.Autor.views = window.Autor.views || {};
     if (!li) return;
     li.animate(
       [{ opacity: 0, transform: 'scale(.98)' }, { opacity: 1, transform: 'scale(1)' }],
-      { duration: 180, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+      { duration: 180, easing: EASE_OUT }
     );
   }
 
@@ -235,8 +236,9 @@ window.Autor.views = window.Autor.views || {};
             const moved = await Store.Chapters.move(ch.id, act);
             if (moved) { await renderChapters(); flipRows(before); }
           } else if (act === 'dup') {
+            const before = rowTops();
             const copy = await Store.Chapters.duplicate(ch.id);
-            if (copy) { App.toast('Capítulo duplicado.'); await renderChapters(copy.id); }
+            if (copy) { App.toast('Capítulo duplicado.'); await renderChapters(copy.id); flipRows(before); }
           } else if (act === 'status') {
             chapterStatusModal(ch, renderChapters);
           } else if (act === 'del') {
@@ -245,9 +247,11 @@ window.Autor.views = window.Autor.views || {};
               { okLabel: 'Excluir', danger: true }
             );
             if (ok) {
+              const before = rowTops();
               await Store.Chapters.remove(ch.id);
               App.toast('Capítulo movido para a lixeira.');
-              renderChapters();
+              await renderChapters();
+              flipRows(before);
             }
           }
         });

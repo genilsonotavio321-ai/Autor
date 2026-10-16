@@ -15,6 +15,7 @@ window.Autor.views = window.Autor.views || {};
   const icon = Dom.icon;
   const numberFmt = new Intl.NumberFormat('pt-BR');
   const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+  const EASE_OUT = 'cubic-bezier(.16, 1, .3, 1)';
 
   /* soma de palavras e capítulos por livro */
   async function statsByBook() {
@@ -29,10 +30,7 @@ window.Autor.views = window.Autor.views || {};
   }
 
   function spineColor(id) {
-    // cor determinística a partir do id
-    let h = 0;
-    for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
-    return 'hsl(' + h + ', 42%, 48%)';
+    return null;
   }
 
   /* faixa "continuar de onde parei" (última parte aberta no editor) */
@@ -68,8 +66,8 @@ window.Autor.views = window.Autor.views || {};
     // só anima quando o card realmente aparece (não a cada filtro/busca)
     if (wasHidden && !reduceMQ.matches) {
       card.animate(
-        [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0)' }],
-        { duration: 200, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+        [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'none' }],
+        { duration: 220, easing: EASE_OUT }
       );
     }
   }
@@ -77,7 +75,7 @@ window.Autor.views = window.Autor.views || {};
   function bookCard(book, stats) {
     const card = el('button', 'book-card');
     card.type = 'button';
-    card.style.setProperty('--spine', spineColor(book.id));
+    card.style.setProperty('--spine', spineColor(book.id) || 'var(--accent)');
     const st = App.STATUS[book.status] || App.STATUS.rascunho;
     card.innerHTML =
       (book.cover
@@ -97,7 +95,7 @@ window.Autor.views = window.Autor.views || {};
     return card;
   }
 
-  async function render() {
+  async function render(opts) {
     const books = await Store.Books.list();
     const stats = await statsByBook();
     const q = $('#shelf-search').value.trim().toLowerCase();
@@ -116,7 +114,28 @@ window.Autor.views = window.Autor.views || {};
     filtered.forEach(function (book) {
       grid.appendChild(bookCard(book, stats[book.id] || { words: 0, chapters: 0 }));
     });
-    $('#shelf-empty').classList.toggle('hidden', filtered.length > 0);
+    const guide = $('#shelf-guide');
+    if (guide) {
+      if (q) {
+        guide.textContent = 'Busca · ' + filtered.length + ' resultado' + (filtered.length === 1 ? '' : 's');
+      } else if (filter !== 'all') {
+        const map = { rascunho: 'Em rascunho', revisao: 'Em revisão', concluido: 'Concluído' };
+        guide.textContent = (map[filter] || filter) + ' · ' + filtered.length + ' obra' + (filtered.length === 1 ? '' : 's');
+      } else {
+        guide.textContent = 'Índice da prateleira · ' + filtered.length + ' obra' + (filtered.length === 1 ? '' : 's');
+      }
+    }
+
+    // ornamento a ornamento: as entradas entram em stagger só ao ativar a tela
+    // (a cada tecla da busca a lista é reconstruída e reanimar seria ruído)
+    if (!(opts && opts.silent) && !reduceMQ.matches) {
+      grid.querySelectorAll('.book-card').forEach(function (card, i) {
+        card.animate(
+          [{ opacity: 0, transform: 'translateY(6px)' }, { opacity: 1, transform: 'none' }],
+          { duration: 220, delay: Math.min(i, 8) * 60, easing: EASE_OUT, fill: 'backwards' }
+        );
+      });
+    }
   }
 
   const Shelf = { render: render, renderContinue: renderContinue, bookCard: bookCard, statsByBook: statsByBook, spineColor: spineColor };

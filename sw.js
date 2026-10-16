@@ -6,13 +6,17 @@
    de IA configurada pelo usuário) NÃO são interceptadas.
    ============================================================ */
 
-const CACHE = 'autor-v13';
+const CACHE = 'autor-v14';
 
 const ASSETS = [
   './',
   './index.html',
   './manifest.webmanifest',
   './css/styles.css',
+  './assets/fonts/archivo-latin.woff2',
+  './assets/fonts/archivo-latin-i.woff2',
+  './assets/fonts/literata-latin.woff2',
+  './assets/fonts/literata-latin-i.woff2',
   './js/core/dom.js',
   './js/core/content.js',
   './js/core/ui.js',

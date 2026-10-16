@@ -27,6 +27,20 @@ const Reader = (function () {
 
   const MIN_FONT = 15;
   const MAX_FONT = 30;
+  const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* o texto assenta com um fade curto ao mudar tipo/tema (nunca anima layout) */
+  function settle() {
+    if (reduceMQ.matches) return;
+    content.classList.remove('settling');
+    void content.offsetWidth;
+    content.classList.add('settling');
+    content.addEventListener('animationend', function handler(ev) {
+      if (ev.animationName !== 'settle') return;
+      content.classList.remove('settling');
+      content.removeEventListener('animationend', handler);
+    });
+  }
 
   /* ---------------- preferências ---------------- */
 
@@ -41,6 +55,7 @@ const Reader = (function () {
 
     themeSelect.value = theme;
     serifBtn.textContent = font === 'serif' ? 'Serif' : 'Sans';
+    serifBtn.setAttribute('aria-pressed', font === 'sans' ? 'true' : 'false');
     serifBtn.classList.toggle('primary', font === 'sans');
   }
 
@@ -49,6 +64,7 @@ const Reader = (function () {
     size = Math.max(MIN_FONT, Math.min(MAX_FONT, size));
     await Store.Settings.set('readerFont', size);
     applyPrefs();
+    settle();
   }
 
   /* ---------------- renderização ---------------- */
@@ -428,11 +444,13 @@ const Reader = (function () {
     const next = Store.Settings.get('readerFontFamily', 'serif') === 'serif' ? 'sans' : 'serif';
     await Store.Settings.set('readerFontFamily', next);
     applyPrefs();
+    settle();
   });
 
   themeSelect.addEventListener('change', async function () {
     await Store.Settings.set('readerTheme', themeSelect.value);
     applyPrefs();
+    settle();
   });
 
   if (tocBtn) tocBtn.addEventListener('click', toggleTOC);
