@@ -127,6 +127,165 @@ const Exporter = (function () {
     return parts.join('\n');
   }
 
+  /* ---------------- Markdown ---------------- */
+
+  function contentToMarkdown(content, chapterAlign) {
+    const base = chapterAlign || 'j';
+    return Content.parse(content || '', base).map(function (b) {
+      if (b.type === 'rule') return '---';
+      return String(b.text == null ? '' : b.text);
+    }).join('\n\n');
+  }
+
+  function bookToMarkdown(book, chapters) {
+    const lines = [];
+    lines.push('# ' + (book.title || 'Sem título'));
+    if (book.author) lines.push('', '*por ' + book.author + '*');
+    if (book.description) lines.push('', book.description);
+    chapters.forEach(function (ch, i) {
+      lines.push('', '## ' + (i + 1) + '. ' + (ch.title || 'Sem título'), '');
+      lines.push(contentToMarkdown(ch.content, ch.align));
+    });
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
+  function chapterToMarkdown(chapter, book) {
+    const lines = [];
+    lines.push('# ' + (chapter.title || 'Sem título'));
+    if (book && book.title) lines.push('', 'de ' + book.title + (book.author ? ' — ' + book.author : ''));
+    lines.push('', contentToMarkdown(chapter.content, chapter.align));
+    return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
+  }
+
+  /* ---------------- EPUB ---------------- */
+
+  function contentToXhtml(content, chapterAlign) {
+    const base = chapterAlign || 'j';
+    return Content.parse(content || '', base).map(function (b) {
+      if (b.type === 'rule') return '<hr class="pagebreak"/>';
+      const align = Content.css(b.align || base);
+      const inner = esc(String(b.text == null ? '' : b.text)).replace(/\n/g, '<br/>');
+      return '<p style="text-align:' + align + '">' + inner + '</p>';
+    }).join('\n');
+  }
+
+  function dataUrlToBytes(dataUrl) {
+    const m = /^data:([^;,]+)(;base64)?,([\s\S]*)$/i.exec(String(dataUrl || ''));
+    if (!m) return null;
+    const mime = m[1];
+    let bin;
+    try {
+      bin = m[2] ? atob(m[3]) : decodeURIComponent(m[3]);
+    } catch (e) { return null; }
+    const bytes = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    const ext = /png/i.test(mime) ? 'png' : /gif/i.test(mime) ? 'gif' : /svg/i.test(mime) ? 'svg' : 'jpg';
+    return { mime: mime, ext: ext, bytes: bytes };
+  }
+
+  function xhtmlDoc(title, bodyHtml) {
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="pt-BR" lang="pt-BR">\n' +
+      '<head><meta charset="utf-8"/><title>' + esc(title) + '</title>' +
+      '<link rel="stylesheet" type="text/css" href="style.css"/></head>\n' +
+      '<body>\n' + bodyHtml + '\n</body></html>';
+  }
+
+  const EPUB_CSS =
+    'body{font-family:Georgia,"Times New Roman",serif;line-height:1.6;text-align:justify;margin:4%}' +
+    'h1{font-size:1.5em;text-align:center;margin:1.4em 0}' +
+    'p{margin:0 0 .7em;text-indent:1.25em}' +
+    'p:first-of-type{text-indent:0}' +
+    'hr.pagebreak{border:none;border-top:1px solid #ccc;margin:1.6em 0}' +
+    '.cover{text-align:center;margin:0 0 1.4em}.cover img{max-width:100%;max-height:80vh}';
+
+  function buildEpub(book, chapters) {
+    const zip = window.Autor.zip;
+    const files = [];
+    const manifest = [];
+    const spine = [];
+
+    const uid = 'urn:uuid:' + (book.id || 'autor');
+    const modified = new Date().toISOString().replace(/\.\d+Z$/, 'Z');
+
+    // capa (imagem + página de capa)
+    let hasCoverPage = false;
+    if (book.cover) {
+      const img = dataUrlToBytes(book.cover);
+      if (img) {
+        files.push({ name: 'OEBPS/cover.' + img.ext, data: img.bytes });
+        manifest.push('<item id="cover-img" href="cover.' + img.ext + '" media-type="' + img.mime + '" properties="cover-image"/>');
+        files.push({ name: 'OEBPS/cover.xhtml', data: xhtmlDoc(book.title, '<div class="cover"><img src="cover.' + img.ext + '" alt="Capa"/></div>') });
+        manifest.push('<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>');
+        spine.push('<itemref idref="cover"/>');
+        hasCoverPage = true;
+      }
+    }
+
+    // capítulos
+    const navItems = [];
+    chapters.forEach(function (ch, i) {
+      const n = i + 1;
+      const name = 'chapter' + n + '.xhtml';
+      let body = '';
+      if (ch.cover) {
+        const img = dataUrlToBytes(ch.cover);
+        if (img) {
+          const iname = 'ch' + n + '.' + img.ext;
+          files.push({ name: 'OEBPS/' + iname, data: img.bytes });
+          manifest.push('<item id="img' + n + '" href="' + iname + '" media-type="' + img.mime + '"/>');
+          body += '<div class="cover"><img src="' + iname + '" alt=""/></div>\n';
+        }
+      }
+      body += '<h1>' + esc(ch.title || 'Sem título') + '</h1>\n' + contentToXhtml(ch.content, ch.align);
+      files.push({ name: 'OEBPS/' + name, data: xhtmlDoc(ch.title || 'Capítulo ' + n, body) });
+      manifest.push('<item id="ch' + n + '" href="' + name + '" media-type="application/xhtml+xml"/>');
+      spine.push('<itemref idref="ch' + n + '"/>');
+      navItems.push('<li><a href="' + name + '">' + esc(ch.title || 'Capítulo ' + n) + '</a></li>');
+    });
+
+    // estilos e sumário de navegação
+    files.push({ name: 'OEBPS/style.css', data: EPUB_CSS });
+
+    const navBody = '<nav epub:type="toc" id="toc"><h1>Sumário</h1><ol>\n' + navItems.join('\n') + '\n</ol></nav>';
+    const navDoc = '<?xml version="1.0" encoding="utf-8"?>\n<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="pt-BR">\n' +
+      '<head><meta charset="utf-8"/><title>Sumário</title></head>\n<body>\n' + navBody + '\n</body></html>';
+    files.push({ name: 'OEBPS/nav.xhtml', data: navDoc });
+    manifest.push('<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>');
+    manifest.push('<item id="css" href="style.css" media-type="text/css"/>');
+
+    // pacote
+    const opf =
+      '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="pt-BR">\n' +
+      '<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">\n' +
+      '<dc:identifier id="bookid">' + esc(uid) + '</dc:identifier>\n' +
+      '<dc:title>' + esc(book.title || 'Sem título') + '</dc:title>\n' +
+      '<dc:language>pt-BR</dc:language>\n' +
+      (book.author ? '<dc:creator>' + esc(book.author) + '</dc:creator>\n' : '') +
+      (book.description ? '<dc:description>' + esc(book.description) + '</dc:description>\n' : '') +
+      '<meta property="dcterms:modified">' + modified + '</meta>\n' +
+      '</metadata>\n' +
+      '<manifest>\n' + manifest.join('\n') + '\n</manifest>\n' +
+      '<spine' + (hasCoverPage ? '' : '') + '>\n' + spine.join('\n') + '\n</spine>\n' +
+      '</package>';
+    files.push({ name: 'OEBPS/content.opf', data: opf });
+
+    const container =
+      '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container">\n' +
+      '<rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles>\n' +
+      '</container>';
+    files.push({ name: 'META-INF/container.xml', data: container });
+
+    // o mimetype precisa ser a primeira entrada e não comprimida
+    files.unshift({ name: 'mimetype', data: 'application/epub+zip' });
+
+    return zip.zipWrite(files);
+  }
+
   const BASE_STYLES =
     'body{font-family:Georgia,"Times New Roman",serif;font-size:12pt;line-height:1.6;' +
     'text-align:justify;margin:0;widows:2;orphans:2}' +
@@ -190,13 +349,19 @@ const Exporter = (function () {
   /* ---------------- diálogos de exportação ---------------- */
 
   async function exportDialog(opts) {
-    // opts: {title, filenameBase, html, text, pdfTitle}
+    // opts: {title, filenameBase, html, text, markdown, epub, pdfTitle}
     const body = App.el('div');
+    const mdBtn = opts.markdown != null
+      ? '<button class="btn" data-fmt="md">' + App.icon('file-text') + ' Markdown (.md)</button>' : '';
+    const epubBtn = opts.epub
+      ? '<button class="btn" data-fmt="epub">' + App.icon('book-open') + ' EPUB (.epub)</button>' : '';
     body.innerHTML =
       '<p class="muted" style="margin-top:0">Escolha o formato:</p>' +
       '<div class="row" style="flex-wrap:wrap">' +
       '<button class="btn" data-fmt="txt">' + App.icon('file-text') + ' TXT</button>' +
+      mdBtn +
       '<button class="btn" data-fmt="doc">' + App.icon('edit') + ' Word (.doc)</button>' +
+      epubBtn +
       '<button class="btn" data-fmt="pdf">' + App.icon('download') + ' PDF (imprimir)</button>' +
       '</div>' +
       '<p class="muted" style="font-size:.8rem;margin-bottom:0">O PDF é gerado pela janela de impressão do navegador — escolha "Salvar como PDF".</p>';
@@ -208,9 +373,19 @@ const Exporter = (function () {
         if (fmt === 'txt') {
           downloadBlob(new Blob([opts.text], { type: 'text/plain;charset=utf-8' }), opts.filenameBase + '.txt');
           App.toast('Arquivo TXT gerado.');
+        } else if (fmt === 'md') {
+          downloadBlob(new Blob([opts.markdown], { type: 'text/markdown;charset=utf-8' }), opts.filenameBase + '.md');
+          App.toast('Arquivo Markdown gerado.');
         } else if (fmt === 'doc') {
           downloadDoc(opts.filenameBase + '.doc', opts.html, opts.title);
           App.toast('Arquivo Word gerado.');
+        } else if (fmt === 'epub') {
+          try {
+            downloadBlob(opts.epub(), opts.filenameBase + '.epub');
+            App.toast('Arquivo EPUB gerado.');
+          } catch (err) {
+            App.toast(err.message || 'Não foi possível gerar o EPUB.', 'error');
+          }
         } else if (fmt === 'pdf') {
           printPdf(opts.filenameBase, opts.html, opts.pdfTitle || opts.title);
         }
@@ -225,11 +400,14 @@ const Exporter = (function () {
       App.toast('Este livro ainda não tem capítulos para exportar.', 'error');
       return;
     }
+    const base = sanitizeFilename(book.title) + '-' + todayStamp();
     exportDialog({
       title: book.title,
-      filenameBase: sanitizeFilename(book.title) + '-' + todayStamp(),
+      filenameBase: base,
       text: bookToText(book, chapters),
+      markdown: bookToMarkdown(book, chapters),
       html: bookToHtml(book, chapters, { print: true }),
+      epub: function () { return buildEpub(book, chapters); },
       pdfTitle: book.title
     });
   }
@@ -243,6 +421,7 @@ const Exporter = (function () {
       title: chapter.title,
       filenameBase: name + '-' + todayStamp(),
       text: chapterToText(chapter, book, idx),
+      markdown: chapterToMarkdown(chapter, book),
       html: chapterToHtml(chapter, book),
       pdfTitle: chapter.title
     });
@@ -254,8 +433,7 @@ const Exporter = (function () {
     const books = await Store.raw.getAll('books');
     const chapters = await Store.raw.getAll('chapters');
     const trash = await Store.raw.getAll('trash');
-    const settings = Object.assign({}, Store.Settings.cache);
-    delete settings.aiKey; // por segurança, a chave de API não vai no backup
+    const settings = Autor.merge.stripSecrets(Object.assign({}, Store.Settings.cache));
 
     const data = {
       app: 'Autor',
@@ -271,6 +449,19 @@ const Exporter = (function () {
       'backup-autor-' + todayStamp() + '.json'
     );
     App.toast('Backup exportado (' + books.length + ' livro(s), ' + chapters.length + ' capítulo(s)).');
+  }
+
+  /* documento do app (mesmo formato do backup) — usado pelo sync */
+  async function snapshot() {
+    return {
+      app: 'Autor',
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      books: await Store.raw.getAll('books'),
+      chapters: await Store.raw.getAll('chapters'),
+      trash: await Store.raw.getAll('trash'),
+      settings: Autor.merge.stripSecrets(Object.assign({}, Store.Settings.cache))
+    };
   }
 
   function importBackup() {
@@ -339,7 +530,8 @@ const Exporter = (function () {
     for (let i = 0; i < (data.trash || []).length; i++) await Store.raw.put('trash', data.trash[i]);
     if (data.settings) {
       for (const key of Object.keys(data.settings)) {
-        if (key !== 'aiKey') await Store.Settings.set(key, data.settings[key]);
+        if (Autor.merge.SECRET_KEYS.indexOf(key) !== -1) continue;
+        await Store.Settings.set(key, data.settings[key]);
       }
     }
     App.toast('Backup restaurado.');
@@ -383,7 +575,14 @@ const Exporter = (function () {
     bookDialog: bookDialog,
     chapterDialog: chapterDialog,
     exportBackup: exportBackup,
-    importBackup: importBackup
+    importBackup: importBackup,
+    snapshot: snapshot,
+    mergeImport: mergeImport,
+    replaceImport: replaceImport,
+    /* puros (testáveis) */
+    bookToMarkdown: bookToMarkdown,
+    chapterToMarkdown: chapterToMarkdown,
+    buildEpub: buildEpub
   };
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)

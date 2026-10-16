@@ -62,6 +62,10 @@
     App.view = view;
     document.querySelectorAll('.view').forEach(function (v) { v.classList.remove('active'); });
     $('#view-' + view).classList.add('active');
+    // o modo foco vale só dentro do editor; sair dele limpa a classe
+    if (view !== 'editor') {
+      document.body.classList.remove('focus-mode');
+    }
     window.scrollTo(0, 0);
   };
 
@@ -80,6 +84,13 @@
   };
 
   /* ================= eventos ================= */
+
+  /* true quando o foco está num campo de digitação (para atalhos de tecla) */
+  function isEditingTarget(node) {
+    if (!node || node.nodeType !== 1) return false;
+    const tag = node.tagName;
+    return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || node.isContentEditable;
+  }
 
   function bindEvents() {
     $('#btn-home').addEventListener('click', function () {
@@ -132,6 +143,16 @@
     $('#btn-global-search').addEventListener('click', function () { App.searchModal(); });
     $('#btn-trash-open').addEventListener('click', function () { App.trashModal(); });
     $('#btn-settings-open').addEventListener('click', function () { App.settingsModal(); });
+    $('#btn-help-open').addEventListener('click', function () { App.helpModal(); });
+
+    // importar manuscrito (prateleira)
+    $('#btn-import').addEventListener('click', function () { Importer.open(); });
+
+    // assistente de escrita (livro e editor)
+    var assistantBook = $('#btn-assistant-book');
+    if (assistantBook) assistantBook.addEventListener('click', function () { App.assistantModal(); });
+    var assistantEditor = $('#btn-assistant');
+    if (assistantEditor) assistantEditor.addEventListener('click', function () { App.assistantModal(); });
     $('#btn-theme').addEventListener('click', async function () {
       const next = Store.Settings.get('theme', 'light') === 'dark' ? 'light' : 'dark';
       await Store.Settings.set('theme', next);
@@ -143,6 +164,12 @@
       if ((ev.ctrlKey || ev.metaKey) && ev.key.toLowerCase() === 'k') {
         ev.preventDefault();
         App.searchModal();
+        return;
+      }
+      // '?' abre a ajuda, exceto quando o foco está num campo de digitação
+      if (ev.key === '?' && !isEditingTarget(ev.target)) {
+        ev.preventDefault();
+        App.helpModal();
       }
     });
 

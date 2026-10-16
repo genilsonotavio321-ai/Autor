@@ -58,6 +58,19 @@
     <symbol id="i-align-center" viewBox="0 0 24 24"><line x1="17" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="7" y2="18"/></symbol>
     <symbol id="i-align-right" viewBox="0 0 24 24"><line x1="21" y1="10" x2="7" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="7" y2="18"/></symbol>
     <symbol id="i-align-justify" viewBox="0 0 24 24"><line x1="21" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="21" y1="18" x2="3" y2="18"/></symbol>
+    <symbol id="i-arrow-right" viewBox="0 0 24 24"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><polyline points="9 6 15 12 9 18"/></symbol>
+    <symbol id="i-maximize" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3"/><path d="M16 3h3a2 2 0 0 1 2 2v3"/><path d="M8 21H5a2 2 0 0 1-2-2v-3"/><path d="M16 21h3a2 2 0 0 0 2-2v-3"/></symbol>
+    <symbol id="i-minimize" viewBox="0 0 24 24"><path d="M4 8h3a1 1 0 0 0 1-1V4"/><path d="M20 8h-3a1 1 0 0 1-1-1V4"/><path d="M4 16h3a1 1 0 0 1 1 1v3"/><path d="M20 16h-3a1 1 0 0 0-1 1v3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></symbol>
+    <symbol id="i-bookmark" viewBox="0 0 24 24"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></symbol>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 4 20 12 6 20 6 4"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="6" y="4" width="4" height="16" rx="1"/><rect x="14" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-stop" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/></symbol>
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M18 18.5a4.5 4.5 0 0 0 0-9 6 6 0 0 0-11.6-1.6A4 4 0 0 0 6 18.5z"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.5"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="2"/><line x1="6" y1="10" x2="6.01" y2="10"/><line x1="10" y1="10" x2="10.01" y2="10"/><line x1="14" y1="10" x2="14.01" y2="10"/><line x1="18" y1="10" x2="18.01" y2="10"/><line x1="8" y1="14" x2="16" y2="14"/></symbol>
+    <symbol id="i-clock" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/></symbol>
   </svg>
 
   <!-- ===================== BARRA SUPERIOR ===================== -->
@@ -76,6 +89,9 @@
       <button id="btn-settings-open" class="icon-btn" title="Configurações" aria-label="Abrir configurações">
         <svg class="ic" aria-hidden="true"><use href="#i-settings"></use></svg>
       </button>
+      <button id="btn-help-open" class="icon-btn" title="Ajuda e atalhos (?)" aria-label="Abrir ajuda e atalhos">
+        <svg class="ic" aria-hidden="true"><use href="#i-keyboard"></use></svg>
+      </button>
       <button id="btn-theme" class="icon-btn" title="Alternar tema" aria-label="Alternar tema claro/escuro">
         <svg class="ic" aria-hidden="true"><use href="#i-moon"></use></svg>
       </button>
@@ -88,10 +104,16 @@
     <section id="view-shelf" class="view active">
       <div class="view-header">
         <h1>Minhas obras</h1>
-        <button id="btn-new-book" class="btn primary">
-          <svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg> Novo livro
-        </button>
+        <div class="shelf-actions">
+          <button id="btn-import" class="btn" title="Importar um manuscrito (.txt, .md, .docx, .epub)">
+            <svg class="ic" aria-hidden="true"><use href="#i-upload"></use></svg> Importar
+          </button>
+          <button id="btn-new-book" class="btn primary">
+            <svg class="ic" aria-hidden="true"><use href="#i-plus"></use></svg> Novo livro
+          </button>
+        </div>
       </div>
+      <div id="shelf-continue" class="shelf-continue hidden"></div>
       <div class="shelf-toolbar">
         <input id="shelf-search" type="search" placeholder="Filtrar por título ou autor…" aria-label="Filtrar por título ou autor">
         <select id="shelf-filter" title="Filtrar por status" aria-label="Filtrar por status">
@@ -121,6 +143,9 @@
           </button>
           <button id="btn-export-book" class="btn">
             <svg class="ic" aria-hidden="true"><use href="#i-download"></use></svg> Exportar
+          </button>
+          <button id="btn-assistant-book" class="btn" title="Assistente de escrita com IA">
+            <svg class="ic" aria-hidden="true"><use href="#i-sparkles"></use></svg> Assistente
           </button>
           <button id="btn-edit-book" class="btn">
             <svg class="ic" aria-hidden="true"><use href="#i-edit"></use></svg> Editar
@@ -162,11 +187,28 @@
         <button class="btn ghost" id="btn-back-book">
           <svg class="ic" aria-hidden="true"><use href="#i-arrow-left"></use></svg> Capítulos
         </button>
+        <div class="chapter-nav" role="group" aria-label="Navegação entre capítulos">
+          <button id="btn-prev-chapter" class="icon-btn" title="Capítulo anterior" aria-label="Capítulo anterior">
+            <svg class="ic" aria-hidden="true"><use href="#i-arrow-left"></use></svg>
+          </button>
+          <button id="btn-next-chapter" class="icon-btn" title="Próximo capítulo" aria-label="Próximo capítulo">
+            <svg class="ic" aria-hidden="true"><use href="#i-arrow-right"></use></svg>
+          </button>
+        </div>
         <input id="chapter-title" class="chapter-title-input" placeholder="Título do capítulo" aria-label="Título do capítulo" autocomplete="off">
         <span id="save-indicator" class="save-indicator" role="status" aria-live="polite"></span>
         <div class="editor-actions">
+          <button id="btn-editor-toc" class="btn" title="Sumário do livro">
+            <svg class="ic" aria-hidden="true"><use href="#i-list"></use></svg> Sumário
+          </button>
+          <button id="btn-focus" class="btn" title="Modo foco: esconde os painéis (Ctrl+Shift+F)" aria-pressed="false">
+            <svg class="ic" aria-hidden="true"><use href="#i-maximize"></use></svg> Foco
+          </button>
           <button id="btn-review" class="btn">
             <svg class="ic" aria-hidden="true"><use href="#i-search"></use></svg> Revisar
+          </button>
+          <button id="btn-assistant" class="btn" title="Assistente de escrita com IA">
+            <svg class="ic" aria-hidden="true"><use href="#i-sparkles"></use></svg> Assistente
           </button>
           <button id="btn-replace" class="btn" title="Substituir uma palavra em todo o capítulo (Ctrl+H)">
             <svg class="ic" aria-hidden="true"><use href="#i-repeat"></use></svg> Substituir
@@ -209,6 +251,7 @@
         <span id="align-current" class="et-current" aria-live="polite"></span>
       </div>
       <div class="editor-body">
+        <aside id="editor-toc" class="editor-toc hidden" aria-label="Sumário do livro"></aside>
         <div id="chapter-content" class="editor-doc" contenteditable="true" role="textbox"
           aria-multiline="true" aria-label="Texto do capítulo" spellcheck="true" lang="pt-BR"
           data-placeholder="Comece a escrever…&#10;&#10;Dica: use três travessões (---) em uma linha vazia para marcar uma quebra de página no PDF."></div>
@@ -223,6 +266,7 @@
             <option value="concluido">Concluído</option>
           </select>
           <span id="editor-stats" class="muted"></span>
+          <button type="button" id="goal-progress" class="goal-progress hidden" title="Meta de escrita — clique para ajustar"></button>
         </span>
         <span class="muted spellcheck-hint"
           title="A ortografia é conferida pelo corretor do navegador em português (pt-BR). Clique com o botão direito em palavras sublinhadas de vermelho.">
@@ -239,6 +283,18 @@
         </button>
         <span id="reader-progress" class="muted"></span>
         <div class="reader-controls">
+          <button id="reader-toc-btn" class="icon-btn" title="Sumário" aria-label="Abrir sumário">
+            <svg class="ic" aria-hidden="true"><use href="#i-list"></use></svg>
+          </button>
+          <button id="reader-search-btn" class="icon-btn" title="Buscar no texto" aria-label="Buscar no texto">
+            <svg class="ic" aria-hidden="true"><use href="#i-search"></use></svg>
+          </button>
+          <button id="reader-tts-play" class="icon-btn" title="Ouvir (ler em voz alta)" aria-label="Ouvir o texto" aria-pressed="false">
+            <svg class="ic" aria-hidden="true"><use href="#i-play"></use></svg>
+          </button>
+          <button id="reader-tts-stop" class="icon-btn hidden" title="Parar a leitura em voz alta" aria-label="Parar a leitura">
+            <svg class="ic" aria-hidden="true"><use href="#i-stop"></use></svg>
+          </button>
           <button id="reader-font-minus" class="icon-btn" title="Diminuir fonte" aria-label="Diminuir fonte">A−</button>
           <button id="reader-font-plus" class="icon-btn" title="Aumentar fonte" aria-label="Aumentar fonte">A+</button>
           <button id="reader-font-serif" class="btn small" title="Alternar entre fonte serifada e sem serifa">Serif</button>
@@ -249,19 +305,39 @@
           </select>
         </div>
       </div>
-      <article id="reader-content" class="reader-content"></article>
+      <div id="reader-searchbar" class="reader-searchbar hidden">
+        <svg class="ic" aria-hidden="true"><use href="#i-search"></use></svg>
+        <input id="reader-search-input" type="search" placeholder="Buscar no texto…" aria-label="Buscar no texto">
+        <span id="reader-search-count" class="muted"></span>
+        <button id="reader-search-prev" class="icon-btn" title="Anterior" aria-label="Ocorrência anterior">
+          <svg class="ic" aria-hidden="true"><use href="#i-arrow-up"></use></svg>
+        </button>
+        <button id="reader-search-next" class="icon-btn" title="Próxima" aria-label="Próxima ocorrência">
+          <svg class="ic" aria-hidden="true"><use href="#i-arrow-down"></use></svg>
+        </button>
+        <button id="reader-search-close" class="icon-btn" title="Fechar busca" aria-label="Fechar busca">
+          <svg class="ic" aria-hidden="true"><use href="#i-x"></use></svg>
+        </button>
+      </div>
+      <div class="reader-body">
+        <aside id="reader-toc" class="reader-toc hidden" aria-label="Sumário da obra"></aside>
+        <article id="reader-content" class="reader-content"></article>
+      </div>
     </section>
 
   </main>
 
   <div id="modal-root"></div>
-  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
 
   <script src="js/core/dom.js"></script>
   <script src="js/core/content.js"></script>
   <script src="js/core/ui.js"></script>
   <script src="js/core/image.js"></script>
   <script src="js/core/persistence.js"></script>
+  <script src="js/core/ai.js"></script>
+  <script src="js/core/zip.js"></script>
+  <script src="js/core/merge.js"></script>
   <script src="js/storage.js"></script>
   <script src="js/app.js"></script>
   <script src="js/views/shelf.js"></script>
@@ -269,9 +345,13 @@
   <script src="js/views/search.js"></script>
   <script src="js/views/trash.js"></script>
   <script src="js/views/settings.js"></script>
+  <script src="js/views/help.js"></script>
+  <script src="js/views/assistant.js"></script>
   <script src="js/editor.js"></script>
   <script src="js/review.js"></script>
+  <script src="js/import.js"></script>
   <script src="js/export.js"></script>
+  <script src="js/sync.js"></script>
   <script src="js/reader.js"></script>
 </body>
 </html>

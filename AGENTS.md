@@ -5,8 +5,9 @@
 > os contratos que **não podem ser quebrados**, a arquitetura, o modelo de dados, os pontos
 > de extensão e as armadilhas conhecidas. Leia tudo antes de alterar qualquer arquivo.
 >
-> Última atualização: Fase 5 da refatoração de arquitetura (persistência, imagem e views).
-> Versão do service worker: `autor-v11`.
+> Última atualização: Fase de usabilidade e integrações (assistente de IA, importação,
+> EPUB/Markdown, sincronização, sumário/TTS no leitor).
+> Versão do service worker: `autor-v13`.
 
 ---
 
@@ -19,11 +20,11 @@
 3. **Sem servidor, sem backend.** Todos os dados ficam no dispositivo do usuário
    (IndexedDB, com reserva em `localStorage`).
 4. **Ao adicionar/renomear um arquivo JS: atualize `index.html` (na ordem certa) E
-   `sw.js` (`ASSETS`) E suba a versão `CACHE`** (`autor-v11` → `autor-v12`...). Esquecer
+   `sw.js` (`ASSETS`) E suba a versão `CACHE`** (`autor-v13` → `autor-v14`...). Esquecer
    isso é o erro mais comum.
 5. **Textos de interface em português (pt-BR)** e todo conteúdo vindo do usuário inserido
    em HTML passa por `esc()`.
-6. **Antes de concluir:** rode `node --test` (35 testes) e faça o smoke test no navegador
+6. **Antes de concluir:** rode `node --test` (60 testes) e faça o smoke test no navegador
    (seção 12). Rode também `node --check <arquivo>` nos arquivos alterados.
 
 ---
@@ -33,15 +34,21 @@
 O **Autor** é um aplicativo de escrita de livros/histórias:
 
 - Cria **obras** (livros) e **capítulos**; cada capítulo tem um editor por parágrafos
-  (blocos) com alinhamento, autosave, estatísticas e revisão.
-- **Reader** (modo leitura) com preferências de fonte/tema.
-- **Revisão** offline (regras) e opcional com IA (API compatível com OpenAI).
-- **Exportação** em TXT, Word (`.doc`), PDF (via impressão) e **backup** completo (JSON).
-- **Busca** global, **lixeira** (restaurar/excluir) e **temas** claro/escuro.
+  (blocos) com alinhamento, autosave, estatísticas, modo foco, meta de escrita e revisão.
+- **Reader** (modo leitura) com preferências de fonte/tema, sumário, busca no texto e
+  leitura em voz alta (TTS).
+- **Revisão** offline (regras + dicionário pessoal) e opcional com IA (API compatível com
+  OpenAI). **Assistente de escrita** com IA (continuar, resumir, títulos, sinopse,
+  consistência, personagens).
+- **Exportação** em TXT, Word (`.doc`), PDF (via impressão), **Markdown**, **EPUB** e
+  **backup** completo (JSON). **Importação** de manuscritos (`.txt`/`.md`/`.docx`/`.epub`/
+  `.html`).
+- **Sincronização** opcional por **WebDAV** ou **GitHub Gist** (merge por `updatedAt`).
+- **Busca** global, **lixeira** (restaurar/excluir), **temas** claro/escuro e atalhos.
 - **Offline-first / PWA**: funciona sem internet; instalável quando servido por http(s).
 
-Público: autor escrevendo sozinho, no próprio dispositivo. Nada de multiusuário ou nuvem
-(ainda — ver seção 13).
+Público: autor escrevendo sozinho, no próprio dispositivo. A sincronização é opcional e
+usa armazenamento do próprio autor (nuvem de arquivos/Gist), não um backend do app.
 
 ---
 
@@ -61,8 +68,8 @@ Público: autor escrevendo sozinho, no próprio dispositivo. Nada de multiusuár
 > **Back-compat:** o app está em migração para um namespace `window.Autor`. Módulos novos
 > expõem `Autor.<modulo>` **e** mantêm o global antigo (`window.Content`, `window.Store`,
 > `window.Ui`, `window.Img`, `window.App`, `window.Editor`, `window.Review`,
-> `window.Exporter`, `window.Reader`). **Não remova os aliases antigos sem migrar todos os
-> consumidores.**
+> `window.Exporter`, `window.Reader`, `window.Importer`, `window.Sync`). **Não remova os
+> aliases antigos sem migrar todos os consumidores.**
 
 ---
 
@@ -107,6 +114,9 @@ js/core/content.js         # Autor.content / Content — modelo de conteúdo
 js/core/ui.js              # Autor.ui / Ui   — toast, openModal, confirm, cover
 js/core/image.js           # Autor.image / Img — pick, fromFile, resize, fit, DEFAULT
 js/core/persistence.js     # Autor.persistence — adaptadores idb()/ls()
+js/core/ai.js              # Autor.ai — cliente de IA (API compatível com OpenAI)
+js/core/zip.js             # Autor.zip — ZIP (escrita store / leitura store+deflate)
+js/core/merge.js           # Autor.merge — merge/tombstone/secrets (import + sync)
 js/storage.js              # Autor.store / Store — repositórios Books/Chapters/Trash/Settings
 js/app.js                  # Autor.app / App — RAIZ DE COMPOSIÇÃO
 js/views/shelf.js          # Autor.views.shelf  — prateleira
@@ -114,18 +124,27 @@ js/views/book.js           # Autor.views.book   — tela do livro + form + statu
 js/views/search.js         # Autor.views.search — busca global
 js/views/trash.js          # Autor.views.trash  — lixeira
 js/views/settings.js       # Autor.views.settings — configurações
+js/views/help.js           # Autor.views.help   — atalhos de teclado
+js/views/assistant.js      # Autor.views.assistant — assistente de escrita (IA)
 js/editor.js               # Autor.editor / Editor — editor de capítulos
 js/review.js               # Autor.review / Review — revisão (offline + IA)
-js/export.js               # Autor.exporter / Exporter — TXT/DOC/PDF/backup
-js/reader.js               # Autor.reader / Reader — modo leitura
+js/import.js               # Autor.importer / Importer — importar manuscrito
+js/export.js               # Autor.exporter / Exporter — TXT/DOC/PDF/EPUB/MD/backup
+js/sync.js                 # Autor.sync / Sync — sincronização (WebDAV/Gist)
+js/reader.js               # Autor.reader / Reader — modo leitura (TOC/busca/TTS)
 
 tests/helpers/load.mjs     # carrega scripts clássicos em sandbox node:vm
 tests/content.test.mjs     # testes do Content
 tests/persistence.test.mjs # testes dos adaptadores (localStorage)
 tests/storage.test.mjs     # testes dos repositórios
 tests/image.test.mjs       # testes do cálculo de redimensionamento
+tests/merge.test.mjs       # testes do merge/secrets/tombstones
+tests/zip.test.mjs         # testes do ZIP (round-trip e deflate)
+tests/import.test.mjs      # testes dos parsers de importação
+tests/export.test.mjs      # testes de Markdown e EPUB
+tests/review.test.mjs      # testes das regras da revisão offline
 
-docs/adr/ADR-0001..0004     # decisões de arquitetura
+docs/adr/ADR-0001..0005     # decisões de arquitetura
 ```
 
 ### 4.2 Ordem de carregamento dos `<script>` (no fim do `<body>`)
@@ -134,9 +153,10 @@ A ordem importa: alguns módulos leem outros **no momento do load** (não só em
 
 ```
 core/dom.js → core/content.js → core/ui.js → core/image.js → core/persistence.js
-→ storage.js → app.js
+→ core/ai.js → core/zip.js → core/merge.js → storage.js → app.js
 → views/shelf.js → views/book.js → views/search.js → views/trash.js → views/settings.js
-→ editor.js → review.js → export.js → reader.js
+→ views/help.js → views/assistant.js → editor.js → review.js → import.js → export.js
+→ sync.js → reader.js
 ```
 
 Dependências no load que você deve respeitar:
@@ -144,8 +164,11 @@ Dependências no load que você deve respeitar:
 - `ui.js` usa `Dom.el`/`Dom.icon` → **depois** de `dom.js`.
 - `app.js` faz `App.toast = Ui.toast`, `App.pickImage = Img.pick` → **depois** de `ui.js` e `image.js`.
 - `storage.js` faz `const Persistence = window.Autor.persistence` → **depois** de `persistence.js`.
+- `core/ai.js` usa `Store.Settings` só em runtime → pode carregar antes de `storage.js`,
+  desde que antes de seus consumidores (`review.js`, `views/assistant.js`).
 - As views fazem `const App = window.App` → **depois** de `app.js`.
-- `Editor`/`Review`/`Exporter`/`Reader` referenciam `App.*` em runtime → depois de `app.js`.
+- `Editor`/`Review`/`Importer`/`Exporter`/`Sync`/`Reader` referenciam `App.*` em runtime →
+  depois de `app.js`.
 
 ### 4.3 Namespaces
 
@@ -160,12 +183,17 @@ Cada módulo é um IIFE `'use strict'` que expõe um objeto. Como `const` de scr
 | `Ui` | `Autor.ui` | `js/core/ui.js` |
 | `Img` | `Autor.image` | `js/core/image.js` |
 | — | `Autor.persistence` | `js/core/persistence.js` |
+| — | `Autor.ai` | `js/core/ai.js` |
+| — | `Autor.zip` | `js/core/zip.js` |
+| — | `Autor.merge` | `js/core/merge.js` |
 | `Store` | `Autor.store` | `js/storage.js` |
 | `App` | `Autor.app` | `js/app.js` |
-| — | `Autor.views.{shelf,book,search,trash,settings}` | `js/views/*.js` |
+| — | `Autor.views.{shelf,book,search,trash,settings,help,assistant}` | `js/views/*.js` |
 | `Editor` | `Autor.editor` | `js/editor.js` |
 | `Review` | `Autor.review` | `js/review.js` |
+| `Importer` | `Autor.importer` | `js/import.js` |
 | `Exporter` | `Autor.exporter` | `js/export.js` |
+| `Sync` | `Autor.sync` | `js/sync.js` |
 | `Reader` | `Autor.reader` | `js/reader.js` |
 
 ---
@@ -360,6 +388,62 @@ Store.Settings= { cache, load, get(key, fallback), set(key, value) }
 - `Chapters.save` tem a guarda de invariante (livro precisa existir).
 - `Settings.set` é síncrono no cache e retorna a Promise da gravação.
 
+### 7.5 `Autor.ai` (`js/core/ai.js`)
+
+Cliente fino para uma API compatível com a OpenAI. Esconde endpoint/chave/modelo (lidos de
+`Settings`) e a tradução de erros HTTP. É a base da revisão com IA e do assistente de
+escrita — **não** duplique `fetch` de IA em outro lugar.
+
+```js
+Autor.ai.DEFAULT_URL / DEFAULT_MODEL
+Autor.ai.config(overrides?)       // { url, key, model } efetivos (Settings + overrides)
+Autor.ai.available()              // true se há chave configurada
+Autor.ai.chat(messages, opts?)    // → Promise<string> (conteúdo da resposta)
+Autor.ai.chatJSON(messages, opts?)// → Promise<objeto> (espera JSON; usa parseJSON)
+Autor.ai.parseJSON(text)          // extrai o 1º objeto/array JSON de um texto
+Autor.ai.test(url, key, model)    // → true | string de erro (usado em Configurações)
+```
+
+### 7.6 `Autor.zip` (`js/core/zip.js`)
+
+ZIP mínimo, sem dependências: **escreve** entradas com método *store* (sem compressão) e
+**lê** entradas *store* ou *deflate* (via `DecompressionStream`). Usado pelo EPUB (export)
+e pela importação de `.docx`/`.epub`. É agnóstico de realm (não usa `instanceof`) para
+poder ser testado no sandbox do Node.
+
+```js
+Autor.zip.crc32(bytes)                         // → number
+Autor.zip.zipWrite([{ name, data }])           // → Blob (síncrono; método store)
+Autor.zip.zipRead(arrayBuffer)                 // → Promise<[{ name, data }]>
+Autor.zip.entriesToMap(entries)                // → { nome: Uint8Array }
+Autor.zip.decodeText(bytes)                    // Uint8Array → UTF-8 string
+```
+
+> O `mimetype` do EPUB precisa ser a **primeira** entrada e **sem compressão** — o
+> `zipWrite` preserva a ordem do array.
+
+### 7.7 `Autor.merge` (`js/core/merge.js`)
+
+Lógica **pura** de merge de documentos (usada pelo backup e pela sincronização) e de
+remoção de segredos. Não toca em DOM nem em `Store` — só dados.
+
+```js
+Autor.merge.SECRET_KEYS        // chaves que nunca saem no backup (aiKey, webdavPass, gistToken…)
+Autor.merge.LOCAL_ONLY_KEYS    // chaves que ficam só no dispositivo (ex.: lastLocation)
+Autor.merge.emptyDoc() / normalizeDoc(doc)
+Autor.merge.stripSecrets(obj) / isLocalOnly(key)
+Autor.merge.mergeList(localList, remoteList, preferLocal)  // por id + updatedAt
+Autor.merge.mergeSettings(local, remote)
+Autor.merge.pruneOrphans(doc)                // remove capítulos órfãos
+Autor.merge.deletedIds(doc)                  // ids "apagados" (tombstones da lixeira)
+Autor.merge.mergeDoc(local, remote)          // → { doc, stats }
+```
+
+- **Tombstones:** um item na lixeira marca o id como excluído; o merge não o traz de volta
+  do remoto. Limitação conhecida: restaurar localmente e depois sincronizar de um remoto
+  antigo pode re-podar o item (documentado na seção 13).
+- `mergeDoc` nunca propaga `SECRET_KEYS`.
+
 ---
 
 ## 8. Views e raiz de composição
@@ -374,11 +458,13 @@ módulos legados) quanto em `Autor.views.<nome>`:
 
 | View | Registra |
 |------|----------|
-| `js/views/shelf.js` | `App.renderShelf` (+ helpers de card/estatística) |
+| `js/views/shelf.js` | `App.renderShelf` (+ helpers de card/estatística, card "continuar") |
 | `js/views/book.js` | `App.openBook`, `App.renderChapters`, `App.addChapter`, `App.openChapter`, `App.bookFormModal`, `App.chapterStatusModal` |
 | `js/views/search.js` | `App.searchModal` |
 | `js/views/trash.js` | `App.trashModal` |
 | `js/views/settings.js` | `App.settingsModal` |
+| `js/views/help.js` | `App.helpModal` (atalhos de teclado) |
+| `js/views/assistant.js` | `App.assistantModal` (assistente de escrita com IA) |
 
 **Como adicionar uma tela nova:** crie `js/views/<nome>.js` com o IIFE que registra em
 `App` e em `Autor.views`, adicione o `<script>` em `index.html` (após `app.js`), adicione a
@@ -389,7 +475,7 @@ módulos legados) quanto em `Autor.views.<nome>`:
 
 ---
 
-## 9. Editor, Review, Exporter, Reader
+## 9. Editor, Review, Exporter, Importer, Sync, Reader
 
 ### 9.1 `Editor` (`js/editor.js`)
 Editor por blocos `<p class="para" data-align="...">`. Autosave com debounce; guarda o
@@ -411,20 +497,59 @@ Editor.undo() / Editor.redo()
 Review.reset() / Review.toggle() / Review.open() / Review.openTab(tag)
 Review.onTextChange(text)
 Review.testAI(url, key, model)  // → true | string de erro
+Review.analyze(text)            // → [{ ruleId, message, start, length, replacement, priority }]
+Review.rules()                  // → [{ id, name, label, priority }] p/ a tela de configuração
 ```
+Configuração em `Settings`: `reviewRules` (mapa `id → false` para desativar regras; ausente
+= ativa) e `personalDict` (lista de termos que suprimem falsos positivos e são anexados ao
+prompt da IA). Cada regra tem `name` (categoria, usado para agrupar) e `label` (rótulo
+específico, único); a tela de configuração agrupa por `name` e mostra o `label`.
 
 ### 9.3 `Exporter` (`js/export.js`)
 ```js
 Exporter.bookDialog(book) / Exporter.chapterDialog(chapter)
 Exporter.exportBackup() / Exporter.importBackup()
+Exporter.snapshot()                        // → Promise<doc JSON> (sem segredos)
+Exporter.mergeImport(doc) / Exporter.replaceImport(doc)
+Exporter.bookToMarkdown(book, chapters) / Exporter.chapterToMarkdown(chapter, book)
+Exporter.buildEpub(book, chapters)         // → Blob EPUB 2/3 válido (síncrono)
 ```
-Formatos: TXT, Word (`.doc` HTML), PDF (impressão) e backup JSON (merge por id).
+Formatos: TXT, Word (`.doc` HTML), PDF (impressão), **Markdown**, **EPUB** e backup JSON
+(merge por id). `snapshot`/`mergeImport`/`replaceImport` são o seam reutilizado pela
+sincronização; nunca incluem `SECRET_KEYS`.
 
 ### 9.4 `Reader` (`js/reader.js`)
 ```js
 Reader.open({ bookId }) | Reader.open({ chapterId }) | Reader.open({ select: termo })
 ```
 Preferências em `Settings`: `readerFontFamily`, `readerTheme`, tamanho de fonte.
+O leitor também tem **sumário (TOC)**, **busca no texto** (`<mark class="search-hit">`),
+**leitura em voz alta** (Web Speech API) e **retomada de posição** (`Settings.readerProgress`).
+
+### 9.5 `Importer` (`js/import.js`)
+```js
+Importer.open()                          // abre o seletor de arquivo + prévia (UI)
+Importer.parseMarkdown(text, fallbackTitle)
+Importer.parsePlainText(text, fallbackTitle)
+Importer.parseFile(file)                 // → Promise<doc>; detecta .txt/.md/.docx/.epub/.html
+Importer.createFromDoc(doc, { title, author, bookId })  // cria/atualiza via Store
+Importer.preview(doc, fileName)
+```
+A importação **reaproveita** `Store`, `Content` e `Autor.zip` (para descompactar
+`.docx`/`.epub`). O `doc` produzido tem a mesma forma do backup `{ title, chapters }`, então
+pode ser criado como obra nova ou anexado a uma existente.
+
+### 9.6 `Sync` (`js/sync.js`)
+```js
+Sync.providers                   // mapa id → provider (webdav, gist)
+Sync.provider()                  // provider ativo (objeto com id/label/fields) ou null
+Sync.configured()                // true se o provider ativo tem o necessário
+Sync.status()                    // { provider, providerLabel, configured, lastAt, lastResult }
+Sync.now(opts?)                  // → Promise<stats>; faz pull+merge+push
+```
+Provedores suportados: **WebDAV** (Nextcloud/ownCloud…) e **GitHub Gist**. Toda a
+reconciliação é feita por `Autor.merge.mergeDoc` sobre o documento `snapshot()`. Segredos
+(`webdavPass`, `gistToken`) ficam em `Settings` e **nunca** vão para o backup.
 
 ---
 
@@ -480,7 +605,7 @@ Preferências em `Settings`: `readerFontFamily`, `readerTheme`, tamanho de fonte
        (`ASSETS`) **e** subi `CACHE` (`autor-vNN`).
 3. [ ] Se mudei o formato de dados: mantive back-compat (ou migrei).
 4. [ ] `node --check <arquivos alterados>` sem erro.
-5. [ ] `node --test` verde (35 testes; adicionei testes para lógica pura nova).
+5. [ ] `node --test` verde (60 testes; adicionei testes para lógica pura nova).
 6. [ ] Smoke test no navegador (seção 12.1), incluindo reload e, quando relevante, o modo
        `localStorage` de reserva.
 7. [ ] Textos em pt-BR e conteúdo do usuário escapado.
@@ -490,15 +615,23 @@ Preferências em `Settings`: `readerFontFamily`, `readerTheme`, tamanho de fonte
 
 Sirva localmente (`python -m http.server`) e verifique:
 
-- [ ] Prateleira: criar livro (com capa), filtro por status, busca local.
+- [ ] Prateleira: criar livro (com capa), filtro por status, busca local, card "continuar".
 - [ ] Tela do livro: editar livro, trocar status, adicionar capítulo.
 - [ ] Editor: digitar, Enter (novo parágrafo), colar, alinhar, desfazer/refazer, Ctrl+S
-      (autosave), sair e voltar (dados persistem).
+      (autosave), sair e voltar (dados persistem). Modo foco, sumário do livro (TOC),
+      meta de escrita e navegação entre capítulos.
 - [ ] Capítulos: mover ↑/↓, duplicar, mudar status, excluir (vai para a lixeira).
-- [ ] Reader: abrir livro/capítulo, fonte ±, tema, voltar.
-- [ ] Exportar: TXT, DOC, PDF (impressão) e **backup JSON**; **importar** backup.
+- [ ] Reader: abrir livro/capítulo, fonte ±, tema, voltar; sumário, busca no texto e
+      leitura em voz alta (TTS) quando o navegador suportar.
+- [ ] Exportar: TXT, DOC, PDF (impressão), **Markdown**, **EPUB** e **backup JSON**;
+      **importar** backup e **importar manuscrito** (.txt/.md/.docx/.epub/.html).
+- [ ] Revisão: regras offline ligar/desligar, dicionário pessoal suprime falsos positivos.
+- [ ] Assistente de escrita (IA): continuar/resumir com chave configurada; sem chave, abre o
+      atalho para as configurações.
+- [ ] Sincronização: configurar WebDAV/Gist, "Testar conexão" e "Sincronizar agora".
 - [ ] Busca global (Ctrl+K), lixeira (restaurar e esvaziar), tema claro/escuro,
-      configurações (salvar IA/backup).
+      configurações (IA, regras, dicionário, TTS, sync, backup).
+- [ ] Atalhos de teclado (tecla `?`).
 - [ ] Recarregar a página: dados persistem (IndexedDB). Sem erros no console.
 - [ ] (Quando aplicável) modo reserva `localStorage` funcionando.
 
@@ -507,17 +640,28 @@ Sirva localmente (`python -m http.server`) e verifique:
 ## 13. Roadmap e pontos de extensão
 
 Objetivo do trabalho em curso: **facilitar a integração de novas ferramentas e polir o
-código**. Extensões previstas e onde elas encaixam:
+código**. Estado atual e onde novas extensões encaixam:
 
-| Ferramenta/recurso | Onde plugar |
-|--------------------|-------------|
-| EPUB | `js/export.js` (`Exporter.*`); reaproveite `Content.toExport` e as capas |
-| DOCX "de verdade" | `js/export.js` (novo formato; TXT/DOC/PDF já existem) |
-| Markdown | `js/export.js` (mapear blocos e alinhamento) |
-| Rich text (negrito/itálico inline) | `Content.Block` (`js/core/content.js`) é o ponto de extensão; afeta editor, reader, export e busca |
-| Imagens inline | mesmo ponto do rich text + `Autor.image`/`Img` |
-| Sync/nuvem/multi-dispositivo | novo adaptador em `js/core/persistence.js` (seção 6.1) |
-| Reader: bookmarks, sumário (TOC), temas | `js/reader.js` (+ `Settings`) |
+| Ferramenta/recurso | Onde plugar | Estado |
+|--------------------|-------------|--------|
+| EPUB | `js/export.js` (`Exporter.buildEpub`) + `Autor.zip` | feito |
+| Markdown | `js/export.js` (`bookToMarkdown`/`chapterToMarkdown`) | feito |
+| Importar manuscrito (.txt/.md/.docx/.epub/.html) | `js/import.js` (`Importer.parseFile`) | feito |
+| Sync/nuvem (WebDAV/Gist) | `js/sync.js` + `Autor.merge` (não fura a persistência) | feito |
+| Reader: sumário (TOC), busca, TTS | `js/reader.js` (+ `Settings`) | feito |
+| Assistente de escrita com IA | `js/views/assistant.js` + `Autor.ai` | feito |
+| DOCX "de verdade" (OOXML) | `js/export.js` (novo formato; `.doc` HTML já existe) | pendente |
+| Rich text (negrito/itálico inline) | `Content.Block` (`js/core/content.js`) é o ponto de extensão; afeta editor, reader, export e busca | pendente |
+| Imagens inline | mesmo ponto do rich text + `Autor.image`/`Img` | pendente |
+| Reader: bookmarks | `js/reader.js` (+ `Settings`) | pendente |
+| sync por pasta local (File System Access) | exigiria persistir o handle (fora do seam de persistência) | pendente |
+| novo backend de persistência | novo adaptador em `js/core/persistence.js` (seção 6.1) | — |
+
+**Limitações conhecidas da sincronização:** a reconciliação usa `updatedAt`/`id` e a lixeira
+como *tombstone*. Restaurar um item localmente e depois sincronizar a partir de um remoto
+antigo pode re-podar o item (o remoto ainda o considera excluído). Sincronizações
+concorrentes entre dispositivos sem um relógio comum podem escolher a versão "errada" do
+empate; a resolução é sempre determinística (prefere a mais recente, desempata pelo local).
 
 Princípios para novas ferramentas:
 
@@ -539,6 +683,10 @@ Princípios para novas ferramentas:
   `Ui.cover` reutilizável no livro e no capítulo.
 - **ADR-0004 — View modules.** Telas em `js/views/*`; `app.js` reduzido a raiz de
   composição.
+- **ADR-0005 — Extensões (IA, importação, EPUB/Markdown, sync).** `Autor.ai` como cliente
+  único de IA; lógica de merge/segredos pura em `Autor.merge`; `Autor.zip` sem dependências;
+  `Sync` como motor separado sobre o snapshot; configuração nova em `Settings` (sem novo
+  store/`DB_VERSION`).
 
 > Ao tomar uma decisão arquitetural relevante, escreva um novo ADR (`ADR-000N-titulo.md`)
 > seguindo o formato dos existentes.
@@ -556,6 +704,11 @@ Princípios para novas ferramentas:
 - **Repositório** — `Books`/`Chapters`/`Trash`/`Settings` em `storage.js`.
 - **Seam** — fronteira substituível entre partes do sistema (ex.: persistência, imagem).
 - **Fallback mode** — quando o app usa `localStorage` em vez de IndexedDB.
+- **Snapshot** — documento JSON com `{ app, version, exportedAt, books, chapters, trash,
+  settings }`, sem segredos; base do backup e da sincronização.
+- **Tombstone** — item da lixeira usado para marcar um id como excluído no merge.
+- **TTS** — *text-to-speech*; leitura em voz alta no modo leitura (Web Speech API).
+- **EPUB / OPF** — formato de livro digital; o OPF descreve metadados e a ordem (spine).
 
 Veja também `GLOSSARY.md`.
 

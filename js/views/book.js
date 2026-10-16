@@ -15,6 +15,46 @@ window.Autor.views = window.Autor.views || {};
   const esc = Dom.esc;
   const icon = Dom.icon;
   const numberFmt = new Intl.NumberFormat('pt-BR');
+  const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  /* FLIP: posições das linhas antes de reordenar (por id) */
+  function rowTops() {
+    const map = {};
+    document.querySelectorAll('#chapter-list .chapter-item').forEach(function (li) {
+      const id = li.getAttribute('data-id');
+      if (id) map[id] = li.getBoundingClientRect().top;
+    });
+    return map;
+  }
+
+  function flipRows(before) {
+    if (reduceMQ.matches) return;
+    // lê as posições novas primeiro, depois anima (evita read/write alternado)
+    const moved = [];
+    document.querySelectorAll('#chapter-list .chapter-item').forEach(function (li) {
+      const id = li.getAttribute('data-id');
+      const from = before[id];
+      if (from == null) return;
+      const dy = from - li.getBoundingClientRect().top;
+      if (dy) moved.push({ el: li, dy: dy });
+    });
+    moved.forEach(function (m) {
+      m.el.animate(
+        [{ transform: 'translateY(' + m.dy + 'px)' }, { transform: 'translateY(0)' }],
+        { duration: 220, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+      );
+    });
+  }
+
+  function enterRow(id) {
+    if (reduceMQ.matches || !id) return;
+    const li = document.querySelector('#chapter-list .chapter-item[data-id="' + id + '"]');
+    if (!li) return;
+    li.animate(
+      [{ opacity: 0, transform: 'scale(.98)' }, { opacity: 1, transform: 'scale(1)' }],
+      { duration: 180, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+    );
+  }
 
   /* ---------------- formulário de livro ---------------- */
 
@@ -144,7 +184,7 @@ window.Autor.views = window.Autor.views || {};
     App.navigate('book');
   }
 
-  async function renderChapters() {
+  async function renderChapters(enterId) {
     if (!App.book) return;
     const chapters = await Store.Chapters.listByBook(App.book.id);
     const list = $('#chapter-list');
@@ -152,6 +192,7 @@ window.Autor.views = window.Autor.views || {};
 
     chapters.forEach(function (ch, i) {
       const li = el('li', 'chapter-item');
+      li.setAttribute('data-id', ch.id);
       const chStatus = ch.status || 'rascunho';
       const st = App.STATUS[chStatus] || App.STATUS.rascunho;
       const words = Content.countWords(ch.content);
@@ -190,11 +231,12 @@ window.Autor.views = window.Autor.views || {};
         btn.addEventListener('click', async function () {
           const act = btn.getAttribute('data-act');
           if (act === 'up' || act === 'down') {
+            const before = rowTops();
             const moved = await Store.Chapters.move(ch.id, act);
-            if (moved) renderChapters();
+            if (moved) { await renderChapters(); flipRows(before); }
           } else if (act === 'dup') {
             const copy = await Store.Chapters.duplicate(ch.id);
-            if (copy) { App.toast('Capítulo duplicado.'); renderChapters(); }
+            if (copy) { App.toast('Capítulo duplicado.'); await renderChapters(copy.id); }
           } else if (act === 'status') {
             chapterStatusModal(ch, renderChapters);
           } else if (act === 'del') {
@@ -219,6 +261,7 @@ window.Autor.views = window.Autor.views || {};
       numberFmt.format(chapters.length) + (chapters.length === 1 ? ' capítulo' : ' capítulos') +
       ' · ' + numberFmt.format(words) + ' palavras · ' + App.readTime(words);
     $('#book-empty-chapters').classList.toggle('hidden', chapters.length > 0);
+    enterRow(enterId);
   }
 
   async function addChapter() {

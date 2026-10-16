@@ -14,6 +14,7 @@ window.Autor.views = window.Autor.views || {};
   const esc = Dom.esc;
   const icon = Dom.icon;
   const numberFmt = new Intl.NumberFormat('pt-BR');
+  const reduceMQ = window.matchMedia('(prefers-reduced-motion: reduce)');
 
   /* soma de palavras e capítulos por livro */
   async function statsByBook() {
@@ -32,6 +33,45 @@ window.Autor.views = window.Autor.views || {};
     let h = 0;
     for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) % 360;
     return 'hsl(' + h + ', 42%, 48%)';
+  }
+
+  /* faixa "continuar de onde parei" (última parte aberta no editor) */
+  async function renderContinue() {
+    const wrap = $('#shelf-continue');
+    if (!wrap) return;
+    const loc = Store.Settings.get('lastLocation', null);
+    if (!loc || !loc.chapterId) { wrap.classList.add('hidden'); wrap.innerHTML = ''; return; }
+    const chapter = await Store.Chapters.get(loc.chapterId);
+    if (!chapter) { wrap.classList.add('hidden'); wrap.innerHTML = ''; return; }
+    const book = await Store.Books.get(chapter.bookId);
+    const words = Content.countWords(chapter.content);
+    const wasHidden = wrap.classList.contains('hidden');
+
+    wrap.innerHTML =
+      '<button type="button" class="continue-card">' +
+        '<span class="continue-icon">' + icon('bookmark') + '</span>' +
+        '<span class="continue-info">' +
+          '<span class="continue-label">Continuar escrevendo</span>' +
+          '<span class="continue-title">' + esc(chapter.title || 'Sem título') + '</span>' +
+          '<span class="continue-meta muted">' +
+            (book ? esc(book.title) + ' · ' : '') + numberFmt.format(words) +
+            (words === 1 ? ' palavra' : ' palavras') +
+          '</span>' +
+        '</span>' +
+        '<span class="continue-go">Continuar ' + icon('arrow-right') + '</span>' +
+      '</button>';
+    wrap.classList.remove('hidden');
+    const card = wrap.querySelector('.continue-card');
+    card.addEventListener('click', function () {
+      App.openChapter(chapter.id);
+    });
+    // só anima quando o card realmente aparece (não a cada filtro/busca)
+    if (wasHidden && !reduceMQ.matches) {
+      card.animate(
+        [{ opacity: 0, transform: 'translateY(4px)' }, { opacity: 1, transform: 'translateY(0)' }],
+        { duration: 200, easing: 'cubic-bezier(0.23, 1, 0.32, 1)' }
+      );
+    }
   }
 
   function bookCard(book, stats) {
@@ -63,6 +103,8 @@ window.Autor.views = window.Autor.views || {};
     const q = $('#shelf-search').value.trim().toLowerCase();
     const filter = $('#shelf-filter').value;
 
+    await renderContinue();
+
     const filtered = books.filter(function (b) {
       if (filter !== 'all' && b.status !== filter) return false;
       if (!q) return true;
@@ -77,7 +119,7 @@ window.Autor.views = window.Autor.views || {};
     $('#shelf-empty').classList.toggle('hidden', filtered.length > 0);
   }
 
-  const Shelf = { render: render, bookCard: bookCard, statsByBook: statsByBook, spineColor: spineColor };
+  const Shelf = { render: render, renderContinue: renderContinue, bookCard: bookCard, statsByBook: statsByBook, spineColor: spineColor };
 
   App.renderShelf = render;
   window.Autor.views.shelf = Shelf;

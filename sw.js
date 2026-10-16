@@ -6,7 +6,7 @@
    de IA configurada pelo usuário) NÃO são interceptadas.
    ============================================================ */
 
-const CACHE = 'autor-v11';
+const CACHE = 'autor-v13';
 
 const ASSETS = [
   './',
@@ -18,6 +18,9 @@ const ASSETS = [
   './js/core/ui.js',
   './js/core/image.js',
   './js/core/persistence.js',
+  './js/core/ai.js',
+  './js/core/zip.js',
+  './js/core/merge.js',
   './js/storage.js',
   './js/app.js',
   './js/views/shelf.js',
@@ -25,9 +28,13 @@ const ASSETS = [
   './js/views/search.js',
   './js/views/trash.js',
   './js/views/settings.js',
+  './js/views/help.js',
+  './js/views/assistant.js',
   './js/editor.js',
   './js/review.js',
+  './js/import.js',
   './js/export.js',
+  './js/sync.js',
   './js/reader.js',
   './icons/icon-192.png',
   './icons/icon-512.png',

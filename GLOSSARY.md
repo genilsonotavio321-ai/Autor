@@ -10,8 +10,13 @@ Vocabulary used in codebase architecture decisions (following `codebase-design` 
 - `Autor.content` (`js/core/content.js`) — the Content model (deep module).
 - `Autor.ui` (`js/core/ui.js`) — UI primitives: `toast`, `openModal`, `confirm`.
 - `Autor.store` (`js/storage.js`) — persistence (IndexedDB + localStorage fallback).
-- `Autor.app` (`js/app.js`) — boot, router (`navigate`), shelf/book/search/trash/settings.
-- `Autor.editor` / `Autor.review` / `Autor.exporter` / `Autor.reader` — feature modules.
+- `Autor.app` (`js/app.js`) — boot, router (`navigate`), composition root.
+- `Autor.ai` (`js/core/ai.js`) — single AI client (OpenAI-compatible).
+- `Autor.zip` (`js/core/zip.js`) — dependency-free ZIP reader/writer (EPUB, .docx/.epub).
+- `Autor.merge` (`js/core/merge.js`) — pure merge/tombstone/secret logic (backup + sync).
+- `Autor.views.*` (`js/views/*.js`) — screens (shelf/book/search/trash/settings/help/assistant).
+- `Autor.editor` / `Autor.review` / `Autor.importer` / `Autor.exporter` / `Autor.sync` /
+  `Autor.reader` — feature modules.
 
 ## Terms
 - **module**: A cohesive unit of implementation (file or folder) with a clear responsibility.
@@ -29,6 +34,10 @@ Vocabulary used in codebase architecture decisions (following `codebase-design` 
 - **ui module** (`Autor.ui`): Deep module owning toast/modal/confirm, focus trapping and ARIA, so `app.js` and feature modules never touch `#modal-root` directly.
 - **persistence seam**: Planned seam around storage (IndexedDB + localStorage fallback) with adapters and a minimal storage interface.
 - **view module**: A module that owns a screen/view (shelf/book/editor-coordinator) to shrink `app.js`.
+- **snapshot**: The JSON document `{ app, version, exportedAt, books, chapters, trash, settings }` produced by `Exporter.snapshot()` (secrets stripped). The shared format of backup and sync.
+- **tombstone**: A `trash` entry used as a deletion marker during merge; prevents a deleted item from being resurrected by a remote copy.
+- **sync engine** (`Autor.sync`): A separate reconciler over the snapshot with pluggable providers (WebDAV, GitHub Gist). It does not touch the persistence adapters.
+- **personal dictionary**: `Settings.personalDict`, a list of terms that suppress offline rule false positives and are appended to the AI review prompt.
 
 ## Decisions
 - ADR-0001: Candidate #1 (Content model) prioritized: centralize parsing/serialization/stripping of alignment markers. Consumers depend on `Content.*`, not raw regexes over the string format. Legacy fallbacks removed.

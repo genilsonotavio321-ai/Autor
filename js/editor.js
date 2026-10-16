@@ -20,6 +20,13 @@ const Editor = (function () {
   const alignButtons = Array.prototype.slice.call(document.querySelectorAll('.align-btn'));
   const scopeButtons = Array.prototype.slice.call(document.querySelectorAll('.et-scope-btn'));
 
+  const focusBtn = document.getElementById('btn-focus');
+  const tocBtn = document.getElementById('btn-editor-toc');
+  const tocEl = document.getElementById('editor-toc');
+  const prevChapterBtn = document.getElementById('btn-prev-chapter');
+  const nextChapterBtn = document.getElementById('btn-next-chapter');
+  const goalEl = document.getElementById('goal-progress');
+
   let dirty = false;
   let saveTimer = null;
   let pendingSelect = null;
@@ -27,6 +34,11 @@ const Editor = (function () {
   let scopeMode = 'para'; // onde o próximo clique de alinhamento é aplicado
   let lastAlignUI = ''; // guarda para não reescrever o DOM sem mudança
   const numberFmt = new Intl.NumberFormat('pt-BR');
+
+  /* escrita: base para a meta de sessão e para as estatísticas do dia */
+  let sessionStartWords = 0;
+  let lastSavedWords = 0;
+  let lastSaveAt = 0;
 
   /* ---------------- abrir / salvar ---------------- */
 
@@ -54,7 +66,17 @@ const Editor = (function () {
     updateStats();
     updateAlignUI();
     histReset();
+
+    // base para a meta de sessão e para a marcação de "continuar lendo"
+    sessionStartWords = Content.countWords(chapter.content || '');
+    lastSavedWords = sessionStartWords;
+    lastSaveAt = Date.now();
+    Store.Settings.set('lastLocation', { bookId: chapter.bookId, chapterId: chapter.id, at: Date.now() });
+
     App.navigate('editor');
+    applyFocus(Store.Settings.get('editorFocus', false) === true);
+    await refreshNav();
+    updateGoal();
     if (window.Review) Review.reset();
 
     if (opts && opts.select) {
@@ -97,6 +119,7 @@ const Editor = (function () {
     App.chapter.content = getText();
     await Store.Chapters.save(App.chapter);
     setSaveState('saved');
+    trackWriting();
   }
 
   /* salva imediatamente se houver alterações pendentes */
@@ -666,6 +689,189 @@ const Editor = (function () {
     });
   }
 
+  /* ---------------- modo foco ---------------- */
+
+  function applyFocus(on) {
+    document.body.classList.toggle('focus-mode', !!on);
+    if (!focusBtn) return;
+    focusBtn.setAttribute('aria-pressed', on ? 'true' : 'false');
+    focusBtn.classList.toggle('primary', !!on);
+    const use = focusBtn.querySelector('use');
+    if (use) use.setAttribute('href', on ? '#i-minimize' : '#i-maximize');
+    focusBtn.title = on ? 'Sair do modo foco (Esc)' : 'Modo foco: esconde os painéis (Ctrl+Shift+F)';
+  }
+
+  function toggleFocus() {
+    const on = !document.body.classList.contains('focus-mode');
+    applyFocus(on);
+    Store.Settings.set('editorFocus', on);
+    if (on) App.toast('Modo foco ativado. Pressione Esc para sair.', 'info');
+  }
+
+  /* ---------------- navegação entre capítulos + sumário ---------------- */
+
+  async function refreshNav() {
+    if (!App.book || !App.chapter) return;
+    const chapters = await Store.Chapters.listByBook(App.book.id);
+    const idx = chapters.findIndex(function (c) { return c.id === App.chapter.id; });
+    if (prevChapterBtn) prevChapterBtn.disabled = idx <= 0;
+    if (nextChapterBtn) nextChapterBtn.disabled = idx < 0 || idx >= chapters.length - 1;
+    renderToc(chapters, idx);
+  }
+
+  function renderToc(chapters, currentIdx) {
+    if (!tocEl) return;
+    tocEl.innerHTML = '';
+    const head = App.el('div', 'toc-head');
+    head.innerHTML = '<span>' + icon('list') + ' Sumário</span>';
+    const closeBtn = App.el('button', 'icon-btn');
+    closeBtn.innerHTML = icon('x');
+    closeBtn.title = 'Fechar sumário';
+    closeBtn.setAttribute('aria-label', 'Fechar sumário');
+    closeBtn.addEventListener('click', function () { tocEl.classList.add('hidden'); });
+    head.appendChild(closeBtn);
+    tocEl.appendChild(head);
+
+    const list = App.el('ol', 'toc-items');
+    chapters.forEach(function (ch, i) {
+      const li = document.createElement('li');
+      const b = App.el('button', 'toc-item' + (i === currentIdx ? ' active' : ''));
+      const words = Content.countWords(ch.content);
+      b.innerHTML =
+        '<span class="toc-num">' + (i + 1) + '</span>' +
+        '<span class="toc-title">' + App.esc(ch.title || 'Sem título') + '</span>' +
+        '<span class="toc-words muted">' + numberFmt.format(words) + '</span>';
+      b.title = ch.title || 'Sem título';
+      b.addEventListener('click', async function () {
+        tocEl.classList.add('hidden');
+        if (i !== currentIdx) await open(ch.id);
+      });
+      li.appendChild(b);
+      list.appendChild(li);
+    });
+    tocEl.appendChild(list);
+    if (!chapters.length) tocEl.appendChild(App.el('p', 'muted', 'Nenhum capítulo.'));
+  }
+
+  async function toggleToc() {
+    if (!tocEl) return;
+    if (tocEl.classList.contains('hidden')) {
+      await refreshNav();
+      tocEl.classList.remove('hidden');
+    } else {
+      tocEl.classList.add('hidden');
+    }
+  }
+
+  async function goRelative(delta) {
+    if (!App.book || !App.chapter) return;
+    const chapters = await Store.Chapters.listByBook(App.book.id);
+    const idx = chapters.findIndex(function (c) { return c.id === App.chapter.id; });
+    const j = idx + delta;
+    if (idx < 0 || j < 0 || j >= chapters.length) return;
+    await open(chapters[j].id);
+  }
+
+  /* ---------------- meta de escrita ---------------- */
+
+  function todayKey() {
+    const d = new Date();
+    const p = function (n) { return String(n).padStart(2, '0'); };
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate());
+  }
+
+  function goalConfig() { return Store.Settings.get('writingGoal', {}) || {}; }
+
+  function todayStats() {
+    const all = Store.Settings.get('writingStats', {}) || {};
+    return all[todayKey()] || { words: 0, ms: 0 };
+  }
+
+  /* acumula as palavras escritas (delta positivo desde o último save) e o
+     tempo aproximado de escrita do dia; alimenta a meta e o painel. */
+  function trackWriting() {
+    if (!App.chapter) return;
+    const words = Content.countWords(App.chapter.content);
+    const delta = words - lastSavedWords;
+    lastSavedWords = words;
+    const now = Date.now();
+    const elapsed = lastSaveAt ? Math.min(now - lastSaveAt, 90000) : 0;
+    lastSaveAt = now;
+
+    if (delta > 0 || elapsed > 0) {
+      const all = Object.assign({}, Store.Settings.get('writingStats', {}) || {});
+      const key = todayKey();
+      const day = Object.assign({ words: 0, ms: 0 }, all[key] || {});
+      if (delta > 0) day.words += delta;
+      day.ms = (day.ms || 0) + elapsed;
+      all[key] = day;
+      Store.Settings.set('writingStats', all);
+    }
+    updateGoal();
+  }
+
+  function updateGoal() {
+    if (!goalEl) return;
+    const g = goalConfig();
+    const daily = Number(g.daily) || 0;
+    const session = Number(g.session) || 0;
+    goalEl.classList.remove('hidden');
+
+    if (!daily && !session) {
+      goalEl.innerHTML = icon('target') + ' <span class="goal-text">Definir meta</span>';
+      goalEl.title = 'Defina uma meta diária ou de sessão';
+      goalEl.classList.remove('reached');
+      return;
+    }
+
+    let done, target, label;
+    if (daily) {
+      done = todayStats().words;
+      target = daily;
+      label = 'hoje';
+    } else {
+      done = Math.max(0, Content.countWords(serialize()) - sessionStartWords);
+      target = session;
+      label = 'sessão';
+    }
+    const pct = target ? Math.min(100, Math.round((done / target) * 100)) : 0;
+    const reached = target > 0 && done >= target;
+    goalEl.classList.toggle('reached', reached);
+    goalEl.innerHTML = icon('target') +
+      ' <span class="goal-text">' + numberFmt.format(done) + '/' + numberFmt.format(target) + '</span>' +
+      ' <span class="goal-meter"><span class="goal-fill" style="transform:scaleX(' + (pct / 100) + ')"></span></span>';
+    goalEl.title = 'Meta de ' + label + ': ' + pct + '%' + (reached ? ' — meta atingida!' : '') + '. Clique para ajustar.';
+  }
+
+  function openGoalModal() {
+    const g = goalConfig();
+    const body = App.el('div');
+    body.innerHTML =
+      '<p class="hint" style="margin-top:0">A meta diária conta as palavras escritas hoje; a de sessão, as escritas desde que este capítulo foi aberto. Use 0 para desativar.</p>' +
+      '<div class="field"><label for="goal-daily">Meta diária (palavras)</label>' +
+      '<input id="goal-daily" type="number" min="0" step="50" value="' + (Number(g.daily) || 0) + '"></div>' +
+      '<div class="field"><label for="goal-session">Meta de sessão (palavras)</label>' +
+      '<input id="goal-session" type="number" min="0" step="50" value="' + (Number(g.session) || 0) + '"></div>';
+    App.openModal({
+      title: '<span>' + icon('target') + ' Meta de escrita</span>',
+      body: body,
+      actions: [
+        { label: 'Cancelar' },
+        {
+          label: 'Salvar',
+          className: 'primary',
+          onClick: async function (close) {
+            const daily = Math.max(0, parseInt(body.querySelector('#goal-daily').value, 10) || 0);
+            const session = Math.max(0, parseInt(body.querySelector('#goal-session').value, 10) || 0);
+            await Store.Settings.set('writingGoal', { daily: daily, session: session });
+            updateGoal();
+            close();
+          }
+        }
+      ]
+    });
+  }
+
   /* ---------------- API pública ---------------- */
 
   function getText() { return serialize(); }
@@ -902,7 +1108,7 @@ const Editor = (function () {
     if (window.Review) Review.openTab('replace');
   });
 
-  // Ctrl+S salva agora · Ctrl+H abre a substituição
+  // Ctrl+S salva agora · Ctrl+H abre a substituição · Ctrl+Shift+F modo foco
   document.addEventListener('keydown', function (ev) {
     if (!(ev.ctrlKey || ev.metaKey)) return;
     const key = ev.key.toLowerCase();
@@ -914,8 +1120,27 @@ const Editor = (function () {
       if (App.view !== 'editor') return;
       ev.preventDefault();
       if (window.Review) Review.openTab('replace');
+    } else if (key === 'f' && ev.shiftKey) {
+      if (App.view !== 'editor') return;
+      ev.preventDefault();
+      toggleFocus();
     }
   });
+
+  // Esc sai do modo foco (a menos que um modal esteja aberto e trate o Esc)
+  document.addEventListener('keydown', function (ev) {
+    if (ev.key !== 'Escape') return;
+    if (App.view !== 'editor') return;
+    if (document.querySelector('.modal-overlay')) return;
+    if (document.body.classList.contains('focus-mode')) { ev.preventDefault(); toggleFocus(); }
+  });
+
+  // navegação entre capítulos, sumário, foco e meta
+  if (prevChapterBtn) prevChapterBtn.addEventListener('click', function () { goRelative(-1); });
+  if (nextChapterBtn) nextChapterBtn.addEventListener('click', function () { goRelative(1); });
+  if (tocBtn) tocBtn.addEventListener('click', function () { toggleToc(); });
+  if (focusBtn) focusBtn.addEventListener('click', function () { toggleFocus(); });
+  if (goalEl) goalEl.addEventListener('click', openGoalModal);
 
   document.getElementById('btn-back-book').addEventListener('click', async function () {
     await flush();

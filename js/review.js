@@ -17,6 +17,7 @@ const Review = (function () {
   const replaceState = { find: '', with: '', wholeWord: true, ignoreCase: true };
   const REPLACE_LIST_LIMIT = 150;
   let replaceRefreshTimer = null;
+  let offlineRefreshTimer = null;
 
   /* ============================================================
      REGRAS OFFLINE
@@ -54,7 +55,7 @@ const Review = (function () {
   const rules = [
     /* espaço duplicado */
     {
-      id: 'espaco-duplo', name: 'Espaços', priority: 'fix',
+      id: 'espaco-duplo', name: 'Espaços', label: 'Espaços duplicados', priority: 'fix',
       check: function (text) {
         return mkMatches(text, /[ \t\u00a0]{2,}/g, function (m) {
           return issue(this.id, this.name, 'fix', 'Espaço duplicado', m.index, m[0].length, ' ');
@@ -63,7 +64,7 @@ const Review = (function () {
     },
     /* espaço antes de pontuação */
     {
-      id: 'espaco-antes-pont', name: 'Pontuação', priority: 'fix',
+      id: 'espaco-antes-pont', name: 'Pontuação', label: 'Espaço antes de pontuação', priority: 'fix',
       check: function (text) {
         return mkMatches(text, /[ \t]+([,.;:!?])/g, function (m) {
           return issue(this.id, this.name, 'fix', 'Espaço antes de "' + m[1] + '"', m.index, m[0].length, m[1]);
@@ -72,7 +73,7 @@ const Review = (function () {
     },
     /* espaço faltando depois de pontuação */
     {
-      id: 'espaco-faltando', name: 'Pontuação', priority: 'fix',
+      id: 'espaco-faltando', name: 'Pontuação', label: 'Falta de espaço após pontuação', priority: 'fix',
       check: function (text) {
         const a = mkMatches(text, /([,;:!?])(?=[A-Za-zÀ-ÿ])/g, function (m) {
           return issue(this.id, this.name, 'fix', 'Falta espaço depois de "' + m[1] + '"', m.index, 0, m[1] + ' ');
@@ -85,7 +86,7 @@ const Review = (function () {
     },
     /* pontuação duplicada */
     {
-      id: 'pont-dupla', name: 'Pontuação', priority: 'fix',
+      id: 'pont-dupla', name: 'Pontuação', label: 'Pontuação duplicada', priority: 'fix',
       check: function (text) {
         const a = mkMatches(text, /([,;:])\1+/g, function (m) {
           return issue(this.id, this.name, 'fix', 'Pontuação duplicada ("' + m[0] + '")', m.index, m[0].length, m[1]);
@@ -98,7 +99,7 @@ const Review = (function () {
     },
     /* palavra repetida */
     {
-      id: 'palavra-repetida', name: 'Repetição', priority: 'fix',
+      id: 'palavra-repetida', name: 'Repetição', label: 'Palavras repetidas', priority: 'fix',
       check: function (text) {
         return mkMatches(text, /(?<![\p{L}])(\p{L}{2,})[ \t]+\1(?![\p{L}])/giu, function (m) {
           return issue(this.id, this.name, 'fix', 'Palavra repetida: "' + m[1] + ' ' + m[1] + '"', m.index, m[0].length, m[1]);
@@ -107,7 +108,7 @@ const Review = (function () {
     },
     /* frase começando com letra minúscula depois de pontuação */
     {
-      id: 'maiuscula', name: 'Maiúsculas', priority: 'fix',
+      id: 'maiuscula', name: 'Maiúsculas', label: 'Minúscula após fim de frase', priority: 'fix',
       check: function (text) {
         return mkMatches(text, /([.!?…]["»”’)\]]?[ \t]+)(\p{Ll})/gu, function (m) {
           const before = text.slice(Math.max(0, m.index - 12), m.index);
@@ -122,7 +123,7 @@ const Review = (function () {
     },
     /* ponto final ausente no fim do parágrafo */
     {
-      id: 'ponto-faltando', name: 'Pontuação', priority: 'fix',
+      id: 'ponto-faltando', name: 'Pontuação', label: 'Ponto final ausente', priority: 'fix',
       check: function (text) {
         const out = [];
         let offset = 0;
@@ -147,7 +148,7 @@ const Review = (function () {
     },
     /* aspas retas → curvas */
     {
-      id: 'aspas-reitas', name: 'Tipografia', priority: 'style',
+      id: 'aspas-reitas', name: 'Tipografia', label: 'Aspas retas (use “...”)', priority: 'style',
       check: function (text) {
         return mkMatches(text, /"([^"\n]+)"/g, function (m) {
           return issue(this.id, this.name, 'style', 'Aspas retas — use aspas curvas “...”', m.index, m[0].length, '“' + m[1] + '”');
@@ -156,7 +157,7 @@ const Review = (function () {
     },
     /* diálogo com hífen → travessão */
     {
-      id: 'dialogo-hifen', name: 'Diálogo', priority: 'style',
+      id: 'dialogo-hifen', name: 'Diálogo', label: 'Diálogo com hífen (use travessão)', priority: 'style',
       check: function (text) {
         return mkMatches(text, /^([ \t]*)-(?=[ \t]*\S[^-])/gm, function (m) {
           const lineEnd = text.indexOf('\n', m.index);
@@ -168,7 +169,7 @@ const Review = (function () {
     },
     /* reticências com pontos */
     {
-      id: 'reticencias', name: 'Tipografia', priority: 'style',
+      id: 'reticencias', name: 'Tipografia', label: 'Reticências com três pontos', priority: 'style',
       check: function (text) {
         return mkMatches(text, /\.{3,}/g, function (m) {
           return issue(this.id, this.name, 'style', 'Use o caractere de reticências (…)', m.index, m[0].length, '…');
@@ -177,7 +178,7 @@ const Review = (function () {
     },
     /* excesso de linhas em branco */
     {
-      id: 'linhas-branco', name: 'Espaços', priority: 'fix',
+      id: 'linhas-branco', name: 'Espaços', label: 'Linhas em branco em excesso', priority: 'fix',
       check: function (text) {
         return mkMatches(text, /\n{4,}/g, function (m) {
           return issue(this.id, this.name, 'fix', 'Muitas linhas em branco seguidas', m.index, m[0].length, '\n\n\n');
@@ -186,7 +187,7 @@ const Review = (function () {
     },
     /* parágrafo muito longo (informativo, sem correção automática) */
     {
-      id: 'paragrafo-longo', name: 'Estrutura', priority: 'info',
+      id: 'paragrafo-longo', name: 'Estrutura', label: 'Parágrafo muito longo', priority: 'info',
       check: function (text) {
         const out = [];
         let offset = 0;
@@ -208,17 +209,68 @@ const Review = (function () {
   ];
 
   function analyze(text) {
+    const enabled = getEnabledRules();
+    const dict = getDict();
     let issues = [];
     rules.forEach(function (rule) {
+      if (!enabled[rule.id]) return;
       try {
         issues = issues.concat(rule.check(text));
       } catch (err) {
         console.warn('Erro na regra "' + rule.id + '":', err);
       }
     });
-    issues = issues.filter(function (it) { return !dismissed.has(it.key); });
+    issues = issues.filter(function (it) {
+      return !dismissed.has(it.key) && !touchesDict(text, it, dict);
+    });
     issues.sort(function (a, b) { return a.start - b.start; });
     return issues;
+  }
+
+  /* ---------------- configuração: regras ativas + dicionário pessoal ----------------
+     Preferências ficam em Settings, então nenhuma regra precisa saber
+     que existe configuração. O dicionário serve para nomes próprios e
+     invenções do autor (evita ruído nas regras e instrui a IA). */
+
+  function getEnabledRules() {
+    const cfg = Store.Settings.get('reviewRules', null) || {};
+    const out = {};
+    rules.forEach(function (r) { out[r.id] = cfg[r.id] !== false; });
+    return out;
+  }
+
+  function normalizeTerm(s) {
+    return String(s == null ? '' : s).trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  }
+
+  function dictTerms() {
+    const raw = Store.Settings.get('personalDict', []);
+    const list = Array.isArray(raw) ? raw : String(raw || '').split(/[\n,;]+/);
+    return list.map(function (s) { return String(s).trim(); }).filter(Boolean);
+  }
+
+  function getDict() {
+    const set = new Set();
+    dictTerms().forEach(function (w) { const n = normalizeTerm(w); if (n) set.add(n); });
+    return set;
+  }
+
+  function wordsAround(text, start, len) {
+    let a = Math.max(0, start);
+    let b = Math.min(text.length, start + Math.max(len, 0));
+    while (a > 0 && /[\p{L}\p{N}]/u.test(text[a - 1])) a--;
+    while (b < text.length && /[\p{L}\p{N}]/u.test(text[b])) b++;
+    return String(text.slice(a, b)).split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+  }
+
+  function touchesDict(text, it, dict) {
+    if (!dict || !dict.size) return false;
+    const words = wordsAround(text, it.start, it.length);
+    for (let i = 0; i < words.length; i++) {
+      if (dict.has(normalizeTerm(words[i]))) return true;
+    }
+    return false;
   }
 
   /* ============================================================
@@ -465,14 +517,30 @@ const Review = (function () {
     App.toast(matches.length + ' ocorrência(s) substituída(s).');
   }
 
-  /* o texto mudou no editor: reconta as ocorrências (sem mexer nos campos) */
+  /* o texto mudou no editor: atualiza a aba ativa sem perder estado
+     (na aba offline reanalisa as regras; na de substituição, só reconta) */
   function onTextChange() {
-    if (panel.classList.contains('hidden') || tab !== 'replace') return;
-    clearTimeout(replaceRefreshTimer);
-    replaceRefreshTimer = setTimeout(function () {
-      const results = panel.querySelector('.replace-results');
-      if (results) renderReplaceResults(results);
-    }, 250);
+    if (panel.classList.contains('hidden')) return;
+    if (tab === 'replace') {
+      clearTimeout(replaceRefreshTimer);
+      replaceRefreshTimer = setTimeout(function () {
+        const results = panel.querySelector('.replace-results');
+        if (results) renderReplaceResults(results);
+      }, 250);
+      return;
+    }
+    if (tab === 'offline') {
+      clearTimeout(offlineRefreshTimer);
+      offlineRefreshTimer = setTimeout(function () {
+        if (panel.classList.contains('hidden') || tab !== 'offline') return;
+        const body = panel.querySelector('.rp-body');
+        if (!body) return;
+        const scroll = body.scrollTop;
+        body.innerHTML = '';
+        renderOffline(body);
+        body.scrollTop = scroll;
+      }, 350);
+    }
   }
 
   /* abre o painel já na aba escolhida */
@@ -584,18 +652,8 @@ const Review = (function () {
      REVISÃO COM IA (API compatível com OpenAI)
      ============================================================ */
 
-  function aiConfig() {
-    return {
-      url: (Store.Settings.get('aiUrl', 'https://api.openai.com/v1') || '').replace(/\/+$/, ''),
-      key: Store.Settings.get('aiKey', ''),
-      model: Store.Settings.get('aiModel', 'gpt-4o-mini')
-    };
-  }
-
   function renderAI(body) {
-    const cfg = aiConfig();
-
-    if (!cfg.key) {
+    if (!Autor.ai.available()) {
       body.appendChild(App.el('p', 'ai-note',
         'A revisão com IA é opcional e requer uma chave de API compatível com OpenAI (a revisão rápida offline continua funcionando sem nada aqui). A chave fica salva somente neste navegador.'));
       const cfgBtn = App.el('button', 'btn small primary');
@@ -683,52 +741,24 @@ const Review = (function () {
     'Regras: (1) "trecho" deve ser copiado EXATAMENTE do texto, incluindo acentuação e pontuação; ' +
     '(2) máximo 12 sugestões, priorizando erros reais; (3) se não houver nada a corrigir, responda {"sugestoes":[]}.';
 
-  async function callAI(cfg, userText) {
-    const res = await fetch(cfg.url + '/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.key
-      },
-      body: JSON.stringify({
-        model: cfg.model,
-        temperature: 0.2,
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: 'Texto para revisar:\n\n' + userText }
-        ]
-      })
-    });
+  async function callAI(userText) {
+    return Autor.ai.chat([
+      { role: 'system', content: systemPromptWithDict() },
+      { role: 'user', content: 'Texto para revisar:\n\n' + userText }
+    ], { temperature: 0.2 });
+  }
 
-    if (!res.ok) {
-      let detail = '';
-      try {
-        const errJson = await res.json();
-        detail = (errJson.error && errJson.error.message) || '';
-      } catch (e) { /* corpo não era JSON */ }
-      if (res.status === 401) throw new Error('Chave de API inválida (401).');
-      if (res.status === 404) throw new Error('Endpoint ou modelo não encontrado (404). Verifique a URL e o nome do modelo.');
-      if (res.status === 429) throw new Error('Limite de requisições atingido (429). Tente novamente em instantes.');
-      throw new Error('Erro na API (' + res.status + ').' + (detail ? ' ' + detail : ''));
-    }
-
-    const data = await res.json();
-    const content = data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content;
-    if (!content) throw new Error('Resposta vazia da API.');
-    return content;
+  /* acrescenta os termos do dicionário pessoal às instruções da IA */
+  function systemPromptWithDict() {
+    const terms = dictTerms();
+    if (!terms.length) return SYSTEM_PROMPT;
+    return SYSTEM_PROMPT +
+      ' Considere que os seguintes termos são nomes próprios ou invenções do autor e NÃO devem ser corrigidos nem alterados: ' +
+      terms.slice(0, 120).join(', ') + '.';
   }
 
   function parseSuggestions(content) {
-    let obj = null;
-    try {
-      obj = JSON.parse(content.replace(/^```(json)?/i, '').replace(/```$/, '').trim());
-    } catch (e) {
-      // tenta extrair o primeiro objeto JSON do texto
-      const match = content.match(/\{[\s\S]*\}/);
-      if (match) {
-        try { obj = JSON.parse(match[0]); } catch (e2) { /* desiste */ }
-      }
-    }
+    const obj = Autor.ai.parseJSON(content);
     if (!obj || !Array.isArray(obj.sugestoes)) return [];
     return obj.sugestoes.filter(function (s) {
       return s && typeof s.trecho === 'string' && typeof s.substituir === 'string' &&
@@ -740,7 +770,6 @@ const Review = (function () {
 
   async function runAIReview() {
     if (aiBusy) return;
-    const cfg = aiConfig();
     const text = Editor.getText();
     if (!text.trim()) { App.toast('O capítulo está vazio.', 'error'); return; }
 
@@ -755,7 +784,7 @@ const Review = (function () {
       for (let i = 0; i < chunks.length; i++) {
         if (chunks.length > 1) setProgress('Revisando parte ' + (i + 1) + ' de ' + chunks.length + '…');
         else setProgress('Revisando com IA…');
-        const content = await callAI(cfg, chunks[i]);
+        const content = await callAI(chunks[i]);
         aiSuggestions = aiSuggestions.concat(parseSuggestions(content));
       }
       // mantém apenas sugestões cujo "trecho" existe no texto atual
@@ -828,16 +857,7 @@ const Review = (function () {
 
   /* teste de conexão usado pelas configurações */
   async function testAI(url, key, model) {
-    try {
-      const content = await callAI(
-        { url: (url || '').replace(/\/+$/, ''), key: key, model: model || 'gpt-4o-mini' },
-        'Responda com JSON: {"sugestoes":[]}'
-      );
-      parseSuggestions(content); // só valida o formato
-      return true;
-    } catch (err) {
-      return err.message;
-    }
+    return Autor.ai.test(url, key, model);
   }
 
   const api = {
@@ -846,7 +866,13 @@ const Review = (function () {
     open: openPanel,
     openTab: openTab,
     onTextChange: onTextChange,
-    testAI: testAI
+    testAI: testAI,
+    /* análise offline pura (usada no painel e nos testes) */
+    analyze: function (text) { return analyze(String(text == null ? '' : text)); },
+    /* metadados das regras rápidas (usado nas configurações) */
+    rules: function () {
+      return rules.map(function (r) { return { id: r.id, name: r.name, label: r.label, priority: r.priority }; });
+    }
   };
 
   // expõe no escopo global (o <script> é clássico; const não vira propriedade de window)

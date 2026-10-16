@@ -18,9 +18,11 @@ window.Ui = (function () {
   function toast(msg, type) {
     const t = $('#toast');
     t.textContent = msg;
-    t.className = 'toast' + (type ? ' ' + type : '');
+    // 'show' liga a transição de entrada; removê-lo faz a saída (mesma borda inferior).
+    // Transição (não keyframes) para que avisos em sequência se readaptem sem reiniciar.
+    t.className = 'toast' + (type ? ' ' + type : '') + ' show';
     clearTimeout(toastTimer);
-    toastTimer = setTimeout(function () { t.classList.add('hidden'); }, 3400);
+    toastTimer = setTimeout(function () { t.classList.remove('show'); }, 3400);
   }
 
   /* modal genérico: opts = {title, body (HTMLElement|string), actions:[{label, className, onClick(close)}], wide} */
@@ -52,10 +54,29 @@ window.Ui = (function () {
     modal.appendChild(body);
 
     const actions = el('div', 'modal-actions');
+    let closing = false;
     function close() {
-      overlay.remove();
+      if (closing) return;
+      closing = true;
       document.removeEventListener('keydown', onKey);
-      if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+      overlay.classList.add('closing');
+      modal.classList.add('closing');
+      const finish = function () {
+        overlay.remove();
+        if (previouslyFocused && document.contains(previouslyFocused)) previouslyFocused.focus();
+      };
+      // espera a saída do modal; cai no timeout se não houver transição
+      let done = false;
+      const onEnd = function (ev) {
+        if (ev.target !== modal || ev.propertyName !== 'opacity') return;
+        // ignora o fim da transição de *entrada* (opacidade ainda visível)
+        if (parseFloat(getComputedStyle(modal).opacity) > 0.5) return;
+        done = true;
+        modal.removeEventListener('transitionend', onEnd);
+        finish();
+      };
+      modal.addEventListener('transitionend', onEnd);
+      setTimeout(function () { if (!done) finish(); }, 260);
     }
     function focusableIn() {
       return Array.prototype.filter.call(
