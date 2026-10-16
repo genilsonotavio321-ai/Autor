@@ -6,7 +6,7 @@
    de IA configurada pelo usuário) NÃO são interceptadas.
    ============================================================ */
 
-const CACHE = 'autor-v10';
+const CACHE = 'autor-v11';
 
 const ASSETS = [
   './',
@@ -20,6 +20,11 @@ const ASSETS = [
   './js/core/persistence.js',
   './js/storage.js',
   './js/app.js',
+  './js/views/shelf.js',
+  './js/views/book.js',
+  './js/views/search.js',
+  './js/views/trash.js',
+  './js/views/settings.js',
   './js/editor.js',
   './js/review.js',
   './js/export.js',
