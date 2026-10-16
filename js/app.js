@@ -43,62 +43,9 @@
   };
 
   /* ---------------- escolha de imagem (capas) ----------------
-     Redimensiona no navegador com <canvas> e devolve um data URL JPEG.
-     Sem servidor: por isso o limite de resolução e a qualidade.
-     Limites por orientação (proporção preservada, sem ampliar):
-       · retrato/vertical   → até 400×600
-       · paisagem/horizontal → até 600×400
-     Assim todas as miniaturas ficam homogêneas. */
-  App.pickImage = function (opts) {
-    opts = opts || {};
-    const PORTRAIT = { w: 400, h: 600 };
-    const LANDSCAPE = { w: 600, h: 400 };
-    const quality = typeof opts.quality === 'number' ? opts.quality : 0.9;
-    return new Promise(function (resolve) {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.addEventListener('change', function () {
-        const file = input.files && input.files[0];
-        if (!file) { resolve(null); return; }
-        const reader = new FileReader();
-        reader.onload = function () {
-          const img = new Image();
-          img.onload = function () {
-            try {
-              let w = img.naturalWidth, h = img.naturalHeight;
-              const box = (w > h) ? LANDSCAPE : PORTRAIT;
-              const scale = Math.min(1, box.w / w, box.h / h);
-              w = Math.max(1, Math.round(w * scale));
-              h = Math.max(1, Math.round(h * scale));
-              const canvas = document.createElement('canvas');
-              canvas.width = w;
-              canvas.height = h;
-              const ctx = canvas.getContext('2d');
-              ctx.fillStyle = '#ffffff'; // imagens com transparência ganham fundo branco
-              ctx.fillRect(0, 0, w, h);
-              ctx.drawImage(img, 0, 0, w, h);
-              resolve(canvas.toDataURL('image/jpeg', quality));
-            } catch (err) {
-              App.toast('Não foi possível processar a imagem.', 'error');
-              resolve(null);
-            }
-          };
-          img.onerror = function () {
-            App.toast('Este arquivo não parece ser uma imagem válida.', 'error');
-            resolve(null);
-          };
-          img.src = reader.result;
-        };
-        reader.onerror = function () {
-          App.toast('Não foi possível ler o arquivo.', 'error');
-          resolve(null);
-        };
-        reader.readAsDataURL(file);
-      });
-      input.click();
-    });
-  };
+     Implementação movida para Autor.image (js/core/image.js). O alias
+     App.pickImage é mantido para consumidores existentes. */
+  App.pickImage = Img.pick;
 
   /* ================= ui (toast, modal, confirm) =================
      Movidos para Autor.ui (js/core/ui.js); aliases mantidos em App. */
@@ -201,41 +148,15 @@
         '<option value="concluido">Concluído</option>' +
       '</select></div>' +
       '<div class="field"><label>Capa da obra</label>' +
-      '<div class="cover-picker">' +
-        '<img id="bf-cover-preview" class="cover-thumb hidden" alt="Pré-visualização da capa">' +
-        '<div class="cover-actions">' +
-          '<button type="button" class="btn small" id="bf-cover-pick">' + icon('image') + ' Escolher imagem</button>' +
-          '<button type="button" class="btn small ghost hidden" id="bf-cover-remove">' + icon('trash') + ' Remover capa</button>' +
-        '</div>' +
-        '<p class="hint cover-hint">A imagem é reduzida no próprio aparelho (até 400×600 no retrato ou 600×400 na paisagem) e fica salva só no seu dispositivo.</p>' +
-      '</div></div>';
+      '<div id="bf-cover"></div></div>';
     body.querySelector('#bf-status').value = isNew ? 'rascunho' : bookOrNull.status;
 
-    const coverPreview = body.querySelector('#bf-cover-preview');
-    const coverRemove = body.querySelector('#bf-cover-remove');
-    function syncCoverPreview() {
-      if (cover) {
-        coverPreview.src = cover;
-        coverPreview.classList.remove('hidden');
-        coverRemove.classList.remove('hidden');
-      } else {
-        coverPreview.removeAttribute('src');
-        coverPreview.classList.add('hidden');
-        coverRemove.classList.add('hidden');
-      }
-    }
-    syncCoverPreview();
-
-    body.querySelector('#bf-cover-pick').addEventListener('click', async function () {
-      const url = await App.pickImage();
-      if (!url) return;
-      cover = url;
-      syncCoverPreview();
+    const coverWidget = Ui.cover({
+      value: cover,
+      alt: 'Pré-visualização da capa',
+      hint: 'A imagem é reduzida no próprio aparelho (até 400×600 no retrato ou 600×400 na paisagem) e fica salva só no seu dispositivo.'
     });
-    coverRemove.addEventListener('click', function () {
-      cover = null;
-      syncCoverPreview();
-    });
+    body.querySelector('#bf-cover').appendChild(coverWidget.element);
 
     App.openModal({
       title: isNew ? 'Novo livro' : 'Editar livro',
@@ -253,7 +174,7 @@
               author: body.querySelector('#bf-author').value,
               description: body.querySelector('#bf-desc').value,
               status: body.querySelector('#bf-status').value,
-              cover: cover
+              cover: coverWidget.get()
             };
             if (isNew) {
               const book = await Store.Books.create(data);

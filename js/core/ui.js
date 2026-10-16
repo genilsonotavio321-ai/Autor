@@ -109,6 +109,70 @@ window.Ui = (function () {
     return { close: close, body: body, modal: modal };
   }
 
+  /* seletor de capa reutilizável (livro e capítulo): mostra prévia,
+     botões de escolher/remover e uma dica. Devolve um controlador
+     { element, get(), set(value) } — o valor é o data URL (ou null).
+     opts: { value, alt, hint, onError, onChange } */
+  function cover(opts) {
+    opts = opts || {};
+    let value = opts.value || null;
+
+    const wrap = el('div', 'cover-picker');
+    const preview = el('img', 'cover-thumb hidden');
+    preview.alt = opts.alt || 'Pré-visualização da capa';
+
+    const actions = el('div', 'cover-actions');
+    const pickBtn = el('button', 'btn small');
+    pickBtn.type = 'button';
+    pickBtn.innerHTML = icon('image') + ' Escolher imagem';
+    const removeBtn = el('button', 'btn small ghost hidden');
+    removeBtn.type = 'button';
+    removeBtn.innerHTML = icon('trash') + ' Remover capa';
+    actions.appendChild(pickBtn);
+    actions.appendChild(removeBtn);
+
+    wrap.appendChild(preview);
+    wrap.appendChild(actions);
+    if (opts.hint) {
+      const hint = el('p', 'hint cover-hint');
+      hint.textContent = opts.hint;
+      wrap.appendChild(hint);
+    }
+
+    function sync() {
+      if (value) {
+        preview.src = value;
+        preview.classList.remove('hidden');
+        removeBtn.classList.remove('hidden');
+      } else {
+        preview.removeAttribute('src');
+        preview.classList.add('hidden');
+        removeBtn.classList.add('hidden');
+      }
+    }
+    function changed() { if (typeof opts.onChange === 'function') opts.onChange(value); }
+    sync();
+
+    pickBtn.addEventListener('click', async function () {
+      const url = await Img.pick(opts);
+      if (!url) return;
+      value = url;
+      sync();
+      changed();
+    });
+    removeBtn.addEventListener('click', function () {
+      value = null;
+      sync();
+      changed();
+    });
+
+    return {
+      element: wrap,
+      get: function () { return value; },
+      set: function (v) { value = v || null; sync(); }
+    };
+  }
+
   /* confirmação simples: retorna Promise<boolean> */
   function confirm(message, opts) {
     opts = opts || {};
@@ -137,7 +201,7 @@ window.Ui = (function () {
     });
   }
 
-  return { toast: toast, openModal: openModal, confirm: confirm };
+  return { toast: toast, openModal: openModal, confirm: confirm, cover: cover };
 })();
 
 window.Autor = window.Autor || {};

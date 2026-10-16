@@ -637,40 +637,13 @@ const Editor = (function () {
 
   function openCoverModal() {
     if (!App.chapter) return;
-    let cover = App.chapter.cover || null;
     const body = App.el('div');
-    body.innerHTML =
-      '<div class="cover-picker">' +
-        '<img id="cc-preview" class="cover-thumb hidden" alt="Pré-visualização da capa">' +
-        '<div class="cover-actions">' +
-          '<button type="button" class="btn small" id="cc-pick">' + icon('image') + ' Escolher imagem</button>' +
-          '<button type="button" class="btn small ghost hidden" id="cc-remove">' + icon('trash') + ' Remover capa</button>' +
-        '</div>' +
-        '<p class="hint cover-hint">A capa aparece na lista de capítulos, no leitor e nas exportações. A imagem é reduzida aqui no aparelho (até 400×600 no retrato ou 600×400 na paisagem).</p>' +
-      '</div>';
-
-    const preview = body.querySelector('#cc-preview');
-    const removeBtn = body.querySelector('#cc-remove');
-    function sync() {
-      if (cover) {
-        preview.src = cover;
-        preview.classList.remove('hidden');
-        removeBtn.classList.remove('hidden');
-      } else {
-        preview.removeAttribute('src');
-        preview.classList.add('hidden');
-        removeBtn.classList.add('hidden');
-      }
-    }
-    sync();
-
-    body.querySelector('#cc-pick').addEventListener('click', async function () {
-      const url = await App.pickImage();
-      if (!url) return;
-      cover = url;
-      sync();
+    const widget = Ui.cover({
+      value: App.chapter.cover || null,
+      alt: 'Pré-visualização da capa',
+      hint: 'A capa aparece na lista de capítulos, no leitor e nas exportações. A imagem é reduzida aqui no aparelho (até 400×600 no retrato ou 600×400 na paisagem).'
     });
-    removeBtn.addEventListener('click', function () { cover = null; sync(); });
+    body.appendChild(widget.element);
 
     App.openModal({
       title: '<span>' + icon('image') + ' Capa do capítulo</span>',
@@ -681,9 +654,9 @@ const Editor = (function () {
           label: 'Salvar',
           className: 'primary',
           onClick: async function (close) {
-            App.chapter.cover = cover;
+            App.chapter.cover = widget.get();
             await Store.Chapters.save(App.chapter);
-            App.toast(cover ? 'Capa do capítulo salva.' : 'Capa do capítulo removida.');
+            App.toast(App.chapter.cover ? 'Capa do capítulo salva.' : 'Capa do capítulo removida.');
             if (App.book && typeof App.renderChapters === 'function') App.renderChapters();
             close();
             return false;
