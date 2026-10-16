@@ -1,18 +1,21 @@
 /* ============================================================
-   storage.js — banco de dados local do app "Autor"
-   IndexedDB com reserva automática em localStorage.
+   storage.js — repositórios de dados do app "Autor".
+
+   A persistência de baixo nível vive em js/core/persistence.js
+   (Autor.persistence), com dois adaptadores: IndexedDB (preferido)
+   e localStorage (reserva). Aqui ficam apenas os repositórios de
+   domínio (Books, Chapters, Trash, Settings), que dependem somente
+   da interface do adaptador ativo.
+
    API: Store.init(), Store.Books, Store.Chapters, Store.Trash,
-        Store.Settings, Store.raw
+        Store.Settings, Store.raw, Store.uuid(), Store.isFallbackMode()
    ============================================================ */
 window.Store = (function () {
   'use strict';
 
-  const DB_NAME = 'autor_db';
-  const DB_VERSION = 1;
-  const LS_PREFIX = 'autor_ls_';
+  const Persistence = window.Autor.persistence;
 
-  let db = null;
-  let lsMode = false; // true = usando localStorage como reserva
+  let adapter = null;
 
   /* ---------------- utilidades ---------------- */
 
@@ -22,135 +25,14 @@ window.Store = (function () {
       Math.random().toString(36).slice(2, 10) + Math.random().toString(36).slice(2, 6);
   }
 
-  /* ---------------- IndexedDB ---------------- */
+  /* ---------------- API genérica (delega ao adaptador) ---------------- */
 
-  function openDB() {
-    return new Promise(function (resolve, reject) {
-      let req;
-      try {
-        req = indexedDB.open(DB_NAME, DB_VERSION);
-      } catch (err) { reject(err); return; }
-
-      req.onupgradeneeded = function (ev) {
-        const d = ev.target.result;
-        if (!d.objectStoreNames.contains('books')) {
-          d.createObjectStore('books', { keyPath: 'id' });
-        }
-        if (!d.objectStoreNames.contains('chapters')) {
-          const s = d.createObjectStore('chapters', { keyPath: 'id' });
-          s.createIndex('bookId', 'bookId', { unique: false });
-        }
-        if (!d.objectStoreNames.contains('trash')) {
-          d.createObjectStore('trash', { keyPath: 'id' });
-        }
-        if (!d.objectStoreNames.contains('settings')) {
-          d.createObjectStore('settings', { keyPath: 'key' });
-        }
-      };
-
-      req.onsuccess = function () { resolve(req.result); };
-      req.onerror = function () { reject(req.error || new Error('Falha ao abrir o banco')); };
-      req.onblocked = function () { reject(new Error('Banco bloqueado por outra aba')); };
-    });
-  }
-
-  function idbReq(request) {
-    return new Promise(function (resolve, reject) {
-      request.onsuccess = function () { resolve(request.result); };
-      request.onerror = function () { reject(request.error); };
-    });
-  }
-
-  /* ---------------- localStorage (reserva) ---------------- */
-
-  function lsLoad(store) {
-    try {
-      return JSON.parse(localStorage.getItem(LS_PREFIX + store)) || [];
-    } catch (e) { return []; }
-  }
-
-  function lsSave(store, data) {
-    localStorage.setItem(LS_PREFIX + store, JSON.stringify(data));
-  }
-
-  /* ---------------- API genérica ---------------- */
-
-  async function getAll(store) {
-    if (lsMode) {
-      if (store === 'settings') {
-        const map = lsLoad(store); // settings guarda como objeto {key: value}
-        return Object.keys(map).map(function (k) { return { key: k, value: map[k] }; });
-      }
-      return lsLoad(store);
-    }
-    const tx = db.transaction(store, 'readonly');
-    return idbReq(tx.objectStore(store).getAll());
-  }
-
-  async function get(store, key) {
-    if (lsMode) {
-      if (store === 'settings') return lsLoad(store)[key];
-      const arr = lsLoad(store);
-      for (let i = 0; i < arr.length; i++) {
-        if (arr[i].id === key) return arr[i];
-      }
-      return null;
-    }
-    const tx = db.transaction(store, 'readonly');
-    return idbReq(tx.objectStore(store).get(key));
-  }
-
-  async function put(store, value) {
-    if (lsMode) {
-      if (store === 'settings') {
-        const map = lsLoad(store);
-        map[value.key] = value.value;
-        lsSave(store, map);
-        return value;
-      }
-      const arr = lsLoad(store);
-      let found = false;
-      for (let i = 0; i < arr.length; i++) {
-        if (arr[i].id === value.id) { arr[i] = value; found = true; break; }
-      }
-      if (!found) arr.push(value);
-      lsSave(store, arr);
-      return value;
-    }
-    const tx = db.transaction(store, 'readwrite');
-    await idbReq(tx.objectStore(store).put(value));
-    return value;
-  }
-
-  async function del(store, key) {
-    if (lsMode) {
-      if (store === 'settings') {
-        const map = lsLoad(store);
-        delete map[key];
-        lsSave(store, map);
-        return;
-      }
-      lsSave(store, lsLoad(store).filter(function (it) { return it.id !== key; }));
-      return;
-    }
-    const tx = db.transaction(store, 'readwrite');
-    await idbReq(tx.objectStore(store).delete(key));
-  }
-
-  async function clear(store) {
-    if (lsMode) { lsSave(store, store === 'settings' ? {} : []); return; }
-    const tx = db.transaction(store, 'readwrite');
-    await idbReq(tx.objectStore(store).clear());
-  }
-
-  async function byIndex(store, index, value) {
-    if (lsMode) {
-      return lsLoad(store).filter(function (it) { return it[index] === value; });
-    }
-    const tx = db.transaction(store, 'readonly');
-    const idx = tx.objectStore(store).index(index);
-    return idbReq(idx.getAll(value));
-  }
+  function getAll(store) { return adapter.getAll(store); }
+  function get(store, key) { return adapter.get(store, key); }
+  function put(store, value) { return adapter.put(store, value); }
+  function del(store, key) { return adapter.del(store, key); }
+  function clear(store) { return adapter.clear(store); }
+  function byIndex(store, index, value) { return adapter.byIndex(store, index, value); }
 
   /* ---------------- domínio: obras ---------------- */
 
@@ -231,14 +113,17 @@ window.Store = (function () {
     },
 
     save: async function (chapter) {
+      // invariante: um capítulo nunca existe sem o seu livro. Sem esta
+      // guarda, um salvamento automático atrasado "ressuscitaria" um
+      // capítulo cujo livro foi excluído enquanto o editor estava aberto.
+      const book = await get('books', chapter.bookId);
+      if (!book) return chapter;
+
       chapter.updatedAt = Date.now();
       await put('chapters', chapter);
       // atualiza o "editado em" do livro
-      const book = await get('books', chapter.bookId);
-      if (book) {
-        book.updatedAt = Date.now();
-        await put('books', book);
-      }
+      book.updatedAt = Date.now();
+      await put('books', book);
       return chapter;
     },
 
@@ -361,18 +246,22 @@ window.Store = (function () {
     }
   };
 
-  /* ---------------- inicialização ---------------- */
+  /* ---------------- inicialização ----------------
+     Escolhe o adaptador: tenta IndexedDB (com um teste de gravação
+     real, pois alguns navegadores falham em arquivos locais) e, se
+     não der, cai para o localStorage. */
 
   async function init() {
     try {
-      db = await openDB();
-      // teste de gravação real (alguns navegadores falham em arquivos locais)
-      await put('settings', { key: '_teste', value: 1 });
-      await del('settings', '_teste');
-      lsMode = false;
+      const a = Persistence.idb();
+      await a.open();
+      await a.put('settings', { key: '_teste', value: 1 });
+      await a.del('settings', '_teste');
+      adapter = a;
     } catch (err) {
       console.warn('IndexedDB indisponível — usando localStorage como reserva.', err);
-      lsMode = true;
+      adapter = Persistence.ls();
+      await adapter.open();
     }
     await Settings.load();
   }
@@ -385,7 +274,7 @@ window.Store = (function () {
     Trash: Trash,
     Settings: Settings,
     raw: { getAll: getAll, get: get, put: put, del: del, clear: clear },
-    isFallbackMode: function () { return lsMode; }
+    isFallbackMode: function () { return adapter && adapter.mode === 'ls'; }
   };
 })();
 

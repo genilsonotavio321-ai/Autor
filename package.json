@@ -1,0 +1,9 @@
+{
+  "name": "autor",
+  "version": "1.0.0",
+  "private": true,
+  "description": "App de escrita de livros (PWA, scripts clássicos, sem build). O package.json existe apenas para os testes de lógica pura em Node.",
+  "scripts": {
+    "test": "node --test"
+  }
+}
