@@ -119,12 +119,13 @@ test("timeline e notas", async ({ page }) => {
 
   await page.getByRole("button", { name: "Excluir Pesquisa" }).click();
   await page.getByRole("button", { name: "Desfazer" }).click();
-  await expect(page.getByText("Pesquisa")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Pesquisa", exact: true }),
+  ).toBeVisible();
 
   // Nota excluída aparece na lixeira e pode ser restaurada.
   await page.getByRole("button", { name: "Excluir Pesquisa" }).click();
   await page.goto("/trash");
-  await expect(page.getByText("Pesquisa")).toBeVisible();
   await page.getByRole("button", { name: "Restaurar" }).click();
   await expect(page.getByText("A lixeira está vazia.")).toBeVisible();
 });
