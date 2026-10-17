@@ -47,6 +47,12 @@ src/
 - Notas (`/notes`): criar, editar, fixar (aparecem primeiro), exclusão suave com "Desfazer"; restauração na lixeira.
 - Seletor de projeto global persistido (usado em Estrutura, Linha do tempo, Notas e Lixeira).
 
+## Recursos (Fase 3)
+
+- Personagens (`/characters`): ficha com papel (protagonista/antagonista/secundário/menor), descrição, história, objetivos, medos, traços (tags livres) e relações (tipo + nota) com outros personagens do projeto.
+- Mundo (`/world`): locais (nome, tipo com sugestões, descrição) e entradas de lore (categoria, conteúdo, vínculos com personagens/locais) em abas separadas.
+- Lixeira ampliada: seções para projetos, notas, personagens, locais e lore, todas com restauração.
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
