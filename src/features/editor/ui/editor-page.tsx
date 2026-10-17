@@ -36,6 +36,9 @@ import {
   createManualVersion,
   maybeCreateAutoVersion,
 } from "../application/version-service";
+import { toDayKey } from "@/features/productivity/domain/writing-log";
+import { recordWords } from "@/features/productivity/infra/writing-log-repository";
+import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { TiptapEditor } from "./tiptap-editor";
 import { VersionsDialog } from "./versions-dialog";
 
@@ -66,10 +69,13 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
 
   const focusMode = useUiStore((state) => state.focusMode);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
+  const editorFontFamily = useUiStore((state) => state.editorFontFamily);
+  const editorFontSize = useUiStore((state) => state.editorFontSize);
 
   const editorRef = useRef<Editor | null>(null);
   const lastContentRef = useRef<Json | null>(null);
   const lastAutoAtRef = useRef<number | null>(null);
+  const lastWordCountRef = useRef(0);
   const restoredRef = useRef(false);
 
   // Load chapter (and remember its content for auto-versioning).
@@ -86,6 +92,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       setStatus(loaded.status);
       setWordCount(loaded.wordCount);
       lastContentRef.current = loaded.content;
+      lastWordCountRef.current = loaded.wordCount;
     });
     return () => {
       alive = false;
@@ -120,6 +127,13 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             }
           }
           lastContentRef.current = payload.content;
+          const delta = payload.wordCount - lastWordCountRef.current;
+          if (delta > 0) {
+            void recordWords(toDayKey(new Date()), delta).catch(
+              () => undefined,
+            );
+          }
+          lastWordCountRef.current = payload.wordCount;
           setSaveStatus("saved");
           setSavedAt(new Date().toISOString());
         } catch (error) {
@@ -348,14 +362,25 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         </Button>
       </div>
 
-      <TiptapEditor
-        content={chapter.content}
-        onReady={handleEditorReady}
-        onUpdate={scheduleSave}
-      />
+      <div
+        style={{
+          fontSize: `${editorFontSize}px`,
+          fontFamily:
+            editorFontFamily === "sans"
+              ? "var(--font-sans)"
+              : "var(--font-serif)",
+        }}
+      >
+        <TiptapEditor
+          content={chapter.content}
+          onReady={handleEditorReady}
+          onUpdate={scheduleSave}
+        />
+      </div>
 
-      <div className="flex items-center justify-between text-xs text-muted-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{wordCount.toLocaleString("pt-BR")} palavras</span>
+        <SprintTimer />
         <span data-testid="save-status" aria-live="polite">
           {saveStatus === "saving"
             ? "Salvando…"

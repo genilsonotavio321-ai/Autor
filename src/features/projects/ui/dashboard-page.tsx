@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, PenLine, Plus } from "lucide-react";
+import { ArrowRight, Clock, Flame, PenLine, Plus, Target } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -13,34 +13,72 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  estimateReadingMinutes,
+  summariseWriting,
+} from "@/features/productivity/domain/writing-log";
+import { getWritingLog } from "@/features/productivity/infra/writing-log-repository";
+import { formatRelativeTime } from "@/shared/lib/dates";
+import { useUiStore } from "@/shared/store/ui-store";
 
 import { chapterRepository } from "../infra/dexie-chapter-repository";
 import { projectRepository } from "../infra/dexie-project-repository";
 
-interface DashboardStats {
+interface RecentProject {
+  id: string;
+  title: string;
+  chapterCount: number;
+  wordCount: number;
+  updatedAt: string;
+}
+
+interface DashboardData {
   projectCount: number;
   chapterCount: number;
   wordCount: number;
+  wordsToday: number;
+  wordsWeek: number;
+  streak: number;
+  readingMinutes: number;
   resume: { chapterId: string; projectTitle: string; chapterTitle: string } | null;
+  recent: RecentProject[];
 }
 
-interface DashboardData extends DashboardStats {
-  loading: boolean;
+function formatDuration(minutes: number): string {
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return rest === 0 ? `${hours} h` : `${hours} h ${rest} min`;
 }
 
 export function DashboardPage() {
+  const dailyWordGoal = useUiStore((state) => state.dailyWordGoal);
+
   const stats = useLiveQuery(async (): Promise<DashboardData> => {
     const projects = await projectRepository.listActive();
+    const log = await getWritingLog();
 
     let chapterCount = 0;
     let wordCount = 0;
-    let resume: DashboardStats["resume"] = null;
+    let resume: DashboardData["resume"] = null;
     let latestEdit = "";
+    const recent: RecentProject[] = [];
 
     for (const project of projects) {
       const chapters = await chapterRepository.listByProject(project.id);
+      const projectWords = chapters.reduce(
+        (sum, chapter) => sum + chapter.wordCount,
+        0,
+      );
       chapterCount += chapters.length;
-      wordCount += chapters.reduce((sum, chapter) => sum + chapter.wordCount, 0);
+      wordCount += projectWords;
+      recent.push({
+        id: project.id,
+        title: project.title,
+        chapterCount: chapters.length,
+        wordCount: projectWords,
+        updatedAt: project.updatedAt,
+      });
 
       const lastEdit = project.lastEdit;
       if (lastEdit && lastEdit.updatedAt > latestEdit) {
@@ -56,16 +94,23 @@ export function DashboardPage() {
       }
     }
 
+    const summary = summariseWriting(log, new Date());
+    recent.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+
     return {
-      loading: false,
       projectCount: projects.length,
       chapterCount,
       wordCount,
+      wordsToday: summary.today,
+      wordsWeek: summary.week,
+      streak: summary.streak,
+      readingMinutes: estimateReadingMinutes(wordCount),
       resume,
+      recent: recent.slice(0, 4),
     };
   }, []);
 
-  if (!stats || stats.loading) {
+  if (!stats) {
     return (
       <div className="mx-auto flex max-w-5xl flex-col gap-6">
         <Skeleton className="h-9 w-48" />
@@ -79,6 +124,11 @@ export function DashboardPage() {
     );
   }
 
+  const goalPercent =
+    dailyWordGoal > 0
+      ? Math.min(100, Math.round((stats.wordsToday / dailyWordGoal) * 100))
+      : 0;
+
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
       <div className="flex flex-col gap-1">
@@ -87,6 +137,30 @@ export function DashboardPage() {
           Bem-vindo ao Autor. Retome um projeto ou comece um novo.
         </p>
       </div>
+
+      {stats.projectCount === 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="font-serif">Primeiros passos</CardTitle>
+            <CardDescription>
+              Três passos para tirar sua história do papel.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <ol className="grid gap-2 text-sm text-muted-foreground">
+              <li>1. Crie um projeto (livro ou série).</li>
+              <li>2. Adicione um capítulo e comece a escrever.</li>
+              <li>3. Planeje personagens, mundo e enredo quando quiser.</li>
+            </ol>
+            <Button asChild className="w-fit">
+              <Link href="/projects">
+                <Plus aria-hidden />
+                Criar primeiro projeto
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : null}
 
       <section aria-label="Continuar de onde parou">
         <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
@@ -127,22 +201,97 @@ export function DashboardPage() {
         )}
       </section>
 
-      <section aria-label="Estatísticas" className="grid gap-3 sm:grid-cols-3">
-        <StatCard label="Projetos" value={stats.projectCount} />
-        <StatCard label="Capítulos" value={stats.chapterCount} />
-        <StatCard label="Palavras" value={stats.wordCount} />
+      <section aria-label="Estatísticas" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Projetos" value={stats.projectCount.toLocaleString("pt-BR")} />
+        <StatCard label="Capítulos" value={stats.chapterCount.toLocaleString("pt-BR")} />
+        <StatCard label="Palavras" value={stats.wordCount.toLocaleString("pt-BR")} />
+        <StatCard
+          label="Tempo de leitura"
+          value={formatDuration(stats.readingMinutes)}
+          icon={<Clock aria-hidden className="size-3.5" />}
+        />
       </section>
+
+      <section aria-label="Progresso" className="grid gap-3 sm:grid-cols-3">
+        <div className="rounded-xl border bg-card p-4">
+          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Target aria-hidden className="size-3.5" />
+            Meta diária
+          </p>
+          <p className="mt-1 font-serif text-2xl font-semibold">
+            {stats.wordsToday.toLocaleString("pt-BR")}
+            <span className="text-sm font-normal text-muted-foreground">
+              {" / "}
+              {dailyWordGoal.toLocaleString("pt-BR")}
+            </span>
+          </p>
+          <div
+            className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-muted"
+            role="progressbar"
+            aria-label="Progresso da meta diária"
+            aria-valuenow={goalPercent}
+            aria-valuemin={0}
+            aria-valuemax={100}
+          >
+            <div
+              className="h-full rounded-full bg-primary transition-[width] motion-reduce:transition-none"
+              style={{ width: `${goalPercent}%` }}
+            />
+          </div>
+        </div>
+        <StatCard label="Palavras na semana" value={stats.wordsWeek.toLocaleString("pt-BR")} />
+        <StatCard
+          label="Sequência"
+          value={`${stats.streak} ${stats.streak === 1 ? "dia" : "dias"}`}
+          icon={<Flame aria-hidden className="size-3.5" />}
+        />
+      </section>
+
+      {stats.recent.length > 0 ? (
+        <section aria-label="Projetos recentes">
+          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            Projetos recentes
+          </h2>
+          <ul className="grid gap-2">
+            {stats.recent.map((project) => (
+              <li key={project.id}>
+                <Link
+                  href={`/projects/${project.id}`}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+                >
+                  <span className="font-medium">{project.title}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {project.chapterCount}{" "}
+                    {project.chapterCount === 1 ? "capítulo" : "capítulos"} ·{" "}
+                    {project.wordCount.toLocaleString("pt-BR")} palavras ·{" "}
+                    {formatRelativeTime(project.updatedAt)}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
     </div>
   );
 }
 
-function StatCard({ label, value }: { label: string; value: number }) {
+function StatCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string;
+  value: string;
+  icon?: React.ReactNode;
+}) {
   return (
     <div className="rounded-xl border bg-card p-4">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 font-serif text-2xl font-semibold">
-        {value.toLocaleString("pt-BR")}
+      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        {icon}
+        {label}
       </p>
+      <p className="mt-1 font-serif text-2xl font-semibold">{value}</p>
     </div>
   );
 }
