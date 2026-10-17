@@ -7,7 +7,7 @@ App pessoal de escrita e planejamento de livros — local-first, offline, sem co
 - Next.js 15 (App Router) + React 19 + TypeScript (strict)
 - Tailwind CSS v4 + shadcn/ui + Framer Motion
 - Zustand + React Query · Dexie (IndexedDB) · Tiptap · FlexSearch
-- Vitest + Playwright · Serwist PWA (fases futuras)
+- Vitest + Playwright · Serwist (PWA/offline)
 
 ## Comandos
 
@@ -18,6 +18,7 @@ npm run lint       # ESLint
 npm run typecheck  # TypeScript (tsc --noEmit)
 npm test           # Vitest (unidade/componentes)
 npm run test:e2e   # Playwright (E2E)
+npm run test:e2e:offline  # Playwright (E2E offline: build + service worker)
 ```
 
 ## Estrutura
@@ -60,8 +61,20 @@ src/
 - Importar: arquivos `.md` com front matter viram capítulos do projeto selecionado (round-trip com o Markdown exportado).
 - Backup: exportação JSON completa do banco e restauração com confirmação (substitui todos os dados).
 
+## Recursos (Fase 5)
+
+- Painel: estatísticas reais (projetos, capítulos, palavras, tempo estimado de leitura), meta diária com barra de progresso, palavras na semana, sequência de dias, "Continuar de onde parou" e lista de projetos recentes; card de primeiros passos quando não há projetos.
+- Configurações (`/settings`): tema (claro/escuro/sistema), fonte e tamanho do editor, meta diária, duração do sprint, tempo do botão "Continuar", lista de atalhos e acesso ao backup.
+- Produtividade: sprint timer no editor (com registro de sessões) e log de escrita por dia (`settings`), base das estatísticas do painel.
+- Tags: gestão por projeto (criar, renomear, recolorir, mesclar, excluir com limpeza de referências) e marcação de personagens; filtros de personagens por papel e tag.
+- Modo leitura (`/read`): preview do manuscrito do capítulo com tipografia confortável, navegação anterior/próximo e estimativa de leitura.
+- PWA/offline: service worker (Serwist), manifest e ícones; o app funciona offline após o primeiro carregamento.
+- Desempenho: editor Tiptap carregado sob demanda (`next/dynamic`) — `/write/[chapterId]` caiu de ~346 kB para ~214 kB (First Load JS).
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
 - Multi-aba via `broadcast-channel` (`src/infra/db/multi-tab.ts`).
 - `next@15` mantido por compatibilidade com o plano; `npm audit` reporta vulnerabilidade em `postcss` resolvida apenas em `next@16` (migração futura).
+- Service worker gerado pelo Serwist em `public/sw.js` (fora do versionamento); fica desabilitado em `next dev`.
+- Preferências de UI (tema do editor, metas, sprint) ficam no `zustand/persist` (`autor-ui`); o log de escrita do dia é o único que usa a tabela `settings` do IndexedDB (para aparecer no painel via `useLiveQuery`).
