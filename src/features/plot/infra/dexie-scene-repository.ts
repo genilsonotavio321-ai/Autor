@@ -60,6 +60,9 @@ export class DexieSceneRepository implements SceneRepository {
     const chapters = await db.chapters
       .filter((chapter) => chapter.projectId === projectId && !chapter.deletedAt)
       .toArray();
+    // Table scans come back in primary-key (UUID) order — sort by the
+    // chapter's narrative order before building the rank map.
+    chapters.sort((a, b) => a.order - b.order);
     const chapterOrder = new Map(chapters.map((c, i) => [c.id, i]));
     const chapterIds = new Set(chapters.map((c) => c.id));
     const scenes = await db.scenes
