@@ -31,6 +31,15 @@ src/
   shared/         types, store (Zustand), ui helpers
 ```
 
+## Recursos (Fase 1)
+
+- Projetos: criar/editar, status, capítulos com ordenação automática.
+- Editor Tiptap: toolbar, contagem de palavras, autosave (800ms), modo foco (Esc sai).
+- Retomar escrita: botão "Continuar escrevendo" no painel volta ao capítulo/posição exatos.
+- Versionamento: snapshots automáticos (5 min) e manuais, restaurar via diálogo.
+- Exclusão suave + restaurar (projetos, capítulos) com "Desfazer" no toast e página de lixeira.
+- Atalhos: Ctrl/Cmd+K paleta de comandos; tema claro/escuro.
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
