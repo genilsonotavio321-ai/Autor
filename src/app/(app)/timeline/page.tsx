@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { TimelinePage } from "@/features/plot/ui/timeline-page";
 
 export const metadata: Metadata = { title: "Linha do tempo" };
 
-export default function TimelinePage() {
-  return (
-    <PagePlaceholder
-      title="Linha do tempo"
-      phase="Fase 2"
-      description="Cronologia dos eventos da história com datas ordenáveis e vínculos."
-    />
-  );
+export default function Page() {
+  return <TimelinePage />;
 }

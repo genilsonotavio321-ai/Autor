@@ -1,7 +1,9 @@
 import type { EntityId, PlotStructure } from "@/shared/types/database";
 
 import { getBeatTemplate } from "../domain/beat-templates";
+import { computeSceneMove } from "../domain/ordering";
 import { plotBeatRepository } from "../infra/dexie-plot-beat-repository";
+import { sceneRepository } from "../infra/dexie-scene-repository";
 
 export interface ApplyBeatTemplateResult {
   created: number;
@@ -42,4 +44,26 @@ export async function applyBeatTemplate(
   }
 
   return { created: template.beats.length, replaced };
+}
+
+/** Move a scene to the end of another chapter (or its own, to push last). */
+export async function moveSceneToChapterEnd(
+  sceneId: EntityId,
+  toChapterId: EntityId,
+): Promise<void> {
+  const scene = await sceneRepository.getById(sceneId);
+  if (!scene) throw new Error(`Scene not found: ${sceneId}`);
+
+  const fromScenes = await sceneRepository.listByChapter(scene.chapterId);
+  const toScenes =
+    scene.chapterId === toChapterId
+      ? fromScenes
+      : await sceneRepository.listByChapter(toChapterId);
+
+  const map = new Map([[scene.chapterId, fromScenes]]);
+  if (toChapterId !== scene.chapterId) map.set(toChapterId, toScenes);
+
+  await sceneRepository.applyMoves(
+    computeSceneMove(map, sceneId, toChapterId, toScenes.length),
+  );
 }
