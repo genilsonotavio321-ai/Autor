@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
+import { Search as SearchIcon } from "lucide-react";
 
 import {
   Command,
@@ -59,6 +60,10 @@ export function CommandPalette() {
         <CommandList>
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
           <CommandGroup heading="Navegação">
+            <CommandItem value="Buscar no acervo /search" onSelect={() => navigate("/search")}>
+              <SearchIcon aria-hidden="true" />
+              <span>Buscar no acervo</span>
+            </CommandItem>
             {navGroups.flatMap((group) =>
               group.items.map((item) => (
                 <CommandItem

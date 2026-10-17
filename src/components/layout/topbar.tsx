@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Menu, Moon, Search, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { useUiStore } from "@/shared/store/ui-store";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -13,7 +13,6 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
-  const openCommandPalette = useUiStore((state) => state.openCommandPalette);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -38,23 +37,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           variant="outline"
           size="sm"
           className="hidden text-muted-foreground md:flex"
-          onClick={openCommandPalette}
-          aria-label="Abrir paleta de comandos"
+          asChild
         >
-          <Search aria-hidden="true" />
-          <span>Buscar</span>
-          <kbd className="pointer-events-none rounded border border-border bg-muted px-1.5 font-mono text-[0.65rem] text-muted-foreground">
-            Ctrl K
-          </kbd>
+          <Link href="/search">
+            <Search aria-hidden="true" />
+            <span>Buscar</span>
+          </Link>
         </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={openCommandPalette}
-          aria-label="Abrir paleta de comandos"
-          className="md:hidden"
-        >
-          <Search aria-hidden="true" />
+        <Button variant="ghost" size="icon" asChild className="md:hidden">
+          <Link href="/search" aria-label="Ir para a busca">
+            <Search aria-hidden="true" />
+          </Link>
         </Button>
         <Button
           variant="ghost"
