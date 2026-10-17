@@ -1,0 +1,128 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import type { EntityId, Location } from "@/shared/types/database";
+
+import { LOCATION_TYPE_SUGGESTIONS } from "../domain/repository";
+import { locationRepository } from "../infra/dexie-location-repository";
+
+interface LocationDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  location: Location | null;
+  projectId: EntityId | null;
+}
+
+export function LocationDialog({
+  open,
+  onOpenChange,
+  location,
+  projectId,
+}: LocationDialogProps) {
+  const [name, setName] = useState("");
+  const [type, setType] = useState("");
+  const [description, setDescription] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setName(location?.name ?? "");
+    setType(location?.type === "Local" ? "" : (location?.type ?? ""));
+    setDescription(location?.description ?? "");
+  }, [open, location]);
+
+  async function submit() {
+    if (!projectId) return;
+    setSaving(true);
+    try {
+      if (location) {
+        await locationRepository.update(location.id, {
+          name: name.trim() || "Sem nome",
+          type: type.trim() || "Local",
+          description: description.trim() || undefined,
+        });
+        toast.success("Local atualizado");
+      } else {
+        await locationRepository.create({
+          projectId,
+          name: name.trim(),
+          type: type.trim() || undefined,
+          description: description.trim() || undefined,
+        });
+        toast.success("Local criado");
+      }
+      onOpenChange(false);
+    } catch {
+      toast.error("Falha ao salvar o local");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-xl">
+        <DialogHeader>
+          <DialogTitle>{location ? "Editar local" : "Novo local"}</DialogTitle>
+        </DialogHeader>
+        <div className="grid gap-4">
+          <div className="grid gap-2">
+            <Label htmlFor="loc-name">Nome</Label>
+            <Input
+              id="loc-name"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+              placeholder="Nome do local"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="loc-type">Tipo</Label>
+            <Input
+              id="loc-type"
+              value={type}
+              onChange={(event) => setType(event.target.value)}
+              placeholder="Cidade, castelo, floresta..."
+              list="location-type-suggestions"
+            />
+            <datalist id="location-type-suggestions">
+              {LOCATION_TYPE_SUGGESTIONS.map((suggestion) => (
+                <option key={suggestion} value={suggestion} />
+              ))}
+            </datalist>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="loc-description">Descrição</Label>
+            <Textarea
+              id="loc-description"
+              value={description}
+              onChange={(event) => setDescription(event.target.value)}
+              rows={4}
+              placeholder="Como é esse lugar?"
+            />
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void submit()} disabled={saving}>
+            Salvar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
