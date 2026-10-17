@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -8,7 +8,10 @@ import {
   closestCorners,
   useSensor,
   useSensors,
+  type Announcements,
   type DragEndEvent,
+  type DragOverEvent,
+  type UniqueIdentifier,
 } from "@dnd-kit/core";
 import {
   SortableContext,
@@ -74,6 +77,13 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
     return map;
   }, [chapters, scenes]);
 
+  const titlesById = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const chapter of chapters) map.set(chapter.id, chapter.title);
+    for (const scene of scenes) map.set(scene.id, scene.title);
+    return map;
+  }, [chapters, scenes]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
@@ -81,24 +91,53 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
     }),
   );
 
+  const draggedOverId = useRef<EntityId | null>(null);
+
+  // Track the current collision target on every move: keyboard drops can
+  // fire `onDragEnd` with a null `over`, so we fall back to this.
+  function handleDragOver(event: DragOverEvent) {
+    if (event.over) draggedOverId.current = event.over.id as EntityId;
+  }
+
+  // Announce drags by title (not internal ids) so screen readers — and
+  // tests — can follow keyboard reordering.
+  const announcements = useMemo<Announcements>(() => {
+    const labelFor = (id: UniqueIdentifier) =>
+      titlesById.get(String(id)) ?? "item";
+    return {
+      onDragStart: ({ active }) => `Arrastando ${labelFor(active.id)}.`,
+      onDragOver: ({ over }) =>
+        over ? `Sobre ${labelFor(over.id)}.` : "Fora de um destino.",
+      onDragEnd: ({ over }) =>
+        over ? `Solto sobre ${labelFor(over.id)}.` : "Fora de um destino.",
+      onDragCancel: () => "Arraste cancelado.",
+    };
+  }, [titlesById]);
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
-    if (!over || active.id === over.id) return;
 
     const activeType = active.data.current?.type as string | undefined;
-    const overType = over.data.current?.type as string | undefined;
+    const activeId = active.id as string;
+
+    const fallbackOverId = draggedOverId.current;
+    draggedOverId.current = null;
 
     try {
-      if (activeType === "chapter" && overType === "chapter") {
-        const updates = computeChapterOrder(
-          chapters,
-          active.id as string,
-          over.id as string,
-        );
+      if (activeType === "chapter") {
+        // Keyboard drops can report a null `over`; fall back to the last
+        // known collision target and resolve scenes to their chapter.
+        const overRawId = (over?.id as EntityId | undefined) ?? fallbackOverId;
+        if (!overRawId || overRawId === activeId) return;
+        const overScene = scenes.find((scene) => scene.id === overRawId);
+        const overChapterId = overScene ? overScene.chapterId : overRawId;
+        if (overChapterId === activeId) return;
+        const updates = computeChapterOrder(chapters, activeId, overChapterId);
         for (const update of updates) {
           await chapterRepository.update(update.id, { order: update.order });
         }
-      } else if (activeType === "scene") {
+      } else if (activeType === "scene" && over) {
+        const overType = over.data.current?.type as string | undefined;
         const toChapterId =
           overType === "scene"
             ? (over.data.current?.chapterId as EntityId)
@@ -136,6 +175,8 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
+        accessibility={{ announcements }}
+        onDragOver={handleDragOver}
         onDragEnd={(event) => void handleDragEnd(event)}
       >
         <SortableContext
