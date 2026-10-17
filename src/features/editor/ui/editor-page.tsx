@@ -3,6 +3,7 @@
 import type { Content } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
 import { ArrowLeft, History, Maximize2, Minimize2 } from "lucide-react";
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -39,8 +40,16 @@ import {
 import { toDayKey } from "@/features/productivity/domain/writing-log";
 import { recordWords } from "@/features/productivity/infra/writing-log-repository";
 import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
-import { TiptapEditor } from "./tiptap-editor";
 import { VersionsDialog } from "./versions-dialog";
+
+// O editor Tiptap é pesado (~145 kB): carrega só nesta rota (plan §7.9 — perf).
+const TiptapEditor = dynamic(
+  () => import("./tiptap-editor").then((mod) => mod.TiptapEditor),
+  {
+    ssr: false,
+    loading: () => <Skeleton className="h-96 w-full rounded-lg" />,
+  },
+);
 
 const AUTOSAVE_DELAY_MS = 800;
 
