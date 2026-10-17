@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { TrashPage } from "@/features/projects/ui/trash-page";
 
 export const metadata: Metadata = { title: "Lixeira" };
 
-export default function TrashPage() {
-  return (
-    <PagePlaceholder
-      title="Lixeira"
-      phase="Fase 1"
-      description="Itens excluídos ficam aqui: restaure ou apague definitivamente."
-    />
-  );
+export default function Page() {
+  return <TrashPage />;
 }

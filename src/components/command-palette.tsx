@@ -28,6 +28,7 @@ export function CommandPalette() {
     (state) => state.toggleCommandPalette,
   );
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -88,6 +89,14 @@ export function CommandPalette() {
               }}
             >
               Alternar barra lateral
+            </CommandItem>
+            <CommandItem
+              onSelect={() => {
+                toggleFocusMode();
+                closeCommandPalette();
+              }}
+            >
+              Alternar modo foco
             </CommandItem>
           </CommandGroup>
         </CommandList>

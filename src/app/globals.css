@@ -128,3 +128,44 @@
     @apply font-sans;
   }
 }
+
+/* Tiptap editor surface */
+.tiptap .ProseMirror {
+  min-height: 55vh;
+}
+
+.tiptap .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+  @apply text-muted-foreground;
+}
+
+.tiptap .ProseMirror h1 {
+  @apply mt-4 mb-2 font-serif text-3xl font-semibold;
+}
+
+.tiptap .ProseMirror h2 {
+  @apply mt-4 mb-2 font-serif text-2xl font-semibold;
+}
+
+.tiptap .ProseMirror h3 {
+  @apply mt-3 mb-1 font-serif text-xl font-semibold;
+}
+
+.tiptap .ProseMirror p {
+  @apply my-2;
+}
+
+.tiptap .ProseMirror blockquote {
+  @apply my-3 border-l-2 pl-4 text-muted-foreground;
+}
+
+.tiptap .ProseMirror ul {
+  @apply my-2 list-disc pl-6;
+}
+
+.tiptap .ProseMirror ol {
+  @apply my-2 list-decimal pl-6;
+}
