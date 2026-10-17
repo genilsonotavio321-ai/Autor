@@ -40,6 +40,13 @@ src/
 - Exclusão suave + restaurar (projetos, capítulos) com "Desfazer" no toast e página de lixeira.
 - Atalhos: Ctrl/Cmd+K paleta de comandos; tema claro/escuro.
 
+## Recursos (Fase 2)
+
+- Estrutura (`/outline`): outline com capítulos e cenas reordenáveis por arrasto **e teclado** (dnd-kit), beat sheets por estrutura (Três atos, Jornada do herói, Save the Cat, Kishōtenketsu), corkboard de cenas e kanban de status — tudo filtrado pelo projeto selecionado.
+- Linha do tempo (`/timeline`): eventos ordenados por data, vínculo com capítulos.
+- Notas (`/notes`): criar, editar, fixar (aparecem primeiro), exclusão suave com "Desfazer"; restauração na lixeira.
+- Seletor de projeto global persistido (usado em Estrutura, Linha do tempo, Notas e Lixeira).
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
