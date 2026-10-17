@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { ReadPage } from "@/features/read/ui/read-page";
 
 export const metadata: Metadata = { title: "Ler" };
 
-export default function ReadPage() {
-  return (
-    <PagePlaceholder
-      title="Ler"
-      phase="Fase 1"
-      description="Modo de leitura do seu manuscrito, pronto para revisão confortável."
-    />
-  );
+export default function Page() {
+  return <ReadPage />;
 }
