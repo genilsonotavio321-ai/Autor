@@ -33,6 +33,7 @@ export interface CharacterCreateInput {
   goals?: string;
   fears?: string;
   traits?: string[];
+  tags?: EntityId[];
 }
 
 export interface CharacterUpdateInput {
@@ -44,6 +45,7 @@ export interface CharacterUpdateInput {
   fears?: string;
   traits?: string[];
   relationships?: Relationship[];
+  tags?: EntityId[];
 }
 
 export interface CharacterRepository {

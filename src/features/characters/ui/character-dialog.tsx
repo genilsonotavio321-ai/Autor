@@ -28,6 +28,7 @@ import type {
   EntityId,
   Relationship,
   RelationshipType,
+  Tag,
 } from "@/shared/types/database";
 
 import { characterRepository } from "../infra/dexie-character-repository";
@@ -35,6 +36,7 @@ import {
   CHARACTER_ROLE_LABELS,
   RELATIONSHIP_TYPE_LABELS,
 } from "../domain/repository";
+import { resolveTagColor } from "@/features/tags/domain/repository";
 
 export function parseTraits(text: string): string[] {
   return text
@@ -50,6 +52,8 @@ interface CharacterDialogProps {
   projectId: EntityId | null;
   /** All project characters (excluding deleted) — relationship targets. */
   characters: Character[];
+  /** Project tags available for labeling. */
+  tags: Tag[];
 }
 
 export function CharacterDialog({
@@ -58,6 +62,7 @@ export function CharacterDialog({
   character,
   projectId,
   characters,
+  tags,
 }: CharacterDialogProps) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<CharacterRole>("protagonist");
@@ -67,6 +72,7 @@ export function CharacterDialog({
   const [fears, setFears] = useState("");
   const [traitsText, setTraitsText] = useState("");
   const [relationships, setRelationships] = useState<Relationship[]>([]);
+  const [selectedTags, setSelectedTags] = useState<EntityId[]>([]);
   const [newTargetId, setNewTargetId] = useState("");
   const [newType, setNewType] = useState<RelationshipType>("friend");
   const [newNote, setNewNote] = useState("");
@@ -82,10 +88,19 @@ export function CharacterDialog({
     setFears(character?.fears ?? "");
     setTraitsText((character?.traits ?? []).join(", "));
     setRelationships(character?.relationships ?? []);
+    setSelectedTags(character?.tags ?? []);
     setNewTargetId("");
     setNewType("friend");
     setNewNote("");
   }, [open, character]);
+
+  function toggleTag(tagId: EntityId) {
+    setSelectedTags((current) =>
+      current.includes(tagId)
+        ? current.filter((id) => id !== tagId)
+        : [...current, tagId],
+    );
+  }
 
   const nameById = useMemo(() => {
     const map = new Map<EntityId, string>();
@@ -134,6 +149,7 @@ export function CharacterDialog({
           fears: fears.trim() || undefined,
           traits,
           relationships,
+          tags: selectedTags,
         });
         toast.success("Personagem atualizado");
       } else {
@@ -146,6 +162,7 @@ export function CharacterDialog({
           goals: goals.trim() || undefined,
           fears: fears.trim() || undefined,
           traits,
+          tags: selectedTags,
         });
         toast.success("Personagem criado");
       }
@@ -244,6 +261,34 @@ export function CharacterDialog({
               placeholder="corajoso, teimosa, leal (separados por vírgula)"
             />
           </div>
+
+          {tags.length > 0 ? (
+            <fieldset className="grid gap-2 border-0 p-0">
+              <legend className="mb-2 text-sm font-medium">Tags</legend>
+              <div className="flex flex-wrap gap-2">
+                {tags.map((tag) => {
+                  const active = selectedTags.includes(tag.id);
+                  return (
+                    <Button
+                      key={tag.id}
+                      type="button"
+                      size="sm"
+                      variant={active ? "default" : "outline"}
+                      aria-pressed={active}
+                      onClick={() => toggleTag(tag.id)}
+                    >
+                      <span
+                        aria-hidden
+                        className="size-2.5 rounded-full"
+                        style={{ backgroundColor: resolveTagColor(tag.color) }}
+                      />
+                      {tag.name}
+                    </Button>
+                  );
+                })}
+              </div>
+            </fieldset>
+          ) : null}
 
           <section aria-labelledby="char-relationships-heading" className="grid gap-3">
             <h3 id="char-relationships-heading" className="text-sm font-medium">
