@@ -202,8 +202,10 @@ function EventDialog({
   const [lastId, setLastId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  if (open && event?.id !== lastId) {
-    setLastId(event?.id ?? "__new__");
+  // Stable dialog key: "new" for creation, the event id when editing.
+  const editKey = event?.id ?? "new";
+  if (open && editKey !== lastId) {
+    setLastId(editKey);
     setDate(event?.date ?? "");
     setTitle(event?.title ?? "");
     setDescription(event?.description ?? "");
