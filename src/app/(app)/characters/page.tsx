@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
 
-import { PagePlaceholder } from "@/components/page-placeholder";
+import { CharactersPage } from "@/features/characters/ui/characters-page";
 
 export const metadata: Metadata = { title: "Personagens" };
 
-export default function CharactersPage() {
-  return (
-    <PagePlaceholder
-      title="Personagens"
-      phase="Fase 3"
-      description="Fichas de personagens com motivações, medos, traços e relações."
-    />
-  );
+export default function CharactersRoutePage() {
+  return <CharactersPage />;
 }

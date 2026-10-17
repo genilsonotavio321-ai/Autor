@@ -6,11 +6,64 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { formatDateTime } from "@/shared/lib/dates";
+import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
+import { formatDateTime } from "@/shared/lib/dates";
+import type { EntityId } from "@/shared/types/database";
+import { locationRepository } from "@/features/world/infra/dexie-location-repository";
+import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
 
 import { restoreProject } from "../application/project-service";
 import { projectRepository } from "../infra/dexie-project-repository";
+
+interface TrashItem {
+  id: EntityId;
+  title: string;
+  deletedAt?: string;
+}
+
+interface TrashSectionProps {
+  headingId: string;
+  title: string;
+  items: TrashItem[];
+  onRestore: (item: TrashItem) => void | Promise<void>;
+}
+
+function TrashSection({
+  headingId,
+  title,
+  items,
+  onRestore,
+}: TrashSectionProps) {
+  if (items.length === 0) return null;
+  return (
+    <section aria-labelledby={headingId} className="space-y-2">
+      <h2 id={headingId} className="text-sm font-medium">
+        {title}
+      </h2>
+      <ul className="divide-y rounded-lg border">
+        {items.map((item) => (
+          <li key={item.id} className="flex items-center gap-3 p-3">
+            <div className="min-w-0 flex-1">
+              <p className="truncate font-medium">{item.title}</p>
+              <p className="text-xs text-muted-foreground">
+                excluído em {formatDateTime(item.deletedAt ?? "")}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void onRestore(item)}
+            >
+              <RotateCcw aria-hidden />
+              Restaurar
+            </Button>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
 
 export function TrashPage() {
   const deletedProjects = useLiveQuery(
@@ -18,20 +71,82 @@ export function TrashPage() {
     [],
   );
   const deletedNotes = useLiveQuery(() => noteRepository.listDeleted(), []);
+  const deletedCharacters = useLiveQuery(
+    () => characterRepository.listDeleted(),
+    [],
+  );
+  const deletedLocations = useLiveQuery(
+    () => locationRepository.listDeleted(),
+    [],
+  );
+  const deletedLore = useLiveQuery(
+    () => loreEntryRepository.listDeleted(),
+    [],
+  );
 
-  async function restoreProjectById(id: string, title: string) {
-    await restoreProject(id);
-    toast.success(`"${title}" restaurado`);
-  }
+  const sections = [
+    {
+      headingId: "trash-projects",
+      title: "Projetos",
+      items: (deletedProjects ?? []) as TrashItem[],
+      onRestore: async (item: TrashItem) => {
+        await restoreProject(item.id);
+        toast.success(`"${item.title}" restaurado`);
+      },
+    },
+    {
+      headingId: "trash-notes",
+      title: "Notas",
+      items: (deletedNotes ?? []) as TrashItem[],
+      onRestore: async (item: TrashItem) => {
+        await noteRepository.restore(item.id);
+        toast.success(`"${item.title}" restaurada`);
+      },
+    },
+    {
+      headingId: "trash-characters",
+      title: "Personagens",
+      items: (deletedCharacters ?? []).map((character) => ({
+        id: character.id,
+        title: character.name,
+        deletedAt: character.deletedAt,
+      })),
+      onRestore: async (item: TrashItem) => {
+        await characterRepository.restore(item.id);
+        toast.success(`"${item.title}" restaurado`);
+      },
+    },
+    {
+      headingId: "trash-locations",
+      title: "Locais",
+      items: (deletedLocations ?? []).map((location) => ({
+        id: location.id,
+        title: location.name,
+        deletedAt: location.deletedAt,
+      })),
+      onRestore: async (item: TrashItem) => {
+        await locationRepository.restore(item.id);
+        toast.success(`"${item.title}" restaurado`);
+      },
+    },
+    {
+      headingId: "trash-lore",
+      title: "Entradas de lore",
+      items: (deletedLore ?? []) as TrashItem[],
+      onRestore: async (item: TrashItem) => {
+        await loreEntryRepository.restore(item.id);
+        toast.success(`"${item.title}" restaurada`);
+      },
+    },
+  ];
 
-  async function restoreNoteById(id: string, title: string) {
-    await noteRepository.restore(id);
-    toast.success(`"${title}" restaurada`);
-  }
-
-  const loading = deletedProjects === undefined || deletedNotes === undefined;
-  const empty =
-    (deletedProjects?.length ?? 0) === 0 && (deletedNotes?.length ?? 0) === 0;
+  const loading =
+    deletedProjects === undefined ||
+    deletedNotes === undefined ||
+    deletedCharacters === undefined ||
+    deletedLocations === undefined ||
+    deletedLore === undefined;
+  const empty = sections.every((section) => section.items.length === 0);
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
@@ -53,65 +168,15 @@ export function TrashPage() {
           A lixeira está vazia.
         </div>
       ) : (
-        <>
-          {(deletedProjects?.length ?? 0) > 0 ? (
-            <section aria-labelledby="trash-projects" className="space-y-2">
-              <h2 id="trash-projects" className="text-sm font-medium">
-                Projetos
-              </h2>
-              <ul className="divide-y rounded-lg border">
-                {deletedProjects?.map((project) => (
-                  <li key={project.id} className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{project.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        excluído em {formatDateTime(project.deletedAt ?? "")}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() =>
-                        void restoreProjectById(project.id, project.title)
-                      }
-                    >
-                      <RotateCcw aria-hidden />
-                      Restaurar
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-
-          {(deletedNotes?.length ?? 0) > 0 ? (
-            <section aria-labelledby="trash-notes" className="space-y-2">
-              <h2 id="trash-notes" className="text-sm font-medium">
-                Notas
-              </h2>
-              <ul className="divide-y rounded-lg border">
-                {deletedNotes?.map((note) => (
-                  <li key={note.id} className="flex items-center gap-3 p-3">
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium">{note.title}</p>
-                      <p className="text-xs text-muted-foreground">
-                        excluída em {formatDateTime(note.deletedAt ?? "")}
-                      </p>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => void restoreNoteById(note.id, note.title)}
-                    >
-                      <RotateCcw aria-hidden />
-                      Restaurar
-                    </Button>
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ) : null}
-        </>
+        sections.map((section) => (
+          <TrashSection
+            key={section.headingId}
+            headingId={section.headingId}
+            title={section.title}
+            items={section.items}
+            onRestore={section.onRestore}
+          />
+        ))
       )}
     </div>
   );
