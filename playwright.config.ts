@@ -4,6 +4,9 @@ const PORT = 3000;
 
 export default defineConfig({
   testDir: "./e2e",
+  // O suite offline exige um build de produção com service worker ativo;
+  // roda separado via `npm run test:e2e:offline`.
+  testIgnore: ["offline/**"],
   // Serial execution: all specs share one IndexedDB (fake-indexeddb is
   // per-file in unit tests, but the browser DB is global) and one dev
   // server, so parallel workers caused DnD ordering flakes.

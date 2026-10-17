@@ -35,3 +35,8 @@ next-env.d.ts
 .vscode/
 .idea/
 .codegraph/
+
+# PWA (gerado pelo Serwist no build)
+/public/sw.js
+/public/sw.js.map
+/public/swe-worker-*.js

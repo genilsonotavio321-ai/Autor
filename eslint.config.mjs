@@ -12,6 +12,9 @@ const eslintConfig = [
     "next-env.d.ts",
     "playwright-report/**",
     "test-results/**",
+    // Gerado pelo Serwist no build.
+    "public/sw.js",
+    "public/swe-worker-*.js",
   ]),
 ];
 
