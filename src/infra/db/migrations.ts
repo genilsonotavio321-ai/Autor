@@ -18,28 +18,30 @@ export const migrations: Migration[] = [];
 
 const DATA_VERSION_KEY = "dataVersion";
 
+/** Every table in the database, in a stable order. */
+export const TABLE_NAMES = [
+  "projects",
+  "chapters",
+  "scenes",
+  "characters",
+  "locations",
+  "loreEntries",
+  "plotBeats",
+  "timelineEvents",
+  "notes",
+  "tags",
+  "snippets",
+  "templates",
+  "versions",
+  "settings",
+] as const;
+
 /** Full JSON dump of every table — stored before any migration runs. */
 export async function dumpDatabase(): Promise<Record<string, unknown[]>> {
   const db = getDatabase();
-  const tables = [
-    "projects",
-    "chapters",
-    "scenes",
-    "characters",
-    "locations",
-    "loreEntries",
-    "plotBeats",
-    "timelineEvents",
-    "notes",
-    "tags",
-    "snippets",
-    "templates",
-    "versions",
-    "settings",
-  ] as const;
 
   const dump: Record<string, unknown[]> = {};
-  for (const table of tables) {
+  for (const table of TABLE_NAMES) {
     dump[table] = await db.table(table).toArray();
   }
   return dump;

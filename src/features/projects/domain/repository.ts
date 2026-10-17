@@ -34,6 +34,8 @@ export interface ProjectRepository {
 export interface ChapterCreateInput {
   projectId: EntityId;
   title?: string;
+  /** Optional initial Tiptap document (e.g. Markdown import). */
+  content?: Json;
 }
 
 export type ChapterUpdateInput = Partial<
