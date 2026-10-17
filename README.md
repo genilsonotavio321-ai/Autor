@@ -53,6 +53,13 @@ src/
 - Mundo (`/world`): locais (nome, tipo com sugestões, descrição) e entradas de lore (categoria, conteúdo, vínculos com personagens/locais) em abas separadas.
 - Lixeira ampliada: seções para projetos, notas, personagens, locais e lore, todas com restauração.
 
+## Recursos (Fase 4)
+
+- Busca global (`/search`, Ctrl/Cmd+K → "Buscar no acervo"): FlexSearch in-memory insensível a acentos ("dragao" encontra "Dragão") sobre capítulos, cenas, personagens, locais, lore e notas; resultados com tipo, projeto e prévia.
+- Exportar (`/export`): projeto inteiro em Markdown, Word (DOCX) ou PDF, com título, autor e quebras de capítulo.
+- Importar: arquivos `.md` com front matter viram capítulos do projeto selecionado (round-trip com o Markdown exportado).
+- Backup: exportação JSON completa do banco e restauração com confirmação (substitui todos os dados).
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
