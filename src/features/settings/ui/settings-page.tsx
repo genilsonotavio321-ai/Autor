@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
@@ -53,6 +54,24 @@ export function SettingsPage() {
   const setSprintMinutes = useUiStore((state) => state.setSprintMinutes);
   const setResumeNoticeSeconds = useUiStore(
     (state) => state.setResumeNoticeSeconds,
+  );
+  const mentionHighlightEnabled = useUiStore(
+    (state) => state.mentionHighlightEnabled,
+  );
+  const mentionColorCharacter = useUiStore(
+    (state) => state.mentionColorCharacter,
+  );
+  const mentionColorLocation = useUiStore(
+    (state) => state.mentionColorLocation,
+  );
+  const setMentionHighlightEnabled = useUiStore(
+    (state) => state.setMentionHighlightEnabled,
+  );
+  const setMentionColorCharacter = useUiStore(
+    (state) => state.setMentionColorCharacter,
+  );
+  const setMentionColorLocation = useUiStore(
+    (state) => state.setMentionColorLocation,
   );
 
   useEffect(() => setMounted(true), []);
@@ -138,6 +157,74 @@ export function SettingsPage() {
                 setEditorFontSize(Number(event.target.value))
               }
             />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Destaques no texto</CardTitle>
+          <CardDescription>
+            Realce nomes de personagens e locais no editor e no modo leitura.
+            Clique no nome (Ctrl/Cmd+clique no editor) para abrir a ficha.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="mention-highlight">Ativar destaques</Label>
+            <Switch
+              id="mention-highlight"
+              checked={mentionHighlightEnabled}
+              onCheckedChange={setMentionHighlightEnabled}
+            />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-2">
+              <Label htmlFor="mention-color-character">
+                Cor de personagens
+              </Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="mention-color-character"
+                  type="color"
+                  className="h-9 w-16 p-1"
+                  value={mentionColorCharacter}
+                  disabled={!mentionHighlightEnabled}
+                  onChange={(event) =>
+                    setMentionColorCharacter(event.target.value)
+                  }
+                />
+                <span
+                  aria-hidden
+                  className="text-sm font-medium"
+                  style={{ color: mentionColorCharacter }}
+                >
+                  Personagem
+                </span>
+              </div>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="mention-color-location">Cor de locais</Label>
+              <div className="flex items-center gap-2">
+                <Input
+                  id="mention-color-location"
+                  type="color"
+                  className="h-9 w-16 p-1"
+                  value={mentionColorLocation}
+                  disabled={!mentionHighlightEnabled}
+                  onChange={(event) =>
+                    setMentionColorLocation(event.target.value)
+                  }
+                />
+                <span
+                  aria-hidden
+                  className="text-sm font-medium"
+                  style={{ color: mentionColorLocation }}
+                >
+                  Local
+                </span>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>

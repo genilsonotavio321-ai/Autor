@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -15,10 +16,13 @@ import {
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estimateReadingMinutes } from "@/features/productivity/domain/writing-log";
+import type { MentionType } from "@/features/mentions/domain/entity-index";
+import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { useUiStore } from "@/shared/store/ui-store";
 import type { Chapter } from "@/shared/types/database";
 
 const ReadingDocument = dynamic(
@@ -31,7 +35,12 @@ const ReadingDocument = dynamic(
 );
 
 export function ReadPage() {
+  const router = useRouter();
   const { projectId } = useSelectedProject();
+  const mentionEntities = useMentionEntities(projectId);
+  const setSelectedProjectId = useUiStore(
+    (state) => state.setSelectedProjectId,
+  );
   const liveChapters = useLiveQuery(
     () => (projectId ? chapterRepository.listByProject(projectId) : []),
     [projectId],
@@ -61,6 +70,16 @@ export function ReadPage() {
   function step(delta: number) {
     const next = chapters[index + delta];
     if (next) setChapterId(next.id);
+  }
+
+  function openMention(type: MentionType, id: string) {
+    if (!projectId) return;
+    setSelectedProjectId(projectId);
+    router.push(
+      type === "character"
+        ? `/characters?character=${id}`
+        : `/world?location=${id}`,
+    );
   }
 
   return (
@@ -129,7 +148,11 @@ export function ReadPage() {
                 {estimateReadingMinutes(chapter.wordCount)} min de leitura ·
                 atualizado {formatRelativeTime(chapter.updatedAt)}
               </p>
-              <ReadingDocument content={chapter.content} />
+              <ReadingDocument
+                content={chapter.content}
+                mentions={mentionEntities}
+                onOpenMention={openMention}
+              />
             </article>
           ) : null}
         </>

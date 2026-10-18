@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
@@ -23,11 +23,11 @@ import { LoreDialog } from "./lore-dialog";
 
 export function WorldPage() {
   const { projectId } = useSelectedProject();
-  const locations =
-    useLiveQuery(
-      () => (projectId ? locationRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveLocations = useLiveQuery(
+    () => (projectId ? locationRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  const locations = useMemo(() => liveLocations ?? [], [liveLocations]);
   const loreEntries =
     useLiveQuery(
       () => (projectId ? loreEntryRepository.listByProject(projectId) : []),
@@ -47,6 +47,23 @@ export function WorldPage() {
     open: boolean;
     entry?: LoreEntry | null;
   }>({ open: false });
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  // Open a location directly when navigated with ?location=<id> (mentions).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("location");
+    if (!id) return;
+    setPendingId(id);
+    window.history.replaceState({}, "", "/world");
+  }, []);
+
+  useEffect(() => {
+    if (!pendingId) return;
+    const found = locations.find((location) => location.id === pendingId);
+    if (!found) return;
+    setLocationDialog({ open: true, location: found });
+    setPendingId(null);
+  }, [pendingId, locations]);
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);

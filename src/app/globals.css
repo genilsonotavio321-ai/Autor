@@ -169,3 +169,19 @@
 .tiptap .ProseMirror ol {
   @apply my-2 list-decimal pl-6;
 }
+
+/* Mention highlights (characters and locations) */
+.tiptap .ProseMirror .mention {
+  font-weight: 500;
+  text-decoration-line: underline;
+  text-decoration-style: dotted;
+  text-underline-offset: 3px;
+}
+
+.tiptap .ProseMirror .mention:hover {
+  text-decoration-style: solid;
+}
+
+.tiptap.mention-readonly .ProseMirror .mention {
+  cursor: pointer;
+}

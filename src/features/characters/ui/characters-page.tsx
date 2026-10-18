@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
@@ -40,11 +40,11 @@ const ALL = "all";
 
 export function CharactersPage() {
   const { projectId } = useSelectedProject();
-  const characters =
-    useLiveQuery(
-      () => (projectId ? characterRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveCharacters = useLiveQuery(
+    () => (projectId ? characterRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  const characters = useMemo(() => liveCharacters ?? [], [liveCharacters]);
   const tags =
     useLiveQuery(
       () => (projectId ? tagRepository.listByProject(projectId) : []),
@@ -56,6 +56,23 @@ export function CharactersPage() {
     open: boolean;
     character?: Character | null;
   }>({ open: false });
+  const [pendingId, setPendingId] = useState<string | null>(null);
+
+  // Open a ficha directly when navigated with ?character=<id> (mentions).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("character");
+    if (!id) return;
+    setPendingId(id);
+    window.history.replaceState({}, "", "/characters");
+  }, []);
+
+  useEffect(() => {
+    if (!pendingId) return;
+    const found = characters.find((character) => character.id === pendingId);
+    if (!found) return;
+    setDialog({ open: true, character: found });
+    setPendingId(null);
+  }, [pendingId, characters]);
 
   const visible = characters.filter(
     (character) =>

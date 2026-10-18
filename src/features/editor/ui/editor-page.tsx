@@ -5,6 +5,7 @@ import type { Editor } from "@tiptap/react";
 import { ArrowLeft, History, Maximize2, Minimize2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,11 +19,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CHAPTER_STATUS_LABELS } from "@/features/projects/domain/repository";
+import { CHAPTER_STATUS_COLORS, CHAPTER_STATUS_DOT, CHAPTER_STATUS_LABELS } from "@/features/projects/domain/repository";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { getTabCoordinator } from "@/infra/db/multi-tab";
 import { isQuotaExceededError } from "@/infra/storage/quota";
+import type { MentionType } from "@/features/mentions/domain/entity-index";
+import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
@@ -66,6 +69,7 @@ interface SavePayload {
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export function EditorPage({ chapterId }: { chapterId: string }) {
+  const router = useRouter();
   const [chapter, setChapter] = useState<Chapter | null | undefined>(
     undefined,
   );
@@ -80,6 +84,10 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
   const editorFontSize = useUiStore((state) => state.editorFontSize);
+  const setSelectedProjectId = useUiStore(
+    (state) => state.setSelectedProjectId,
+  );
+  const mentionEntities = useMentionEntities(chapter?.projectId ?? null);
 
   const editorRef = useRef<Editor | null>(null);
   const lastContentRef = useRef<Json | null>(null);
@@ -282,6 +290,19 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     [chapterId],
   );
 
+  const openMention = useCallback(
+    (type: MentionType, id: string) => {
+      if (!chapter) return;
+      setSelectedProjectId(chapter.projectId);
+      router.push(
+        type === "character"
+          ? `/characters?character=${id}`
+          : `/world?location=${id}`,
+      );
+    },
+    [chapter, router, setSelectedProjectId],
+  );
+
   if (chapter === undefined) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -334,12 +355,23 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           value={status ?? chapter.status}
           onValueChange={(value) => changeStatus(value as ChapterStatus)}
         >
-          <SelectTrigger className="h-9 w-32" aria-label="Status do capítulo">
+          <SelectTrigger
+            className={`h-9 w-36 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
+            aria-label="Status do capítulo"
+          >
+            <span
+              aria-hidden
+              className={`size-2 shrink-0 rounded-full ${CHAPTER_STATUS_DOT[status ?? chapter.status]}`}
+            />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
             {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
               <SelectItem key={value} value={value}>
+                <span
+                  aria-hidden
+                  className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
+                />
                 {label}
               </SelectItem>
             ))}
@@ -382,6 +414,8 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       >
         <TiptapEditor
           content={chapter.content}
+          mentions={mentionEntities}
+          onOpenMention={openMention}
           onReady={handleEditorReady}
           onUpdate={scheduleSave}
         />
