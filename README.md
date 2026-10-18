@@ -21,6 +21,16 @@ npm run test:e2e   # Playwright (E2E)
 npm run test:e2e:offline  # Playwright (E2E offline: build + service worker)
 ```
 
+## Deploy
+
+O app é local-first: não há backend nem variáveis de ambiente. O deploy só precisa servir o Next.js.
+
+- **Vercel (recomendado, definido no plano)**: importe o repositório na Vercel; o framework é detectado automaticamente (`next build`). Cada push na `main` gera um deploy de produção e cada PR, um deploy de preview. O service worker (Serwist) é gerado no build.
+- Versão do Node fixada via `engines` no `package.json` (24.x), igual à do CI.
+- CI: `.github/workflows/ci.yml` roda lint, typecheck, testes unitários, build e E2E (Playwright/chromium) em cada push e PR para `main`.
+- No celular, abra a URL de produção e use "Adicionar à tela inicial" para instalar como PWA e usar offline.
+- Os dados ficam no IndexedDB de cada navegador; para levar conteúdo entre dispositivos use `/export` (backup JSON) e importe no outro.
+
 ## Estrutura
 
 ```
