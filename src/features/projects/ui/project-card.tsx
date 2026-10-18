@@ -24,7 +24,29 @@ const STATUS_VARIANT: Record<
   archived: "outline",
 };
 
-export function ProjectCard({ project }: { project: Project }) {
+export interface ProjectStats {
+  chapterCount: number;
+  wordCount: number;
+  readingMinutes: number;
+}
+
+function statsLine(stats: ProjectStats, project: Project): string {
+  const parts = [
+    `${stats.chapterCount} ${stats.chapterCount === 1 ? "capítulo" : "capítulos"}`,
+    `${stats.wordCount.toLocaleString("pt-BR")} palavras`,
+    `${stats.readingMinutes} min de leitura`,
+  ];
+  if (project.author) parts.unshift(project.author);
+  return parts.join(" · ");
+}
+
+export function ProjectCard({
+  project,
+  stats,
+}: {
+  project: Project;
+  stats?: ProjectStats;
+}) {
   return (
     <Link href={`/projects/${project.id}`} className="group block h-full">
       <Card className="h-full transition-colors group-hover:border-primary/40">
@@ -45,13 +67,58 @@ export function ProjectCard({ project }: { project: Project }) {
             <CardDescription>{project.subtitle}</CardDescription>
           ) : null}
         </CardHeader>
-        <CardContent>
-          <p className="text-sm text-muted-foreground">
-            {project.author ? `${project.author} · ` : ""}
+        <CardContent className="grid gap-1">
+          {stats ? (
+            <p className="text-sm text-muted-foreground">
+              {statsLine(stats, project)}
+            </p>
+          ) : null}
+          <p className="text-xs text-muted-foreground">
             atualizado {formatRelativeTime(project.updatedAt)}
           </p>
         </CardContent>
       </Card>
+    </Link>
+  );
+}
+
+/** Compact horizontal variant used by the stacked ("list") layout. */
+export function ProjectRow({
+  project,
+  stats,
+}: {
+  project: Project;
+  stats?: ProjectStats;
+}) {
+  return (
+    <Link
+      href={`/projects/${project.id}`}
+      className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+    >
+      <div
+        aria-hidden
+        className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 font-serif text-lg text-primary"
+      >
+        {project.title.charAt(0).toUpperCase()}
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-serif font-medium">{project.title}</p>
+        {stats ? (
+          <p className="truncate text-xs text-muted-foreground">
+            {statsLine(stats, project)}
+          </p>
+        ) : project.subtitle ? (
+          <p className="truncate text-xs text-muted-foreground">
+            {project.subtitle}
+          </p>
+        ) : null}
+      </div>
+      <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
+        {formatRelativeTime(project.updatedAt)}
+      </span>
+      <Badge variant={STATUS_VARIANT[project.status]}>
+        {PROJECT_STATUS_LABELS[project.status]}
+      </Badge>
     </Link>
   );
 }

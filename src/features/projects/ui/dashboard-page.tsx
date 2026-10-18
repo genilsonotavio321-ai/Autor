@@ -41,7 +41,7 @@ interface DashboardData {
   streak: number;
   readingMinutes: number;
   resume: { chapterId: string; projectTitle: string; chapterTitle: string } | null;
-  recent: RecentProject[];
+  byProject: RecentProject[];
 }
 
 function formatDuration(minutes: number): string {
@@ -96,6 +96,9 @@ export function DashboardPage() {
 
     const summary = summariseWriting(log, new Date());
     recent.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+    const byProject = [...recent].sort((a, b) =>
+      a.title.localeCompare(b.title, "pt-BR"),
+    );
 
     return {
       projectCount: projects.length,
@@ -106,7 +109,7 @@ export function DashboardPage() {
       streak: summary.streak,
       readingMinutes: estimateReadingMinutes(wordCount),
       resume,
-      recent: recent.slice(0, 4),
+      byProject,
     };
   }, []);
 
@@ -247,29 +250,62 @@ export function DashboardPage() {
         />
       </section>
 
-      {stats.recent.length > 0 ? (
-        <section aria-label="Projetos recentes">
+      {stats.byProject.length > 0 ? (
+        <section aria-label="Estatísticas por projeto">
           <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Projetos recentes
+            Estatísticas por projeto
           </h2>
-          <ul className="grid gap-2">
-            {stats.recent.map((project) => (
-              <li key={project.id}>
-                <Link
-                  href={`/projects/${project.id}`}
-                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-                >
-                  <span className="font-medium">{project.title}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {project.chapterCount}{" "}
-                    {project.chapterCount === 1 ? "capítulo" : "capítulos"} ·{" "}
-                    {project.wordCount.toLocaleString("pt-BR")} palavras ·{" "}
-                    {formatRelativeTime(project.updatedAt)}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+          <div className="overflow-hidden rounded-lg border">
+            <table className="w-full text-sm">
+              <caption className="sr-only">
+                Capítulos, palavras e tempo de leitura por projeto
+              </caption>
+              <thead className="bg-muted/50 text-xs text-muted-foreground">
+                <tr>
+                  <th scope="col" className="p-3 text-left font-medium">
+                    Projeto
+                  </th>
+                  <th scope="col" className="p-3 text-right font-medium">
+                    Capítulos
+                  </th>
+                  <th scope="col" className="p-3 text-right font-medium">
+                    Palavras
+                  </th>
+                  <th scope="col" className="p-3 text-right font-medium">
+                    Leitura
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {stats.byProject.map((project) => (
+                  <tr key={project.id} className="border-t">
+                    <td className="p-3">
+                      <Link
+                        href={`/projects/${project.id}`}
+                        className="font-medium hover:underline"
+                      >
+                        {project.title}
+                      </Link>
+                      <span className="ml-2 text-xs text-muted-foreground">
+                        {formatRelativeTime(project.updatedAt)}
+                      </span>
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {project.chapterCount.toLocaleString("pt-BR")}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {project.wordCount.toLocaleString("pt-BR")}
+                    </td>
+                    <td className="p-3 text-right tabular-nums">
+                      {formatDuration(
+                        estimateReadingMinutes(project.wordCount),
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </section>
       ) : null}
     </div>
