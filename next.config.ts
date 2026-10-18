@@ -10,6 +10,9 @@ const withSerwist = withSerwistInit({
 
 const nextConfig: NextConfig = {
   // PWA offline-first via Serwist (plan §8.1).
+  // Acesso pelo celular na rede local durante o desenvolvimento: libera os
+  // assets /_next/* quando a página é aberta pelo IP em vez de localhost.
+  allowedDevOrigins: ["192.168.100.127", "192.168.100.128"],
 };
 
 export default withSerwist(nextConfig);
