@@ -41,4 +41,38 @@ describe("useUiStore", () => {
     expect(raw).not.toContain("commandPaletteOpen");
     expect(raw).toContain("sidebarCollapsed");
   });
+
+  it("defaults the project list to most recently updated, grid layout", () => {
+    expect(useUiStore.getState().projectsSort).toBe("updated-desc");
+    expect(useUiStore.getState().projectsLayout).toBe("grid");
+  });
+
+  it("updates project sort and layout preferences", () => {
+    useUiStore.getState().setProjectsSort("words-desc");
+    useUiStore.getState().setProjectsLayout("list");
+    expect(useUiStore.getState().projectsSort).toBe("words-desc");
+    expect(useUiStore.getState().projectsLayout).toBe("list");
+  });
+
+  it("persists project and mention preferences", () => {
+    localStorage.clear();
+    useUiStore.getState().setProjectsSort("title-asc");
+    useUiStore.getState().setMentionHighlightEnabled(false);
+    useUiStore.getState().setMentionColorCharacter("#ff0000");
+
+    const raw = localStorage.getItem("autor-ui");
+    expect(raw).toBeTruthy();
+    expect(raw).toContain("projectsSort");
+    expect(raw).toContain("mentionHighlightEnabled");
+    expect(raw).toContain("mentionColorCharacter");
+  });
+
+  it("toggles the mention highlight and stores both colors", () => {
+    useUiStore.getState().setMentionHighlightEnabled(true);
+    expect(useUiStore.getState().mentionHighlightEnabled).toBe(true);
+    useUiStore.getState().setMentionHighlightEnabled(false);
+    expect(useUiStore.getState().mentionHighlightEnabled).toBe(false);
+    useUiStore.getState().setMentionColorLocation("#123456");
+    expect(useUiStore.getState().mentionColorLocation).toBe("#123456");
+  });
 });

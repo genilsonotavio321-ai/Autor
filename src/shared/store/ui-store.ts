@@ -7,6 +7,27 @@ export type EditorFontFamily = "serif" | "sans";
 export const EDITOR_FONT_SIZE_MIN = 14;
 export const EDITOR_FONT_SIZE_MAX = 24;
 
+/** Ordenação da lista de projetos (plan §7.10). */
+export type ProjectsSort =
+  | "updated-desc"
+  | "created-desc"
+  | "created-asc"
+  | "title-asc"
+  | "words-desc"
+  | "reading-desc";
+
+export const PROJECTS_SORT_LABELS: Record<ProjectsSort, string> = {
+  "updated-desc": "Alterados recentemente",
+  "created-desc": "Mais recentes",
+  "created-asc": "Mais antigos",
+  "title-asc": "Ordem alfabética (A–Z)",
+  "words-desc": "Mais palavras",
+  "reading-desc": "Maior tempo de leitura",
+};
+
+/** Como os projetos são dispostos na lista. */
+export type ProjectsLayout = "grid" | "list";
+
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -28,6 +49,13 @@ interface UiState {
   sprintMinutes: number;
   /** Tempo de exibição do botão "Continuar de onde parou" (segundos). */
   resumeNoticeSeconds: number;
+  /** Ordenação e disposição da lista de projetos. */
+  projectsSort: ProjectsSort;
+  projectsLayout: ProjectsLayout;
+  /** Destaque de nomes de personagens e locais no texto. */
+  mentionHighlightEnabled: boolean;
+  mentionColorCharacter: string;
+  mentionColorLocation: string;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -41,6 +69,11 @@ interface UiState {
   setDailyWordGoal: (goal: number) => void;
   setSprintMinutes: (minutes: number) => void;
   setResumeNoticeSeconds: (seconds: number) => void;
+  setProjectsSort: (sort: ProjectsSort) => void;
+  setProjectsLayout: (layout: ProjectsLayout) => void;
+  setMentionHighlightEnabled: (enabled: boolean) => void;
+  setMentionColorCharacter: (color: string) => void;
+  setMentionColorLocation: (color: string) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -55,6 +88,11 @@ export const useUiStore = create<UiState>()(
       dailyWordGoal: 500,
       sprintMinutes: 25,
       resumeNoticeSeconds: 5,
+      projectsSort: "updated-desc",
+      projectsLayout: "grid",
+      mentionHighlightEnabled: true,
+      mentionColorCharacter: "#7c3aed",
+      mentionColorLocation: "#0d9488",
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -76,6 +114,13 @@ export const useUiStore = create<UiState>()(
         set({ sprintMinutes: clamp(minutes, 1, 120) }),
       setResumeNoticeSeconds: (seconds) =>
         set({ resumeNoticeSeconds: clamp(seconds, 0, 30) }),
+      setProjectsSort: (sort) => set({ projectsSort: sort }),
+      setProjectsLayout: (layout) => set({ projectsLayout: layout }),
+      setMentionHighlightEnabled: (enabled) =>
+        set({ mentionHighlightEnabled: enabled }),
+      setMentionColorCharacter: (color) =>
+        set({ mentionColorCharacter: color }),
+      setMentionColorLocation: (color) => set({ mentionColorLocation: color }),
     }),
     {
       name: "autor-ui",
@@ -88,6 +133,11 @@ export const useUiStore = create<UiState>()(
         dailyWordGoal: state.dailyWordGoal,
         sprintMinutes: state.sprintMinutes,
         resumeNoticeSeconds: state.resumeNoticeSeconds,
+        projectsSort: state.projectsSort,
+        projectsLayout: state.projectsLayout,
+        mentionHighlightEnabled: state.mentionHighlightEnabled,
+        mentionColorCharacter: state.mentionColorCharacter,
+        mentionColorLocation: state.mentionColorLocation,
       }),
     },
   ),
