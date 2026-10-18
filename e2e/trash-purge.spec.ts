@@ -4,7 +4,7 @@ import { addCharacter, createProject, waitForToastCycle } from "./helpers";
 
 async function deleteCharacter(page: Page, name: string) {
   await page.goto("/characters");
-  await page.getByRole("button", { name: `Excluir ${name}` }).click();
+  await page.getByRole("button", { name: `Excluir ${name}`, exact: true }).click();
   await waitForToastCycle(page);
 }
 

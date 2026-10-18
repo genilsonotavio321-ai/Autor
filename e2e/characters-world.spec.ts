@@ -25,6 +25,7 @@ test.describe("Fase 3: personagens e mundo", () => {
 
     // Edita Ana e registra relação de amizade com Bruno.
     await page.getByRole("button", { name: "Ana", exact: true }).click();
+    await page.getByRole("button", { name: "Editar" }).click();
     await page.getByLabel("Personagem relacionado").click();
     await page.getByRole("option", { name: "Bruno" }).click();
     await page.getByRole("button", { name: "Adicionar relação" }).click();
@@ -34,7 +35,7 @@ test.describe("Fase 3: personagens e mundo", () => {
     await expect(page.getByText("1 relação")).toBeVisible();
 
     // Exclusão com desfazer.
-    await page.getByRole("button", { name: "Excluir Bruno" }).click();
+    await page.getByRole("button", { name: "Excluir Bruno", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Bruno", exact: true }),
     ).toHaveCount(0);
@@ -68,7 +69,9 @@ test.describe("Fase 3: personagens e mundo", () => {
 
     // Exclusão de local com desfazer.
     await page.getByRole("tab", { name: /Locais/ }).click();
-    await page.getByRole("button", { name: "Excluir Castelo Norte" }).click();
+    await page
+      .getByRole("button", { name: "Excluir Castelo Norte", exact: true })
+      .click();
     await expect(
       page.getByRole("button", { name: "Castelo Norte", exact: true }),
     ).toHaveCount(0);

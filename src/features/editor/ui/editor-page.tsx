@@ -414,11 +414,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     <div
       className={
         focusMode
-          ? "mx-auto max-w-3xl px-4 py-8"
+          ? "mx-auto max-w-3xl space-y-4 px-4 py-8"
           : "mx-auto max-w-3xl space-y-4"
       }
     >
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center gap-2">
         {!focusMode ? (
           <Button variant="ghost" size="icon" asChild aria-label="Voltar ao projeto">
             <Link href={`/projects/${chapter.projectId}`}>
@@ -432,9 +432,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             setTitle(event.target.value);
             scheduleSave();
           }}
-          className="h-10 min-w-0 flex-1 font-serif text-xl font-semibold sm:text-2xl"
+          className="h-11 min-w-0 flex-1 font-serif text-xl font-semibold sm:text-2xl"
           aria-label="Título do capítulo"
         />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
         <Select
           value={status ?? chapter.status}
           onValueChange={(value) => changeStatus(value as ChapterStatus)}

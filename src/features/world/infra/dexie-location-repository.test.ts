@@ -23,8 +23,8 @@ describe("DexieLocationRepository", () => {
     expect(location.deletedAt).toBeUndefined();
   });
 
-  it("lists project locations sorted by name, skipping deleted", async () => {
-    await repository.create({ projectId, name: "Zara" });
+  it("lists project locations in manual order, skipping deleted", async () => {
+    const zara = await repository.create({ projectId, name: "Zara" });
     await repository.create({ projectId, name: "Aurora" });
     await repository.create({
       projectId: crypto.randomUUID(),
@@ -35,7 +35,12 @@ describe("DexieLocationRepository", () => {
 
     const list = await repository.listByProject(projectId);
 
-    expect(list.map((location) => location.name)).toEqual(["Aurora", "Zara"]);
+    expect(list.map((location) => location.name)).toEqual(["Zara", "Aurora"]);
+
+    await repository.applyMoves([{ id: zara.id, order: 10 }]);
+    expect(
+      (await repository.listByProject(projectId)).map((item) => item.name),
+    ).toEqual(["Aurora", "Zara"]);
   });
 
   it("updates, soft deletes and restores", async () => {

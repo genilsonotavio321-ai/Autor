@@ -53,6 +53,8 @@ export interface CharacterRepository {
   getById(id: EntityId): Promise<Character | undefined>;
   listByProject(projectId: EntityId): Promise<Character[]>;
   update(id: EntityId, patch: CharacterUpdateInput): Promise<Character>;
+  /** Persists the manual order of a drag-and-drop reorder. */
+  applyMoves(updates: { id: EntityId; order: number }[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
   /** Permanently deletes the row (trash purge only). */

@@ -24,18 +24,23 @@ describe("DexieLoreEntryRepository", () => {
     expect(entry.tags).toEqual([]);
   });
 
-  it("lists entries sorted by category then title", async () => {
-    await repository.create({ projectId, title: "Zodíaco", category: "Mitologia" });
+  it("lists entries in manual order", async () => {
+    const zodiaco = await repository.create({ projectId, title: "Zodíaco", category: "Mitologia" });
     await repository.create({ projectId, title: "Aurora", category: "História" });
     await repository.create({ projectId, title: "A Coroa", category: "História" });
 
     const list = await repository.listByProject(projectId);
 
     expect(list.map((entry) => entry.title)).toEqual([
-      "A Coroa",
-      "Aurora",
       "Zodíaco",
+      "Aurora",
+      "A Coroa",
     ]);
+
+    await repository.applyMoves([{ id: zodiaco.id, order: 10 }]);
+    expect(
+      (await repository.listByProject(projectId)).map((entry) => entry.title),
+    ).toEqual(["Aurora", "A Coroa", "Zodíaco"]);
   });
 
   it("updates content and linkedIds, then soft deletes and restores", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { CalendarRange, Pencil, Plus, Trash2 } from "lucide-react";
+import { CalendarRange, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
@@ -131,23 +131,24 @@ export function TimelinePage() {
                     aria-hidden
                     className="absolute -left-[1.95rem] top-2 size-3 rounded-full border-2 border-background bg-primary"
                   />
-                  <article className="rounded-lg border bg-card p-4">
+                  <article className="relative rounded-lg border bg-card p-4">
                     <div className="flex flex-wrap items-start gap-2">
                       <Badge variant="outline" className="font-mono">
                         {event.date}
                       </Badge>
-                      <h2 className="min-w-0 flex-1 font-medium">{event.title}</h2>
+                      <h2 className="min-w-0 flex-1 font-medium">
+                        <button
+                          type="button"
+                          className="text-left hover:underline focus-visible:underline focus-visible:outline-none after:absolute after:inset-0 after:content-['']"
+                          onClick={() => setDialog({ open: true, event })}
+                        >
+                          {event.title}
+                        </button>
+                      </h2>
                       <Button
                         variant="ghost"
                         size="icon"
-                        aria-label={`Editar ${event.title}`}
-                        onClick={() => setDialog({ open: true, event })}
-                      >
-                        <Pencil aria-hidden />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                        className="relative z-10"
                         aria-label={`Excluir ${event.title}`}
                         onClick={() => void remove(event)}
                       >
@@ -162,7 +163,7 @@ export function TimelinePage() {
                     {event.linkedChapterId ? (
                       <Link
                         href={`/write/${event.linkedChapterId}`}
-                        className="mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
+                        className="relative z-10 mt-2 inline-flex items-center gap-1 text-xs text-muted-foreground hover:underline"
                       >
                         <CalendarRange aria-hidden className="size-3" />
                         {chapterById.get(event.linkedChapterId)?.title ??

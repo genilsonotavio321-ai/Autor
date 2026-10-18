@@ -29,8 +29,11 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   await page.getByLabel("Buscar no acervo").fill("Helena");
   await page.getByRole("link", { name: /Helena/ }).click();
   await expect(page).toHaveURL(/\/characters/);
-  await expect(page.getByRole("dialog")).toBeVisible();
-  await expect(page.getByLabel("Nome", { exact: true })).toHaveValue("Helena");
+  const characterDialog = page.getByRole("dialog");
+  await expect(characterDialog).toBeVisible();
+  await expect(
+    characterDialog.getByText("Helena", { exact: true }),
+  ).toBeVisible();
 
   // Nota → visualização aberta em /notes.
   await page.goto("/search");

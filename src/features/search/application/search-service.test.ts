@@ -135,7 +135,12 @@ describe("buildSearchDocs", () => {
       "project",
       "scene",
     ]);
-    expect(docs.find((doc) => doc.type === "chapter")?.href).toBe("/write/c1");
+    expect(docs.find((doc) => doc.type === "chapter")?.href).toBe(
+      "/read?chapter=c1",
+    );
+    expect(docs.find((doc) => doc.type === "character")?.href).toBe(
+      "/characters?character=ch1&view=1",
+    );
     const projectDoc = docs.find((doc) => doc.type === "project");
     expect(projectDoc?.href).toBe("/projects/p1");
     expect(projectDoc?.projectTitle).toBe("Romance");

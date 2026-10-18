@@ -124,7 +124,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
         extractDocText(chapter.content),
         chapter.projectId,
         project,
-        `/write/${chapter.id}`,
+        `/read?chapter=${chapter.id}`,
       ),
     );
   }
@@ -167,7 +167,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
           .join(" "),
         character.projectId,
         project,
-        `/characters?character=${character.id}`,
+        `/characters?character=${character.id}&view=1`,
       ),
     );
   }
@@ -184,7 +184,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
         `${location.type} ${location.description ?? ""}`,
         location.projectId,
         project,
-        `/world?location=${location.id}`,
+        `/world?location=${location.id}&view=1`,
       ),
     );
   }
@@ -201,7 +201,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
         `${entry.category} ${typeof entry.content === "string" ? entry.content : ""}`,
         entry.projectId,
         project,
-        `/world?lore=${entry.id}`,
+        `/world?lore=${entry.id}&view=1`,
       ),
     );
   }

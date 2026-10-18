@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { applyOrderMoves, compareOrder, nextOrder } from "@/shared/lib/dexie-order";
 import type { EntityId, Location } from "@/shared/types/database";
 
 import type {
@@ -17,10 +18,16 @@ export class DexieLocationRepository implements LocationRepository {
   async create(input: LocationCreateInput): Promise<Location> {
     await ensureDbReady();
     const now = nowIso();
+    const live = await getDatabase()
+      .locations.filter(
+        (location) => location.projectId === input.projectId && !location.deletedAt,
+      )
+      .toArray();
     const location: Location = {
       id: createId(),
       projectId: input.projectId,
       name: input.name.trim() || "Sem nome",
+      order: nextOrder(live),
       type: input.type?.trim() || "Local",
       description: input.description,
       tags: [],
@@ -43,7 +50,9 @@ export class DexieLocationRepository implements LocationRepository {
         (location) => location.projectId === projectId && !location.deletedAt,
       )
       .toArray();
-    return all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return all.sort(
+      (a, b) => compareOrder(a, b) || a.name.localeCompare(b.name, "pt-BR"),
+    );
   }
 
   async update(id: EntityId, patch: LocationUpdateInput): Promise<Location> {
@@ -52,6 +61,12 @@ export class DexieLocationRepository implements LocationRepository {
     const updated = await getDatabase().locations.get(id);
     if (!updated) throw new Error(`Location not found: ${id}`);
     return updated;
+  }
+
+  async applyMoves(updates: { id: EntityId; order: number }[]): Promise<void> {
+    await ensureDbReady();
+    const db = getDatabase();
+    await applyOrderMoves(db, "locations", updates);
   }
 
   async softDelete(id: EntityId): Promise<void> {

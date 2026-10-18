@@ -24,9 +24,12 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
   await expect(result).toBeVisible();
   await expect(page.getByText(/resultado\(s\)/)).toContainText("1 resultado");
 
-  // The result links back to the editor.
+  // The result links back to the read view of the chapter.
   await result.click();
-  await expect(page).toHaveURL(/\/write\//);
+  await expect(page).toHaveURL(/\/read$/);
+  await expect(
+    page.getByRole("heading", { name: "Capítulo 1" }),
+  ).toBeVisible();
 
   // Characters are searchable too.
   await page.goto(projectUrl);

@@ -42,6 +42,7 @@ import { formatRelativeTime } from "@/shared/lib/dates";
 import type { Chapter, ChapterStatus } from "@/shared/types/database";
 
 import { computeChapterOrder } from "@/features/plot/domain/ordering";
+import { estimateReadingMinutes } from "@/features/productivity/domain/writing-log";
 
 import {
   CHAPTER_STATUS_COLORS,
@@ -123,7 +124,7 @@ export function ChapterList({ chapters }: ChapterListProps) {
         items={chapters.map((chapter) => chapter.id)}
         strategy={verticalListSortingStrategy}
       >
-        <ul className="divide-y rounded-lg border">
+        <ul className="grid gap-2">
           {chapters.map((chapter) => (
             <ChapterRow key={chapter.id} chapter={chapter} />
           ))}
@@ -166,81 +167,86 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex select-none items-center gap-3 bg-card p-3 ${isDragging ? "opacity-60" : ""}`}
+      className={`relative select-none rounded-lg border bg-card ${isDragging ? "opacity-60" : ""}`}
     >
-      <button
-        type="button"
-        {...attributes}
-        {...listeners}
-        aria-label={`Reordenar ${chapter.title}`}
-        className="inline-flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-      >
-        <GripVertical aria-hidden />
-      </button>
-      <span
-        aria-hidden
-        className="w-6 shrink-0 text-center font-serif text-sm text-muted-foreground"
-      >
-        {chapter.order}
-      </span>
-      <div className="min-w-0 flex-1">
-        <Link
-          href={`/write/${chapter.id}`}
-          className="block truncate font-medium hover:underline"
+      <div className="flex items-start gap-2 p-3">
+        <button
+          type="button"
+          {...attributes}
+          {...listeners}
+          aria-label={`Reordenar ${chapter.title}`}
+          className="relative z-10 inline-flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >
-          {chapter.title}
-        </Link>
-        <p className="text-xs text-muted-foreground">
-          {chapter.wordCount.toLocaleString("pt-BR")} palavras ·
-          atualizado {formatRelativeTime(chapter.updatedAt)}
-        </p>
+          <GripVertical aria-hidden />
+        </button>
+        <div className="min-w-0 flex-1 space-y-1">
+          <Link
+            href={`/write/${chapter.id}`}
+            className="block font-medium after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
+          >
+            <span className="mr-2 font-serif text-sm text-muted-foreground">
+              {chapter.order}.{" "}
+            </span>
+            {chapter.title}
+          </Link>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+            <span>
+              {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
+              {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
+              {formatRelativeTime(chapter.updatedAt)}
+            </span>
+            <Select
+              value={chapter.status}
+              onValueChange={(value) =>
+                void changeStatus(value as ChapterStatus)
+              }
+            >
+              <SelectTrigger
+                className={`relative z-10 ml-auto h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
+                aria-label={`Status de ${chapter.title}`}
+              >
+                <span
+                  aria-hidden
+                  className={`size-2 shrink-0 rounded-full ${CHAPTER_STATUS_DOT[chapter.status]}`}
+                />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    <span
+                      aria-hidden
+                      className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
+                    />
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="relative z-10 shrink-0"
+              aria-label={`Ações de ${chapter.title}`}
+            >
+              <MoreHorizontal aria-hidden />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem
+              variant="destructive"
+              onClick={() => void remove()}
+            >
+              <Trash2 aria-hidden />
+              Excluir
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
-      <Select
-        value={chapter.status}
-        onValueChange={(value) => void changeStatus(value as ChapterStatus)}
-      >
-        <SelectTrigger
-          className={`h-8 w-36 gap-2 ${CHAPTER_STATUS_COLORS[chapter.status]}`}
-          aria-label={`Status de ${chapter.title}`}
-        >
-          <span
-            aria-hidden
-            className={`size-2 shrink-0 rounded-full ${CHAPTER_STATUS_DOT[chapter.status]}`}
-          />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              <span
-                aria-hidden
-                className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
-              />
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="icon"
-            aria-label={`Ações de ${chapter.title}`}
-          >
-            <MoreHorizontal aria-hidden />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem
-            variant="destructive"
-            onClick={() => void remove()}
-          >
-            <Trash2 aria-hidden />
-            Excluir
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
     </li>
   );
 }

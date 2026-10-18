@@ -43,6 +43,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
       .getByRole("button", { name: "Davi", exact: true })
       .click();
     await expect(page.getByRole("dialog")).toBeVisible();
+    await page.getByRole("button", { name: "Editar" }).click();
     const nameInput = page.getByLabel("Nome", { exact: true });
     await nameInput.fill("Davi Renomeado");
     await page.getByRole("button", { name: "Salvar" }).click();
@@ -104,12 +105,13 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await page.keyboard.press("Space");
 
     const titles = page.locator('a[href^="/write/"]');
-    await expect(titles.first()).toHaveText("Capítulo 2");
+    await expect(titles.first()).toHaveText("1. Capítulo 2");
+    await expect(titles.nth(1)).toHaveText("2. Capítulo 1");
 
     await page.reload();
     await expect(
       page.locator('a[href^="/write/"]').first(),
-    ).toHaveText("Capítulo 2");
+    ).toHaveText("1. Capítulo 2");
   });
 
   test("a lista de projetos ordena e alterna entre caixas e lista", async ({

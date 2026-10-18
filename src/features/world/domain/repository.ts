@@ -32,6 +32,8 @@ export interface LocationRepository {
   getById(id: EntityId): Promise<Location | undefined>;
   listByProject(projectId: EntityId): Promise<Location[]>;
   update(id: EntityId, patch: LocationUpdateInput): Promise<Location>;
+  /** Persists the manual order of a drag-and-drop reorder. */
+  applyMoves(updates: { id: EntityId; order: number }[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
   /** Permanently deletes the row (trash purge only). */
@@ -62,6 +64,8 @@ export interface LoreEntryRepository {
   getById(id: EntityId): Promise<LoreEntry | undefined>;
   listByProject(projectId: EntityId): Promise<LoreEntry[]>;
   update(id: EntityId, patch: LoreEntryUpdateInput): Promise<LoreEntry>;
+  /** Persists the manual order of a drag-and-drop reorder. */
+  applyMoves(updates: { id: EntityId; order: number }[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
   /** Permanently deletes the row (trash purge only). */

@@ -183,7 +183,7 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
           items={chapters.map((chapter) => chapter.id)}
           strategy={verticalListSortingStrategy}
         >
-          <ul className="grid gap-3">
+          <ul className="grid min-w-0 gap-3">
             {chapters.map((chapter) => (
               <ChapterRow
                 key={chapter.id}
@@ -259,13 +259,13 @@ function ChapterRow({
     <li
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border bg-card ${isDragging ? "opacity-60" : ""}`}
+      className={`min-w-0 rounded-lg border bg-card ${isDragging ? "opacity-60" : ""}`}
     >
-      <div className="flex items-center gap-2 p-3">
+      <div className="flex min-w-0 items-center gap-2 p-3">
         <button type="button" {...dragHandleProps(attributes, listeners, `Reordenar ${chapter.title}`)}>
           <GripVertical aria-hidden />
         </button>
-        <span aria-hidden className="font-serif text-sm text-muted-foreground">
+        <span aria-hidden className="hidden shrink-0 font-serif text-sm text-muted-foreground sm:inline">
           {chapter.order}
         </span>
         <Link
@@ -334,7 +334,7 @@ function SceneRow({ scene, onEdit }: SceneRowProps) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-2 px-3 py-2 pl-10 ${isDragging ? "opacity-60" : ""}`}
+      className={`flex min-w-0 items-center gap-2 px-3 py-2 pl-6 sm:pl-10 ${isDragging ? "opacity-60" : ""}`}
     >
       <button type="button" {...dragHandleProps(attributes, listeners, `Reordenar ${scene.title}`)}>
         <GripVertical aria-hidden />

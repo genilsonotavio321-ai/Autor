@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { applyOrderMoves, compareOrder, nextOrder } from "@/shared/lib/dexie-order";
 import type { Character, EntityId } from "@/shared/types/database";
 
 import type {
@@ -17,10 +18,16 @@ export class DexieCharacterRepository implements CharacterRepository {
   async create(input: CharacterCreateInput): Promise<Character> {
     await ensureDbReady();
     const now = nowIso();
+    const live = await getDatabase()
+      .characters.filter(
+        (character) => character.projectId === input.projectId && !character.deletedAt,
+      )
+      .toArray();
     const character: Character = {
       id: createId(),
       projectId: input.projectId,
       name: input.name.trim() || "Sem nome",
+      order: nextOrder(live),
       role: input.role ?? "supporting",
       description: input.description,
       backstory: input.backstory,
@@ -48,7 +55,9 @@ export class DexieCharacterRepository implements CharacterRepository {
         (character) => character.projectId === projectId && !character.deletedAt,
       )
       .toArray();
-    return all.sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+    return all.sort(
+      (a, b) => compareOrder(a, b) || a.name.localeCompare(b.name, "pt-BR"),
+    );
   }
 
   async update(id: EntityId, patch: CharacterUpdateInput): Promise<Character> {
@@ -57,6 +66,12 @@ export class DexieCharacterRepository implements CharacterRepository {
     const updated = await getDatabase().characters.get(id);
     if (!updated) throw new Error(`Character not found: ${id}`);
     return updated;
+  }
+
+  async applyMoves(updates: { id: EntityId; order: number }[]): Promise<void> {
+    await ensureDbReady();
+    const db = getDatabase();
+    await applyOrderMoves(db, "characters", updates);
   }
 
   async softDelete(id: EntityId): Promise<void> {

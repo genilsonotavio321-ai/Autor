@@ -136,6 +136,7 @@ test("renomear um personagem atualiza o destaque nos capítulos", async ({
 
   await page.goto("/characters");
   await page.getByRole("button", { name: "Aurora", exact: true }).click();
+  await page.getByRole("button", { name: "Editar" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Aurora Nova");
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -165,6 +166,7 @@ test("renomear uma ficha reescreve o nome nos capítulos", async ({ page }) => {
   // Item 16: ao salvar, o nome é reescrito nos capítulos e um aviso aparece.
   await page.goto("/characters");
   await page.getByRole("button", { name: "Davi", exact: true }).click();
+  await page.getByRole("button", { name: "Editar" }).click();
   await page.getByLabel("Nome", { exact: true }).fill("Davi Silva");
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByText(/1 trecho com o novo nome/)).toBeVisible();

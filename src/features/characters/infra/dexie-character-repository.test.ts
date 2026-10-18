@@ -30,7 +30,7 @@ describe("DexieCharacterRepository", () => {
     expect(character.name).toBe("Sem nome");
   });
 
-  it("lists project characters sorted by name and skips deleted", async () => {
+  it("lists project characters in manual order and skips deleted", async () => {
     const bruno = await repository.create({ projectId, name: "Bruno" });
     await repository.create({ projectId, name: "Ana" });
     const other = await repository.create({
@@ -42,12 +42,15 @@ describe("DexieCharacterRepository", () => {
 
     const list = await repository.listByProject(projectId);
 
-    expect(list.map((character) => character.name)).toEqual(["Ana", "Bruno"]);
-    expect(list.map((character) => character.id)).toEqual([
-      expect.any(String),
-      bruno.id,
-    ]);
+    // Fichas novas entram no fim, não em ordem alfabética.
+    expect(list.map((character) => character.name)).toEqual(["Bruno", "Ana"]);
     expect(list.some((character) => character.id === other.id)).toBe(false);
+
+    // Reordenar move a ficha (ordem sobrevive à nova consulta).
+    await repository.applyMoves([{ id: bruno.id, order: 10 }]);
+    expect(
+      (await repository.listByProject(projectId)).map((item) => item.name),
+    ).toEqual(["Ana", "Bruno"]);
   });
 
   it("updates fields and bumps updatedAt", async () => {

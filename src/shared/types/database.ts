@@ -113,6 +113,8 @@ export interface Relationship {
 export interface Character extends BaseEntity {
   projectId: EntityId;
   name: string;
+  /** Manual (drag-and-drop) position within the project. */
+  order?: number;
   role: CharacterRole;
   description?: string;
   backstory?: string;
@@ -127,6 +129,8 @@ export interface Character extends BaseEntity {
 export interface Location extends BaseEntity {
   projectId: EntityId;
   name: string;
+  /** Manual (drag-and-drop) position within the project. */
+  order?: number;
   type: string;
   description?: string;
   tags: EntityId[];
@@ -135,6 +139,8 @@ export interface Location extends BaseEntity {
 export interface LoreEntry extends BaseEntity {
   projectId: EntityId;
   title: string;
+  /** Manual (drag-and-drop) position within the project. */
+  order?: number;
   category: string;
   /** Tiptap document JSON. */
   content: Json;
