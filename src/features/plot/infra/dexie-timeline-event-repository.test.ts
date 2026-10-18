@@ -70,7 +70,7 @@ describe("DexieTimelineEventRepository", () => {
     expect("linkedChapterId" in updated).toBe(false);
   });
 
-  it("soft-deletes and hides from listing", async () => {
+  it("soft-deletes, lists trash and restores", async () => {
     const project = await projectRepository.create({
       title: "Romance",
       status: "draft",
@@ -83,5 +83,15 @@ describe("DexieTimelineEventRepository", () => {
 
     await repository.softDelete(event.id);
     expect(await repository.listByProject(project.id)).toHaveLength(0);
+
+    const deleted = await repository.listDeleted();
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.id).toBe(event.id);
+
+    await repository.restore(event.id);
+    expect(await repository.listDeleted()).toEqual([]);
+    expect(await repository.listByProject(project.id)).toHaveLength(1);
+    const restored = await getDatabase().timelineEvents.get(event.id);
+    expect(restored?.deletedAt).toBeUndefined();
   });
 });

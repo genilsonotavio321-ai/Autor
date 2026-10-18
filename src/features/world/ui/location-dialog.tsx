@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { EntityId, Location } from "@/shared/types/database";
 
 import { LOCATION_TYPE_SUGGESTIONS } from "../domain/repository";
+import { renameMentionsInProject } from "@/features/mentions/application/rename-mentions-service";
 import { locationRepository } from "../infra/dexie-location-repository";
 
 interface LocationDialogProps {
@@ -49,12 +51,30 @@ export function LocationDialog({
     setSaving(true);
     try {
       if (location) {
+        const nextName = name.trim() || "Sem nome";
         await locationRepository.update(location.id, {
-          name: name.trim() || "Sem nome",
+          name: nextName,
           type: type.trim() || "Local",
           description: description.trim() || undefined,
         });
-        toast.success("Local atualizado");
+        // Item 16: renomear a ficha reescreve as menções nos capítulos/cenas.
+        let renamed = 0;
+        if (location.name !== nextName) {
+          try {
+            renamed = await renameMentionsInProject(
+              location.projectId,
+              location.name,
+              nextName,
+            );
+          } catch {
+            toast.error("Não foi possível atualizar o nome nos capítulos");
+          }
+        }
+        toast.success(
+          renamed > 0
+            ? `Local atualizado · ${renamed} ${renamed === 1 ? "trecho" : "trechos"} com o novo nome`
+            : "Local atualizado",
+        );
       } else {
         await locationRepository.create({
           projectId,
@@ -74,7 +94,10 @@ export function LocationDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent
+        className="sm:max-w-xl"
+        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
+      >
         <DialogHeader>
           <DialogTitle>{location ? "Editar local" : "Novo local"}</DialogTitle>
         </DialogHeader>

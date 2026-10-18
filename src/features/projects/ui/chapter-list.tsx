@@ -166,14 +166,14 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
     <li
       ref={setNodeRef}
       style={style}
-      className={`flex items-center gap-3 bg-card p-3 ${isDragging ? "opacity-60" : ""}`}
+      className={`flex select-none items-center gap-3 bg-card p-3 ${isDragging ? "opacity-60" : ""}`}
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
         aria-label={`Reordenar ${chapter.title}`}
-        className="inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        className="inline-flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
       >
         <GripVertical aria-hidden />
       </button>

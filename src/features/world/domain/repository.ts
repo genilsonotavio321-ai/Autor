@@ -34,6 +34,8 @@ export interface LocationRepository {
   update(id: EntityId, patch: LocationUpdateInput): Promise<Location>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
   listDeleted(): Promise<Location[]>;
 }
 
@@ -62,5 +64,7 @@ export interface LoreEntryRepository {
   update(id: EntityId, patch: LoreEntryUpdateInput): Promise<LoreEntry>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
   listDeleted(): Promise<LoreEntry[]>;
 }

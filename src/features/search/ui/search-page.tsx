@@ -15,6 +15,7 @@ import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-rep
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
 import { ensureDbReady } from "@/infra/db/ready";
+import { useUiStore } from "@/shared/store/ui-store";
 
 import { createSearchIndex, searchDocs } from "../application/search-service";
 import {
@@ -113,6 +114,9 @@ export function SearchPage() {
           <li key={doc.id}>
             <Link
               href={doc.href}
+              onClick={() =>
+                useUiStore.getState().setSelectedProjectId(doc.projectId)
+              }
               className="flex flex-col gap-1 rounded-lg border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <div className="flex flex-wrap items-center gap-2">

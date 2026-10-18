@@ -169,6 +169,11 @@ export interface Note extends BaseEntity {
   title: string;
   content: string;
   pinned: boolean;
+  /**
+   * Manual position inside the project (pinned notes keep their slot too).
+   * Optional: rows created before this field existed are backfilled lazily.
+   */
+  order?: number;
   tags: EntityId[];
 }
 

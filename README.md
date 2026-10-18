@@ -88,6 +88,14 @@ src/
 - Capítulos: reordenação por arrasto **e teclado** direto na página do projeto; o status passou a ter um **único** seletor colorido por estado (A fazer, Rascunho, Revisão, Concluído) — corrige a duplicação de status (badge + select).
 - Destaques no texto: nomes de personagens e locais do projeto são coloridos e clicáveis no editor (Ctrl/Cmd+clique abre a ficha) e no modo leitura (clique simples). Cores e ligar/desligar em Configurações (`/settings`, cartão "Destaques no texto"). Destaques são apenas visuais (decorações), não entram no texto salvo nem na exportação.
 
+## Recursos (Fase 7)
+
+- Lixeira ampliada: agora cobre também capítulos, cenas, eventos da linha do tempo e beats (além de projetos, notas, personagens, locais e lore). Restauração em cascata: uma cena órfã de um capítulo excluído restaura o capítulo junto, para não sumir da visualização.
+- Restauração segura: exclusões em `/timeline` e na lista de beats ganharam o toast com "Desfazer", igual às demais telas.
+- Diff de versões: o diálogo de versões do editor mostra um **preview das diferenças** (parágrafo a parágrafo, com linhas removidas/adicionadas destacadas) antes de restaurar — nada mais é restaurado às cegas.
+- Importar Word (`.docx`): round-trip com a exportação DOCX existente (`/export` → "Importar capítulos (.docx)"). Lê um capítulo por título (reconhece títulos grandes em negrito do arquivo do Autor e estilos de título do Word) e listas, blocos de citação e código.
+- Gráfico de atividade no Painel: mapa de calor dos últimos 12 semanas (estilo GitHub) ao lado da meta diária, lendo o log de escrita por dia já registrado.
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).

@@ -19,8 +19,11 @@ export class DexieSceneRepository implements SceneRepository {
   async create(input: SceneCreateInput): Promise<Scene> {
     await ensureDbReady();
     const db = getDatabase();
+    // Ignora cenas na lixeira (mesmo critério dos capítulos — A0).
     const existing = await db.scenes
-      .filter((scene) => scene.chapterId === input.chapterId)
+      .filter(
+        (scene) => scene.chapterId === input.chapterId && !scene.deletedAt,
+      )
       .toArray();
     const order =
       existing.reduce((max, scene) => Math.max(max, scene.order), 0) + 1;
@@ -117,6 +120,21 @@ export class DexieSceneRepository implements SceneRepository {
       .scenes.where("id")
       .equals(id)
       .modify({ deletedAt: undefined });
+  }
+
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().scenes.delete(id);
+  }
+
+  async listDeleted(): Promise<Scene[]> {
+    await ensureDbReady();
+    const all = await getDatabase()
+      .scenes.filter((scene) => Boolean(scene.deletedAt))
+      .toArray();
+    return all.sort((a, b) =>
+      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
+    );
   }
 }
 

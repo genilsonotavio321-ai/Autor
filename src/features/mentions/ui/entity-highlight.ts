@@ -8,12 +8,22 @@ import {
   type MentionEntity,
   type MentionType,
 } from "../domain/entity-index";
+import {
+  isTouchDevice,
+  shouldOpenMentionOnPlainClick,
+  type MentionClickSource,
+} from "../domain/mention-click";
 
 export interface MentionHighlightSettings {
   enabled: boolean;
   entities: MentionEntity[];
   colorFor: (type: MentionType) => string;
-  onOpen: (type: MentionType, id: string) => void;
+  /**
+   * Opens the matching ficha. `source` is "modifier" for Ctrl/Cmd+click
+   * (always opens directly) and "plain" for a touch tap, which the UI layer
+   * may confirm first (item 17 — "Não perguntar de novo").
+   */
+  onOpen: (type: MentionType, id: string, source: MentionClickSource) => void;
   /** Tooltip shown on highlighted names. */
   title: string;
 }
@@ -103,8 +113,6 @@ export const EntityHighlight = Extension.create<EntityHighlightOptions>({
               event.target as HTMLElement | null
             )?.closest<HTMLElement>("[data-mention-id]");
             if (!target) return false;
-            // In the editor a plain click must place the caret instead.
-            if (view.editable && !(event.metaKey || event.ctrlKey)) return false;
             const id = target.getAttribute("data-mention-id");
             const type = target.getAttribute(
               "data-mention-type",
@@ -112,7 +120,26 @@ export const EntityHighlight = Extension.create<EntityHighlightOptions>({
             if (!id || (type !== "character" && type !== "location")) {
               return false;
             }
-            settings.onOpen(type, id);
+            const hasModifier = event.metaKey || event.ctrlKey;
+            // In the editor a plain desktop click must place the caret.
+            // Touch taps open instead (item 15), unless the user is dragging
+            // out a text selection (do not steal it).
+            if (
+              view.editable &&
+              !hasModifier &&
+              !shouldOpenMentionOnPlainClick({
+                isTouch: isTouchDevice(),
+                hasModifier,
+                selectionCollapsed: view.state.selection.empty,
+              })
+            ) {
+              return false;
+            }
+            settings.onOpen(
+              type,
+              id,
+              hasModifier ? "modifier" : "plain",
+            );
             return true;
           },
         },

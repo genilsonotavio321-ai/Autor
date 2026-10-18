@@ -54,6 +54,10 @@ interface UiState {
   projectsLayout: ProjectsLayout;
   /** Destaque de nomes de personagens e locais no texto. */
   mentionHighlightEnabled: boolean;
+  /** Destaque no modo leitura (independe do editor). */
+  mentionHighlightReadEnabled: boolean;
+  /** Pergunta antes de abrir ficha ao tocar num destaque (item 17). */
+  mentionConfirmOpen: boolean;
   mentionColorCharacter: string;
   mentionColorLocation: string;
   setSidebarCollapsed: (collapsed: boolean) => void;
@@ -72,6 +76,8 @@ interface UiState {
   setProjectsSort: (sort: ProjectsSort) => void;
   setProjectsLayout: (layout: ProjectsLayout) => void;
   setMentionHighlightEnabled: (enabled: boolean) => void;
+  setMentionHighlightReadEnabled: (enabled: boolean) => void;
+  setMentionConfirmOpen: (open: boolean) => void;
   setMentionColorCharacter: (color: string) => void;
   setMentionColorLocation: (color: string) => void;
 }
@@ -91,6 +97,8 @@ export const useUiStore = create<UiState>()(
       projectsSort: "updated-desc",
       projectsLayout: "grid",
       mentionHighlightEnabled: true,
+      mentionHighlightReadEnabled: true,
+      mentionConfirmOpen: true,
       mentionColorCharacter: "#7c3aed",
       mentionColorLocation: "#0d9488",
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -118,6 +126,9 @@ export const useUiStore = create<UiState>()(
       setProjectsLayout: (layout) => set({ projectsLayout: layout }),
       setMentionHighlightEnabled: (enabled) =>
         set({ mentionHighlightEnabled: enabled }),
+      setMentionHighlightReadEnabled: (enabled) =>
+        set({ mentionHighlightReadEnabled: enabled }),
+      setMentionConfirmOpen: (open) => set({ mentionConfirmOpen: open }),
       setMentionColorCharacter: (color) =>
         set({ mentionColorCharacter: color }),
       setMentionColorLocation: (color) => set({ mentionColorLocation: color }),
@@ -136,6 +147,8 @@ export const useUiStore = create<UiState>()(
         projectsSort: state.projectsSort,
         projectsLayout: state.projectsLayout,
         mentionHighlightEnabled: state.mentionHighlightEnabled,
+        mentionHighlightReadEnabled: state.mentionHighlightReadEnabled,
+        mentionConfirmOpen: state.mentionConfirmOpen,
         mentionColorCharacter: state.mentionColorCharacter,
         mentionColorLocation: state.mentionColorLocation,
       }),

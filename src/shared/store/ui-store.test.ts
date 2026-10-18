@@ -75,4 +75,16 @@ describe("useUiStore", () => {
     useUiStore.getState().setMentionColorLocation("#123456");
     expect(useUiStore.getState().mentionColorLocation).toBe("#123456");
   });
+
+  it("toggles and persists the read-mode highlight independently", () => {
+    localStorage.clear();
+    expect(useUiStore.getState().mentionHighlightReadEnabled).toBe(true);
+    useUiStore.getState().setMentionHighlightReadEnabled(false);
+    expect(useUiStore.getState().mentionHighlightReadEnabled).toBe(false);
+    expect(localStorage.getItem("autor-ui")).toContain(
+      "mentionHighlightReadEnabled",
+    );
+    useUiStore.getState().setMentionHighlightReadEnabled(true);
+    expect(useUiStore.getState().mentionHighlightReadEnabled).toBe(true);
+  });
 });

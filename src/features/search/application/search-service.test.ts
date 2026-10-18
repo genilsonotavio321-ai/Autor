@@ -125,16 +125,20 @@ describe("buildSearchDocs", () => {
       notes: [note],
     });
 
-    expect(docs).toHaveLength(6);
+    expect(docs).toHaveLength(7);
     expect(docs.map((doc) => doc.type).sort()).toEqual([
       "chapter",
       "character",
       "location",
       "lore",
       "note",
+      "project",
       "scene",
     ]);
     expect(docs.find((doc) => doc.type === "chapter")?.href).toBe("/write/c1");
+    const projectDoc = docs.find((doc) => doc.type === "project");
+    expect(projectDoc?.href).toBe("/projects/p1");
+    expect(projectDoc?.projectTitle).toBe("Romance");
     const sceneDoc = docs.find((doc) => doc.type === "scene");
     expect(sceneDoc?.projectTitle).toBe("Romance");
     expect(sceneDoc?.searchText).toContain("Confronto final");
@@ -190,5 +194,22 @@ describe("searchDocs", () => {
 
   it("honors the limit", () => {
     expect(searchDocs(index, "dragão", 1)).toHaveLength(1);
+  });
+
+  it("finds projects regardless of case and accents", () => {
+    const projectDocs = buildSearchDocs({
+      projects: [makeProject("p1", "Coração de Fogo")],
+      chapters: [],
+      scenes: [],
+      characters: [],
+      locations: [],
+      loreEntries: [],
+      notes: [],
+    });
+    const projectIndex = createSearchIndex(projectDocs);
+
+    expect(searchDocs(projectIndex, "CORAÇÃO")).toHaveLength(1);
+    expect(searchDocs(projectIndex, "coracao de fogo")).toHaveLength(1);
+    expect(searchDocs(projectIndex, "fogo")[0]?.doc.type).toBe("project");
   });
 });

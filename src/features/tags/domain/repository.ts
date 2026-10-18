@@ -20,6 +20,11 @@ export interface TagRepository {
   merge(sourceId: EntityId, targetId: EntityId): Promise<void>;
   /** Exclui a tag e remove todas as referências a ela. */
   remove(id: EntityId): Promise<void>;
+  /**
+   * Exclui todas as tags de um projeto, sem tocar nas referências — usado
+   * apenas na purga em cascata do projeto (os donos já foram apagados).
+   */
+  deleteByProject(projectId: EntityId): Promise<void>;
 }
 
 /** Paleta de cores das tags (plan §7.8 — gestão de tags com cor). */

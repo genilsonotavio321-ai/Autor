@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -91,7 +92,10 @@ export function LoreDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"
+        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
+      >
         <DialogHeader>
           <DialogTitle>
             {entry ? "Editar entrada" : "Nova entrada de lore"}

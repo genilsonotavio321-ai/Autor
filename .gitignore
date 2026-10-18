@@ -31,6 +31,9 @@ next-env.d.ts
 /test-results/
 /playwright-report/
 
+# grafos gerados pela ferramenta graphify
+/graphify-out/
+
 # editor
 .vscode/
 .idea/

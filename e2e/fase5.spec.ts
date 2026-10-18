@@ -19,14 +19,18 @@ test("configurações personalizam tema, editor e metas", async ({ page }) => {
     "true",
   );
 
-  // Tamanho da fonte (label reflete o valor).
-  await page.getByLabel(/Tamanho da fonte/).fill("20");
-  await expect(page.getByText("Tamanho da fonte: 20px")).toBeVisible();
+  // Tamanho da fonte (slider + input numérico com o valor exato).
+  await page.getByLabel("Tamanho da fonte — valor exato").fill("20");
+  await expect(page.getByLabel("Tamanho da fonte — valor exato")).toHaveValue(
+    "20",
+  );
 
   // Meta persistida no armazenamento local.
-  await page.getByLabel("Meta diária (palavras)").fill("800");
+  await page.getByLabel("Meta diária — valor exato").fill("800");
   await page.reload();
-  await expect(page.getByLabel("Meta diária (palavras)")).toHaveValue("800");
+  await expect(page.getByLabel("Meta diária — valor exato")).toHaveValue(
+    "800",
+  );
 
   // Lista de atalhos.
   await expect(page.getByText("Ctrl/Cmd + K")).toBeVisible();

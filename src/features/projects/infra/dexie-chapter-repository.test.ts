@@ -51,12 +51,32 @@ describe("DexieChapterRepository", () => {
     expect(chapter.wordCount).toBeGreaterThan(0);
   });
 
-  it("soft-deletes and restores a chapter", async () => {
+  it("assigns incremental order skipping chapters in the trash (A0)", async () => {
+    const projectId = await seedProject();
+    const first = await repository.create({ projectId });
+    await repository.create({ projectId });
+    const third = await repository.create({ projectId });
+    await repository.softDelete(third.id);
+
+    const next = await repository.create({ projectId });
+    expect(next.order).toBe(3);
+    expect(next.title).toBe("Capítulo 3");
+    expect(first.order).toBe(1);
+  });
+
+  it("soft-deletes, lists trash and restores a chapter", async () => {
     const projectId = await seedProject();
     const chapter = await repository.create({ projectId });
     await repository.softDelete(chapter.id);
     expect(await repository.listByProject(projectId)).toHaveLength(0);
+
+    const deleted = await repository.listDeleted();
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.id).toBe(chapter.id);
+
     await repository.restore(chapter.id);
+    expect(await repository.listDeleted()).toEqual([]);
     expect(await repository.listByProject(projectId)).toHaveLength(1);
+    expect((await repository.getById(chapter.id))?.deletedAt).toBeUndefined();
   });
 });

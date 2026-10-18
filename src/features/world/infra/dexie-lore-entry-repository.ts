@@ -80,6 +80,11 @@ export class DexieLoreEntryRepository implements LoreEntryRepository {
       .modify({ deletedAt: undefined });
   }
 
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().loreEntries.delete(id);
+  }
+
   async listDeleted(): Promise<LoreEntry[]> {
     await ensureDbReady();
     const all = await getDatabase()

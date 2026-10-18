@@ -6,6 +6,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -89,7 +90,12 @@ export function ProjectFormDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        onKeyDown={(event) =>
+          handleDialogEnter(event, () => void form.handleSubmit(submit)())
+        }
+      >
         <DialogHeader>
           <DialogTitle>{isEditing ? "Editar projeto" : "Novo projeto"}</DialogTitle>
           <DialogDescription>

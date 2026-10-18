@@ -3,10 +3,15 @@
 import type { Content } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
 import Placeholder from "@tiptap/extension-placeholder";
+import TextAlign from "@tiptap/extension-text-align";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
+  AlignCenter,
+  AlignJustify,
+  AlignLeft,
+  AlignRight,
   Bold,
   Heading1,
   Heading2,
@@ -18,16 +23,28 @@ import {
   Redo,
   Undo,
 } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Switch } from "@/components/ui/switch";
+import {
+  setDocumentAlignment,
+  type TextAlignValue,
+} from "@/features/editor/domain/alignment";
+import { ReviewButton, ReviewDialog } from "@/features/editor/ui/review-dialog";
+import { SearchHighlight } from "@/features/editor/ui/search-highlight";
 import {
   EntityHighlight,
   mentionHighlightKey,
   type MentionHighlightSettings,
 } from "@/features/mentions/ui/entity-highlight";
 import type { MentionEntity, MentionType } from "@/features/mentions/domain/entity-index";
+import {
+  isTouchDevice,
+  type MentionClickSource,
+} from "@/features/mentions/domain/mention-click";
 import { useUiStore } from "@/shared/store/ui-store";
 import type { Json } from "@/shared/types/database";
 
@@ -36,8 +53,12 @@ interface TiptapEditorProps {
   placeholder?: string;
   /** Character/location names to highlight inline. */
   mentions?: MentionEntity[];
-  /** Called when a highlight is opened (Ctrl/Cmd+click in the editor). */
-  onOpenMention?: (type: MentionType, id: string) => void;
+  /** Called when a highlight is opened (Ctrl/Cmd+click or touch tap). */
+  onOpenMention?: (
+    type: MentionType,
+    id: string,
+    source: MentionClickSource,
+  ) => void;
   /** Called once when the editor instance is ready (restore cursor, etc). */
   onReady?: (editor: Editor) => void;
   /** Called on every document change. */
@@ -61,6 +82,12 @@ export function TiptapEditor({
   const mentionColorLocation = useUiStore(
     (state) => state.mentionColorLocation,
   );
+  const [reviewOpen, setReviewOpen] = useState(false);
+  // Item 20: com o switch "Capítulo inteiro" ligado, o alinhamento vale para
+  // todos os parágrafos; desligado, só para a seleção atual.
+  const [alignmentScope, setAlignmentScope] = useState<
+    "chapter" | "selection"
+  >("selection");
 
   // Latest settings, read lazily by the extension (updated every render).
   const mentionSettingsRef = useRef<MentionHighlightSettings>({
@@ -75,25 +102,38 @@ export function TiptapEditor({
     entities: mentions,
     colorFor: (type) =>
       type === "character" ? mentionColorCharacter : mentionColorLocation,
-    onOpen: (type, id) => onOpenMention?.(type, id),
-    title: "Ctrl+clique para abrir a ficha",
+    onOpen: (type, id, source) => onOpenMention?.(type, id, source),
+    // Item 15: em dispositivos de toque o clique simples abre (com aviso).
+    title: isTouchDevice()
+      ? "Toque para abrir a ficha"
+      : "Ctrl+clique para abrir a ficha",
   };
 
   const editor = useEditor({
     immediatelyRender: false,
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
       CharacterCount,
       EntityHighlight.configure({
         getSettings: () => mentionSettingsRef.current,
       }),
+      SearchHighlight,
     ],
     content: content as Content,
     editorProps: {
       attributes: {
+        // Sem font-family/tamanho aqui: o wrapper em editor-page.tsx injeta
+        // fontSize/fontFamily do store via estilo inline no container, e
+        // classes utilitárias neste elemento sobrescreveriam o valor herdado.
+        // Altura estática com scroll interno (F1): o contenteditable não
+        // cresce a página — o scroll acontece dentro dele. Consequência
+        // aceitável: window.scrollY salvo pelo autosave fica ~0 (ver
+        // scheduleSave em editor-page.tsx), então a restauração de scroll
+        // ao voltar ao capítulo não tem efeito prático.
         class:
-          "min-h-[55vh] px-1 py-4 font-serif text-lg leading-relaxed outline-none",
+          "h-[calc(100dvh-14rem)] min-h-72 overflow-y-auto px-1 py-4 leading-relaxed outline-none",
       },
     },
     onUpdate: ({ editor: current }) => onUpdate?.(current),
@@ -132,6 +172,14 @@ export function TiptapEditor({
             bulletList: current.isActive("bulletList"),
             orderedList: current.isActive("orderedList"),
             blockquote: current.isActive("blockquote"),
+            textAlign:
+              (current.getAttributes("paragraph").textAlign as
+                | TextAlignValue
+                | undefined) ??
+              (current.getAttributes("heading").textAlign as
+                | TextAlignValue
+                | undefined) ??
+              "left",
             canUndo: current.can().chain().undo(),
             canRedo: current.can().chain().redo(),
           }
@@ -161,6 +209,16 @@ export function TiptapEditor({
         {icon}
       </Button>
     );
+  }
+
+  function applyAlignment(value: TextAlignValue) {
+    if (!editor) return;
+    if (alignmentScope === "chapter") {
+      editor.view.dispatch(setDocumentAlignment(editor.state, value));
+      editor.view.focus();
+      return;
+    }
+    editor.chain().focus().setTextAlign(value).run();
   }
 
   return (
@@ -239,6 +297,57 @@ export function TiptapEditor({
         <Separator orientation="vertical" className="mx-1 h-5" />
         {toolbar &&
           toolButton(
+            "Alinhar à esquerda",
+            toolbar.textAlign === "left",
+            false,
+            () => applyAlignment("left"),
+            <AlignLeft aria-hidden className="size-4" />,
+          )}
+        {toolbar &&
+          toolButton(
+            "Centralizar",
+            toolbar.textAlign === "center",
+            false,
+            () => applyAlignment("center"),
+            <AlignCenter aria-hidden className="size-4" />,
+          )}
+        {toolbar &&
+          toolButton(
+            "Alinhar à direita",
+            toolbar.textAlign === "right",
+            false,
+            () => applyAlignment("right"),
+            <AlignRight aria-hidden className="size-4" />,
+          )}
+        {toolbar &&
+          toolButton(
+            "Justificar",
+            toolbar.textAlign === "justify",
+            false,
+            () => applyAlignment("justify"),
+            <AlignJustify aria-hidden className="size-4" />,
+          )}
+        <div className="ml-1 flex items-center gap-1.5">
+          <Switch
+            id="alignment-chapter"
+            aria-label="Aplicar alinhamento ao capítulo inteiro"
+            checked={alignmentScope === "chapter"}
+            onCheckedChange={(checked) =>
+              setAlignmentScope(checked ? "chapter" : "selection")
+            }
+          />
+          <Label
+            htmlFor="alignment-chapter"
+            className="text-xs text-muted-foreground"
+          >
+            Capítulo inteiro
+          </Label>
+        </div>
+        <Separator orientation="vertical" className="mx-1 h-5" />
+        <ReviewButton onClick={() => setReviewOpen(true)} />
+        <Separator orientation="vertical" className="mx-1 h-5" />
+        {toolbar &&
+          toolButton(
             "Desfazer",
             false,
             !toolbar.canUndo,
@@ -255,6 +364,11 @@ export function TiptapEditor({
           )}
       </div>
       <EditorContent editor={editor} className="tiptap px-3" />
+      <ReviewDialog
+        editor={editor}
+        open={reviewOpen}
+        onOpenChange={setReviewOpen}
+      />
     </div>
   );
 }

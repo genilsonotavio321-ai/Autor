@@ -110,4 +110,23 @@ describe("DexieTagRepository", () => {
     expect(stored?.tags).toEqual([]);
     expect(await repository.getById(tag.id)).toBeUndefined();
   });
+
+  it("deletes every tag of a project without touching another project's tags", async () => {
+    const project = await projectRepository.create({
+      title: "Romance",
+      status: "draft",
+    });
+    const other = await projectRepository.create({
+      title: "Outro",
+      status: "draft",
+    });
+    await repository.create({ projectId: project.id, name: "arco" });
+    await repository.create({ projectId: project.id, name: "vilão" });
+    const kept = await repository.create({ projectId: other.id, name: "tema" });
+
+    await repository.deleteByProject(project.id);
+
+    expect(await repository.listByProject(project.id)).toHaveLength(0);
+    expect(await repository.getById(kept.id)).toBeDefined();
+  });
 });

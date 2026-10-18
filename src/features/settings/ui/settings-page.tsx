@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
+import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
 import {
   EDITOR_FONT_SIZE_MAX,
@@ -66,6 +67,18 @@ export function SettingsPage() {
   );
   const setMentionHighlightEnabled = useUiStore(
     (state) => state.setMentionHighlightEnabled,
+  );
+  const mentionHighlightReadEnabled = useUiStore(
+    (state) => state.mentionHighlightReadEnabled,
+  );
+  const setMentionHighlightReadEnabled = useUiStore(
+    (state) => state.setMentionHighlightReadEnabled,
+  );
+  const mentionConfirmOpen = useUiStore(
+    (state) => state.mentionConfirmOpen,
+  );
+  const setMentionConfirmOpen = useUiStore(
+    (state) => state.setMentionConfirmOpen,
   );
   const setMentionColorCharacter = useUiStore(
     (state) => state.setMentionColorCharacter,
@@ -142,22 +155,16 @@ export function SettingsPage() {
               </Button>
             </div>
           </div>
-          <div className="grid gap-2">
-            <Label htmlFor="editor-size">
-              Tamanho da fonte: {editorFontSize}px
-            </Label>
-            <Input
-              id="editor-size"
-              type="range"
-              min={EDITOR_FONT_SIZE_MIN}
-              max={EDITOR_FONT_SIZE_MAX}
-              step={1}
-              value={editorFontSize}
-              onChange={(event) =>
-                setEditorFontSize(Number(event.target.value))
-              }
-            />
-          </div>
+          <SettingSlider
+            id="editor-size"
+            label="Tamanho da fonte"
+            unit="px"
+            value={editorFontSize}
+            min={EDITOR_FONT_SIZE_MIN}
+            max={EDITOR_FONT_SIZE_MAX}
+            step={1}
+            onValueChange={setEditorFontSize}
+          />
         </CardContent>
       </Card>
 
@@ -176,6 +183,26 @@ export function SettingsPage() {
               id="mention-highlight"
               checked={mentionHighlightEnabled}
               onCheckedChange={setMentionHighlightEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="mention-highlight-read">
+              Destacar no modo leitura
+            </Label>
+            <Switch
+              id="mention-highlight-read"
+              checked={mentionHighlightReadEnabled}
+              onCheckedChange={setMentionHighlightReadEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="mention-confirm-open">
+              Perguntar antes de abrir a ficha
+            </Label>
+            <Switch
+              id="mention-confirm-open"
+              checked={mentionConfirmOpen}
+              onCheckedChange={setMentionConfirmOpen}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -235,45 +262,36 @@ export function SettingsPage() {
           <CardDescription>Metas e sessões de escrita.</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-3">
-          <div className="grid gap-2">
-            <Label htmlFor="daily-goal">Meta diária (palavras)</Label>
-            <Input
-              id="daily-goal"
-              type="number"
-              min={0}
-              step={50}
-              value={dailyWordGoal}
-              onChange={(event) => setDailyWordGoal(Number(event.target.value))}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="sprint-minutes">Sprint (minutos)</Label>
-            <Input
-              id="sprint-minutes"
-              type="number"
-              min={1}
-              max={120}
-              step={5}
-              value={sprintMinutes}
-              onChange={(event) => setSprintMinutes(Number(event.target.value))}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="resume-seconds">
-              Botão &quot;Continuar&quot; (segundos)
-            </Label>
-            <Input
-              id="resume-seconds"
-              type="number"
-              min={0}
-              max={30}
-              step={1}
-              value={resumeNoticeSeconds}
-              onChange={(event) =>
-                setResumeNoticeSeconds(Number(event.target.value))
-              }
-            />
-          </div>
+          <SettingSlider
+            id="daily-goal"
+            label="Meta diária"
+            unit="palavras"
+            value={dailyWordGoal}
+            min={0}
+            max={5000}
+            step={50}
+            onValueChange={setDailyWordGoal}
+          />
+          <SettingSlider
+            id="sprint-minutes"
+            label="Sprint"
+            unit="minutos"
+            value={sprintMinutes}
+            min={1}
+            max={120}
+            step={5}
+            onValueChange={setSprintMinutes}
+          />
+          <SettingSlider
+            id="resume-seconds"
+            label='Botão "Continuar"'
+            unit="segundos"
+            value={resumeNoticeSeconds}
+            min={0}
+            max={30}
+            step={1}
+            onValueChange={setResumeNoticeSeconds}
+          />
         </CardContent>
       </Card>
 

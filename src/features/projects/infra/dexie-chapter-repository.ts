@@ -19,8 +19,12 @@ export class DexieChapterRepository implements ChapterRepository {
   async create(input: ChapterCreateInput): Promise<Chapter> {
     await ensureDbReady();
     const db = getDatabase();
+    // Ignora capítulos na lixeira: sem isso, excluir o cap. 6 faria o próximo
+    // ser criado como "Capítulo 7" mesmo com 5 capítulos visíveis.
     const existing = await db.chapters
-      .filter((chapter) => chapter.projectId === input.projectId)
+      .filter(
+        (chapter) => chapter.projectId === input.projectId && !chapter.deletedAt,
+      )
       .toArray();
     const order =
       existing.reduce((max, chapter) => Math.max(max, chapter.order), 0) + 1;
@@ -81,6 +85,21 @@ export class DexieChapterRepository implements ChapterRepository {
       .chapters.where("id")
       .equals(id)
       .modify({ deletedAt: undefined });
+  }
+
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().chapters.delete(id);
+  }
+
+  async listDeleted(): Promise<Chapter[]> {
+    await ensureDbReady();
+    const all = await getDatabase()
+      .chapters.filter((chapter) => Boolean(chapter.deletedAt))
+      .toArray();
+    return all.sort((a, b) =>
+      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
+    );
   }
 }
 

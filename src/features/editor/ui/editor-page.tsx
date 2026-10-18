@@ -2,7 +2,7 @@
 
 import type { Content } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
-import { ArrowLeft, History, Maximize2, Minimize2 } from "lucide-react";
+import { ArrowLeft, BookOpen, History, Maximize2, Minimize2, Share2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -10,6 +10,16 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -19,12 +29,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { chapterToMd, chapterToTxt } from "@/features/export/domain/plain-text";
+import { downloadBlob, safeFilename } from "@/features/export/infra/download";
+import {
+  ExportFormatDialog,
+  type ExportFormat,
+} from "@/features/export/ui/export-format-dialog";
 import { CHAPTER_STATUS_COLORS, CHAPTER_STATUS_DOT, CHAPTER_STATUS_LABELS } from "@/features/projects/domain/repository";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { getTabCoordinator } from "@/infra/db/multi-tab";
 import { isQuotaExceededError } from "@/infra/storage/quota";
 import type { MentionType } from "@/features/mentions/domain/entity-index";
+import type { MentionClickSource } from "@/features/mentions/domain/mention-click";
 import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
@@ -79,11 +96,21 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [pendingMention, setPendingMention] = useState<{
+    type: MentionType;
+    id: string;
+    name: string;
+  } | null>(null);
 
   const focusMode = useUiStore((state) => state.focusMode);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
   const editorFontSize = useUiStore((state) => state.editorFontSize);
+  const mentionConfirmOpen = useUiStore((state) => state.mentionConfirmOpen);
+  const setMentionConfirmOpen = useUiStore(
+    (state) => state.setMentionConfirmOpen,
+  );
   const setSelectedProjectId = useUiStore(
     (state) => state.setSelectedProjectId,
   );
@@ -290,7 +317,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     [chapterId],
   );
 
-  const openMention = useCallback(
+  const goToMention = useCallback(
     (type: MentionType, id: string) => {
       if (!chapter) return;
       setSelectedProjectId(chapter.projectId);
@@ -302,6 +329,63 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     },
     [chapter, router, setSelectedProjectId],
   );
+
+  const openMention = useCallback(
+    (type: MentionType, id: string, source: MentionClickSource) => {
+      // Ctrl/Cmd+click is the documented shortcut — always opens directly.
+      if (source === "modifier" || !mentionConfirmOpen) {
+        goToMention(type, id);
+        return;
+      }
+      const entity = mentionEntities.find(
+        (item) => item.type === type && item.id === id,
+      );
+      setPendingMention({ type, id, name: entity?.name ?? "" });
+    },
+    [goToMention, mentionConfirmOpen, mentionEntities],
+  );
+
+  async function handleShare(format: ExportFormat) {
+    if (!chapter) return;
+    try {
+      const filename = safeFilename(chapter.title, format);
+      if (format === "txt") {
+        downloadBlob(
+          new Blob([chapterToTxt(chapter)], {
+            type: "text/plain;charset=utf-8",
+          }),
+          filename,
+        );
+      } else if (format === "md") {
+        downloadBlob(
+          new Blob([chapterToMd(chapter)], {
+            type: "text/markdown;charset=utf-8",
+          }),
+          filename,
+        );
+      } else {
+        // jsPDF é pesado: carrega só quando o usuário pede PDF.
+        const { buildPdf } = await import(
+          "@/features/export/infra/pdf-export"
+        );
+        downloadBlob(
+          buildPdf({
+            title: chapter.title,
+            chapters: [{ title: chapter.title, content: chapter.content }],
+            cover: false,
+          }),
+          filename,
+        );
+      }
+      toast.success("Capítulo baixado.");
+    } catch (error) {
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : "Falha ao compartilhar o capítulo.",
+      );
+    }
+  }
 
   if (chapter === undefined) {
     return (
@@ -348,7 +432,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             setTitle(event.target.value);
             scheduleSave();
           }}
-          className="h-9 min-w-0 flex-1 font-serif text-lg font-semibold"
+          className="h-10 min-w-0 flex-1 font-serif text-xl font-semibold sm:text-2xl"
           aria-label="Título do capítulo"
         />
         <Select
@@ -381,10 +465,28 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           variant="outline"
           size="sm"
           className="h-9"
+          onClick={() => router.push(`/read?chapter=${chapterId}`)}
+        >
+          <BookOpen aria-hidden />
+          Ler
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9"
           onClick={() => void saveManualVersion()}
         >
           <History aria-hidden />
           Versões
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-9"
+          onClick={() => setShareOpen(true)}
+        >
+          <Share2 aria-hidden />
+          Compartilhar
         </Button>
         <Button
           variant="outline"
@@ -440,7 +542,60 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         open={versionsOpen}
         onOpenChange={setVersionsOpen}
         onRestore={restoreVersion}
+        getCurrentContent={() =>
+          (editorRef.current?.getJSON() as unknown as Json) ?? null
+        }
       />
+
+      <ExportFormatDialog
+        open={shareOpen}
+        onOpenChange={setShareOpen}
+        onExport={(format) => void handleShare(format)}
+      />
+
+      <AlertDialog
+        open={pendingMention !== null}
+        onOpenChange={(open) => {
+          if (!open) setPendingMention(null);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              Abrir a ficha de {pendingMention?.name || "destaque"}?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Toque no nome destacado para abrir. Você pode desativar este
+              aviso nas configurações.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingMention) {
+                  goToMention(pendingMention.type, pendingMention.id);
+                }
+              }}
+            >
+              Abrir
+            </AlertDialogAction>
+            <AlertDialogAction
+              onClick={() => {
+                setMentionConfirmOpen(false);
+                if (pendingMention) {
+                  goToMention(pendingMention.type, pendingMention.id);
+                }
+                toast.info(
+                  "Aviso desativado. Você pode reativar nas Configurações.",
+                );
+              }}
+            >
+              Não perguntar de novo
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

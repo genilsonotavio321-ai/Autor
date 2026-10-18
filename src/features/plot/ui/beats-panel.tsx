@@ -23,6 +23,7 @@ import { toast } from "sonner";
 
 import { applyBeatTemplate } from "@/features/plot/application/plot-service";
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -129,7 +130,14 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
 
   async function remove(beat: PlotBeat) {
     await plotBeatRepository.softDelete(beat.id);
-    toast.success(`"${beat.title}" removido`);
+    toast(`"${beat.title}" movido para a lixeira`, {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          void plotBeatRepository.restore(beat.id);
+        },
+      },
+    });
   }
 
   return (
@@ -340,7 +348,10 @@ function BeatEditDialog({ open, onOpenChange, beat }: BeatEditDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        onKeyDown={(event) => handleDialogEnter(event, () => void save())}
+      >
         <DialogHeader>
           <DialogTitle>Editar beat</DialogTitle>
         </DialogHeader>

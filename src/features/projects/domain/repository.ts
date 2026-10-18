@@ -29,6 +29,8 @@ export interface ProjectRepository {
   updateLastEdit(id: EntityId, lastEdit: LastEdit): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
 }
 
 export interface ChapterCreateInput {
@@ -50,6 +52,10 @@ export interface ChapterRepository {
   update(id: EntityId, patch: ChapterUpdateInput): Promise<Chapter>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
+  /** Soft-deleted chapters (the trash), most recently deleted first. */
+  listDeleted(): Promise<Chapter[]>;
 }
 
 /** Empty Tiptap document used for new chapters. */

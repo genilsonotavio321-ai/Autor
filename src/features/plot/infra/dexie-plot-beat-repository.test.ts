@@ -83,6 +83,28 @@ describe("DexiePlotBeatRepository", () => {
       (await repository.listByProject(project.id)).map((b) => b.id),
     ).toEqual([b2.id, b1.id]);
   });
+
+  it("soft-deletes, lists trash and restores", async () => {
+    const project = await seedProject();
+    const beat = await repository.create({
+      projectId: project.id,
+      structure: "custom",
+      title: "Beat",
+    });
+
+    await repository.softDelete(beat.id);
+    expect(await repository.listByProject(project.id)).toHaveLength(0);
+
+    const deleted = await repository.listDeleted();
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.id).toBe(beat.id);
+
+    await repository.restore(beat.id);
+    expect(await repository.listDeleted()).toEqual([]);
+    expect(await repository.listByProject(project.id)).toHaveLength(1);
+    const restored = await getDatabase().plotBeats.get(beat.id);
+    expect(restored?.deletedAt).toBeUndefined();
+  });
 });
 
 describe("applyBeatTemplate", () => {

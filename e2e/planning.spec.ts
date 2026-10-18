@@ -107,7 +107,11 @@ test("timeline e notas", async ({ page }) => {
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByText("Ideia principal")).toBeVisible();
 
-  await page.getByRole("button", { name: "Fixar Ideia principal" }).click();
+  // O cartão inteiro é um botão (arrastável), então o botão de fixar precisa
+  // do nome exato para não colidir com o cartão.
+  await page
+    .getByRole("button", { name: "Fixar Ideia principal", exact: true })
+    .click();
   await expect(page.getByText("Fixada")).toBeVisible();
 
   await page.getByRole("button", { name: "Nova nota" }).click();
@@ -117,14 +121,18 @@ test("timeline e notas", async ({ page }) => {
   const cards = page.locator("ul li").filter({ hasText: /Ideia principal|Pesquisa/ });
   await expect(cards.first()).toContainText("Ideia principal");
 
-  await page.getByRole("button", { name: "Excluir Pesquisa" }).click();
+  await page
+    .getByRole("button", { name: "Excluir Pesquisa", exact: true })
+    .click();
   await page.getByRole("button", { name: "Desfazer" }).click();
   await expect(
-    page.getByRole("button", { name: "Pesquisa", exact: true }),
+    page.getByRole("button", { name: "Excluir Pesquisa", exact: true }),
   ).toBeVisible();
 
   // Nota excluída aparece na lixeira e pode ser restaurada.
-  await page.getByRole("button", { name: "Excluir Pesquisa" }).click();
+  await page
+    .getByRole("button", { name: "Excluir Pesquisa", exact: true })
+    .click();
   await page.goto("/trash");
   await page.getByRole("button", { name: "Restaurar" }).click();
   await expect(page.getByText("A lixeira está vazia.")).toBeVisible();

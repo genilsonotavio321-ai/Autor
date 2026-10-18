@@ -55,5 +55,7 @@ export interface CharacterRepository {
   update(id: EntityId, patch: CharacterUpdateInput): Promise<Character>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
   listDeleted(): Promise<Character[]>;
 }

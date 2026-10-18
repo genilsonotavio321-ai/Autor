@@ -100,14 +100,20 @@ describe("DexieSceneRepository", () => {
     expect(moved?.chapterId).toBe(chapterB.id);
   });
 
-  it("soft-deletes and restores", async () => {
+  it("soft-deletes, lists trash and restores", async () => {
     const { chapterA } = await seed();
     const scene = await repository.create({ chapterId: chapterA.id });
 
     await repository.softDelete(scene.id);
     expect(await repository.listByChapter(chapterA.id)).toHaveLength(0);
 
+    const deleted = await repository.listDeleted();
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.id).toBe(scene.id);
+
     await repository.restore(scene.id);
+    expect(await repository.listDeleted()).toEqual([]);
+    expect(await repository.listByChapter(chapterA.id)).toHaveLength(1);
     const restored = await repository.getById(scene.id);
     expect(restored?.deletedAt).toBeUndefined();
   });

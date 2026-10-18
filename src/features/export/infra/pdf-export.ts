@@ -37,8 +37,9 @@ class PdfWriter {
   private readonly doc: jsPDF;
   private y = MARGIN;
 
-  constructor(title: string) {
+  constructor(title: string | null) {
     this.doc = new jsPDF({ unit: "pt", format: "a4" });
+    if (title === null) return;
     const width = this.doc.internal.pageSize.getWidth();
 
     this.doc.setFont("times", "bold").setFontSize(24);
@@ -146,20 +147,56 @@ function writeDoc(writer: PdfWriter, doc: Json, depth = 0): void {
   }
 }
 
-/** Builds the whole project as a PDF file blob (one page break per section). */
-export function buildPdfBlob(project: Project, chapters: PdfChapterInput[]): Blob {
-  const writer = new PdfWriter(project.title);
+export interface PdfDocumentInput {
+  title: string;
+  subtitle?: string;
+  author?: string;
+  description?: string;
+  chapters: PdfChapterInput[];
+  /**
+   * Renders the title cover page first (project export). When false the
+   * document starts directly with the first chapter — used when sharing a
+   * single chapter, where the cover would just repeat the title.
+   */
+  cover?: boolean;
+}
 
-  writer.gap(24);
-  if (project.subtitle) writer.paragraph(project.subtitle, { italic: true });
-  if (project.author) writer.paragraph(`Autor: ${project.author}`);
-  if (project.description) writer.paragraph(project.description);
+/** Builds a PDF blob from a structured document (cover page optional). */
+export function buildPdf({
+  title,
+  subtitle,
+  author,
+  description,
+  chapters,
+  cover = true,
+}: PdfDocumentInput): Blob {
+  const writer = new PdfWriter(cover ? title : null);
 
-  for (const chapter of chapters) {
-    writer.newPage();
-    writer.heading(chapter.title, 1);
-    writeDoc(writer, chapter.content);
+  if (cover) {
+    writer.gap(24);
+    if (subtitle) writer.paragraph(subtitle, { italic: true });
+    if (author) writer.paragraph(`Autor: ${author}`);
+    if (description) writer.paragraph(description);
   }
 
+  chapters.forEach((chapter, index) => {
+    // With a cover, chapter 1 starts on a fresh page; without one it starts
+    // at the top of page 1.
+    if (cover || index > 0) writer.newPage();
+    writer.heading(chapter.title, 1);
+    writeDoc(writer, chapter.content);
+  });
+
   return writer.save();
+}
+
+/** Builds the whole project as a PDF file blob (one page break per section). */
+export function buildPdfBlob(project: Project, chapters: PdfChapterInput[]): Blob {
+  return buildPdf({
+    title: project.title,
+    subtitle: project.subtitle,
+    author: project.author,
+    description: project.description,
+    chapters,
+  });
 }

@@ -95,6 +95,13 @@ export class DexieTagRepository implements TagRepository {
       },
     );
   }
+
+  async deleteByProject(projectId: EntityId): Promise<void> {
+    await ensureDbReady();
+    // Cascata de purga do projeto: os donos já foram apagados, então basta
+    // remover as tags — sem reescrever referências.
+    await getDatabase().tags.where("projectId").equals(projectId).delete();
+  }
 }
 
 /** Reaponta `fromId` para `toId` (ou remove quando `toId` é null) nas entidades marcadas. */

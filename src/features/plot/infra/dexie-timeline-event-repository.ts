@@ -76,6 +76,30 @@ export class DexieTimelineEventRepository implements TimelineEventRepository {
       updatedAt: nowIso(),
     });
   }
+
+  async restore(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    // `modify` with undefined removes the property (Table.update would not).
+    await getDatabase()
+      .timelineEvents.where("id")
+      .equals(id)
+      .modify({ deletedAt: undefined });
+  }
+
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().timelineEvents.delete(id);
+  }
+
+  async listDeleted(): Promise<TimelineEvent[]> {
+    await ensureDbReady();
+    const all = await getDatabase()
+      .timelineEvents.filter((event) => Boolean(event.deletedAt))
+      .toArray();
+    return all.sort((a, b) =>
+      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
+    );
+  }
 }
 
 export const timelineEventRepository: TimelineEventRepository =

@@ -16,7 +16,8 @@ export type SearchEntityType =
   | "character"
   | "location"
   | "lore"
-  | "note";
+  | "note"
+  | "project";
 
 export const SEARCH_TYPE_LABELS: Record<SearchEntityType, string> = {
   chapter: "Capítulo",
@@ -25,6 +26,7 @@ export const SEARCH_TYPE_LABELS: Record<SearchEntityType, string> = {
   location: "Local",
   lore: "Lore",
   note: "Nota",
+  project: "Projeto",
 };
 
 export interface SearchDoc {
@@ -93,6 +95,23 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
 
   const docs: SearchDoc[] = [];
 
+  for (const project of source.projects) {
+    if (project.deletedAt) continue;
+    docs.push(
+      makeDoc(
+        "project",
+        project.id,
+        project.title,
+        [project.subtitle, project.author, project.description]
+          .filter(Boolean)
+          .join(" "),
+        project.id,
+        project.title,
+        `/projects/${project.id}`,
+      ),
+    );
+  }
+
   for (const chapter of source.chapters) {
     if (chapter.deletedAt) continue;
     const project = projectTitle.get(chapter.projectId);
@@ -148,7 +167,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
           .join(" "),
         character.projectId,
         project,
-        "/characters",
+        `/characters?character=${character.id}`,
       ),
     );
   }
@@ -165,7 +184,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
         `${location.type} ${location.description ?? ""}`,
         location.projectId,
         project,
-        "/world",
+        `/world?location=${location.id}`,
       ),
     );
   }
@@ -182,7 +201,7 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
         `${entry.category} ${typeof entry.content === "string" ? entry.content : ""}`,
         entry.projectId,
         project,
-        "/world",
+        `/world?lore=${entry.id}`,
       ),
     );
   }
@@ -192,7 +211,15 @@ export function buildSearchDocs(source: SearchDocSource): SearchDoc[] {
     const project = projectTitle.get(note.projectId);
     if (!project) continue;
     docs.push(
-      makeDoc("note", note.id, note.title, note.content, note.projectId, project, "/notes"),
+      makeDoc(
+        "note",
+        note.id,
+        note.title,
+        note.content,
+        note.projectId,
+        project,
+        `/notes?note=${note.id}`,
+      ),
     );
   }
 

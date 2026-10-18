@@ -84,6 +84,11 @@ export class DexieProjectRepository implements ProjectRepository {
       .equals(id)
       .modify({ deletedAt: undefined });
   }
+
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().projects.delete(id);
+  }
 }
 
 export const projectRepository: ProjectRepository = new DexieProjectRepository();

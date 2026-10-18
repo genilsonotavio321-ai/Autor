@@ -35,6 +35,7 @@ type BusyAction =
   | "pdf"
   | "backup"
   | "import-md"
+  | "import-docx"
   | "import-backup"
   | null;
 
@@ -45,6 +46,7 @@ export function ExportPage() {
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const pendingBackupJson = useRef<string | null>(null);
   const mdInputRef = useRef<HTMLInputElement>(null);
+  const docxInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === projectId) ?? null;
@@ -140,6 +142,28 @@ export function ExportPage() {
     try {
       const text = await file.text();
       const result = await importMarkdownFile(project.id, file.name, text);
+      toast.success(
+        result.count === 1
+          ? `Capítulo “${result.titles[0]}” importado.`
+          : `${result.count} capítulos importados.`,
+      );
+      router.push(`/projects/${project.id}`);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Falha ao importar.");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function handleDocxFile(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !project) return;
+    setBusy("import-docx");
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      const { importDocxFile } = await import("../infra/docx-import");
+      const result = await importDocxFile(project.id, file.name, bytes);
       toast.success(
         result.count === 1
           ? `Capítulo “${result.titles[0]}” importado.`
@@ -254,6 +278,22 @@ export function ExportPage() {
           />
           <p className="mt-2 text-sm text-muted-foreground">
             Um arquivo exportado pelo Autor vira um capítulo por seção “# Título”.
+          </p>
+        </div>
+        <div className="rounded-lg border p-4">
+          <Label htmlFor="import-docx-input">Importar capítulos (.docx)</Label>
+          <input
+            ref={docxInputRef}
+            id="import-docx-input"
+            type="file"
+            accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            disabled={!project || busy !== null}
+            onChange={handleDocxFile}
+            className="mt-2 block w-full cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+          />
+          <p className="mt-2 text-sm text-muted-foreground">
+            Um arquivo exportado pelo Autor (ou um Word com estilos de título) vira
+            um capítulo por seção.
           </p>
         </div>
         <div className="rounded-lg border p-4">

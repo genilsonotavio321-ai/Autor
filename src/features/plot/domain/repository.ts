@@ -49,6 +49,8 @@ export interface SceneUpdateInput {
   status?: SceneStatus;
   povCharacterId?: EntityId;
   locationId?: EntityId;
+  /** Tiptap document JSON — usado pelo rename em cascata de menções. */
+  content?: Json;
 }
 
 /** Per-entity order patch used when reordering or moving scenes. */
@@ -70,6 +72,10 @@ export interface SceneRepository {
   applyMoves(updates: SceneMoveUpdate[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
+  /** Soft-deleted scenes (the trash), most recently deleted first. */
+  listDeleted(): Promise<Scene[]>;
 }
 
 export interface PlotBeatCreateInput {
@@ -93,6 +99,11 @@ export interface PlotBeatRepository {
   /** Persist a full reorder batch in a single transaction. */
   applyMoves(updates: { id: EntityId; order: number }[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
+  restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
+  /** Soft-deleted beats (the trash), most recently deleted first. */
+  listDeleted(): Promise<PlotBeat[]>;
 }
 
 export interface TimelineEventCreateInput {
@@ -118,4 +129,9 @@ export interface TimelineEventRepository {
     patch: TimelineEventUpdateInput,
   ): Promise<TimelineEvent>;
   softDelete(id: EntityId): Promise<void>;
+  restore(id: EntityId): Promise<void>;
+  /** Permanently deletes the row (trash purge only). */
+  hardDelete(id: EntityId): Promise<void>;
+  /** Soft-deleted events (the trash), most recently deleted first. */
+  listDeleted(): Promise<TimelineEvent[]>;
 }

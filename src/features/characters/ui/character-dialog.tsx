@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -36,6 +37,7 @@ import {
   CHARACTER_ROLE_LABELS,
   RELATIONSHIP_TYPE_LABELS,
 } from "../domain/repository";
+import { renameMentionsInProject } from "@/features/mentions/application/rename-mentions-service";
 import { resolveTagColor } from "@/features/tags/domain/repository";
 
 export function parseTraits(text: string): string[] {
@@ -140,8 +142,9 @@ export function CharacterDialog({
     try {
       const traits = parseTraits(traitsText);
       if (character) {
+        const nextName = name.trim() || "Sem nome";
         await characterRepository.update(character.id, {
-          name: name.trim() || "Sem nome",
+          name: nextName,
           role,
           description: description.trim() || undefined,
           backstory: backstory.trim() || undefined,
@@ -151,7 +154,24 @@ export function CharacterDialog({
           relationships,
           tags: selectedTags,
         });
-        toast.success("Personagem atualizado");
+        // Item 16: renomear a ficha reescreve as menções nos capítulos/cenas.
+        let renamed = 0;
+        if (character.name !== nextName) {
+          try {
+            renamed = await renameMentionsInProject(
+              character.projectId,
+              character.name,
+              nextName,
+            );
+          } catch {
+            toast.error("Não foi possível atualizar o nome nos capítulos");
+          }
+        }
+        toast.success(
+          renamed > 0
+            ? `Personagem atualizado · ${renamed} ${renamed === 1 ? "trecho" : "trechos"} com o novo nome`
+            : "Personagem atualizado",
+        );
       } else {
         await characterRepository.create({
           projectId,
@@ -176,7 +196,10 @@ export function CharacterDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+      <DialogContent
+        className="max-h-[85vh] overflow-y-auto sm:max-w-2xl"
+        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
+      >
         <DialogHeader>
           <DialogTitle>
             {character ? "Editar personagem" : "Novo personagem"}

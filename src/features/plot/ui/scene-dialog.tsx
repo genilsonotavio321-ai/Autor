@@ -5,6 +5,7 @@ import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -115,7 +116,10 @@ export function SceneDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
+      >
         <DialogHeader>
           <DialogTitle>{scene ? "Editar cena" : "Nova cena"}</DialogTitle>
         </DialogHeader>

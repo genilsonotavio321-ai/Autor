@@ -185,3 +185,23 @@
 .tiptap.mention-readonly .ProseMirror .mention {
   cursor: pointer;
 }
+
+/* Find & replace highlights (tool "Revisar" → Substituir) */
+.tiptap .ProseMirror .search-match {
+  background-color: oklch(0.9 0.16 90 / 0.55);
+  border-radius: 2px;
+}
+
+.tiptap .ProseMirror .search-match-active {
+  background-color: oklch(0.8 0.17 75);
+  box-shadow: 0 0 0 1.5px oklch(0.62 0.18 55);
+}
+
+.dark .tiptap .ProseMirror .search-match {
+  background-color: oklch(0.6 0.13 85 / 0.45);
+}
+
+.dark .tiptap .ProseMirror .search-match-active {
+  background-color: oklch(0.68 0.16 70);
+  box-shadow: 0 0 0 1.5px oklch(0.75 0.16 65);
+}

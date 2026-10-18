@@ -23,6 +23,40 @@ async function openNewChapter(
 }
 
 test.describe("Fase 6 — refinamentos de UX", () => {
+  test("renomear um personagem atualiza o destaque nos capítulos", async ({
+    page,
+  }) => {
+    const url = await createProject(page, "Projeto Rename");
+    await addCharacter(page, "Davi");
+    await openNewChapter(page, url);
+    await page.locator(".ProseMirror").click();
+    await page.keyboard.type("Davi Renomeado partiu.");
+    // Enquanto a ficha se chama "Davi", só a primeira palavra é destacada.
+    await expect(page.locator(".mention")).toHaveText("Davi");
+    await expect(page.getByTestId("save-status")).toContainText("Salvo", {
+      timeout: 5000,
+    });
+
+    // Renomear a ficha: o destaque nos capítulos deve acompanhar (live query).
+    await page.goto("/characters");
+    await page
+      .getByRole("button", { name: "Davi", exact: true })
+      .click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+    const nameInput = page.getByLabel("Nome", { exact: true });
+    await nameInput.fill("Davi Renomeado");
+    await page.getByRole("button", { name: "Salvar" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+
+    await page.goto(url);
+    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await expect(page.locator(".ProseMirror")).toContainText(
+      "Davi Renomeado partiu.",
+    );
+    // O destaque passa a cobrir o nome novo, sem recarregar nada à mão.
+    await expect(page.locator(".mention")).toHaveText("Davi Renomeado");
+  });
+
   test("o status do capítulo tem um só seletor, colorido por estado", async ({
     page,
   }) => {

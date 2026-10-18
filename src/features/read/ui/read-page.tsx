@@ -1,10 +1,10 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, PenLine } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -47,18 +47,32 @@ export function ReadPage() {
   );
   const chapters = useMemo(() => liveChapters ?? [], [liveChapters]);
   const [chapterId, setChapterId] = useState<string | null>(null);
+  const requestedChapterRef = useRef(true);
 
   // Keep a valid selection when the project or chapter list changes.
+  // On the first commit, honor ?chapter= (from /write "Ler"), then strip it.
   useEffect(() => {
     if (chapters.length === 0) {
       setChapterId(null);
       return;
     }
-    setChapterId((current) =>
-      current && chapters.some((chapter) => chapter.id === current)
-        ? current
-        : (chapters[0]?.id ?? null),
-    );
+    let requested: string | null = null;
+    if (requestedChapterRef.current) {
+      requestedChapterRef.current = false;
+      requested = new URLSearchParams(window.location.search).get("chapter");
+      if (requested) {
+        window.history.replaceState({}, "", "/read");
+      }
+    }
+    setChapterId((current) => {
+      if (current && chapters.some((chapter) => chapter.id === current)) {
+        return current;
+      }
+      if (requested && chapters.some((chapter) => chapter.id === requested)) {
+        return requested;
+      }
+      return chapters[0]?.id ?? null;
+    });
   }, [chapters]);
 
   const index = useMemo(
@@ -86,7 +100,17 @@ export function ReadPage() {
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-3xl">Ler</h1>
-        <ProjectPicker />
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            disabled={!chapter}
+            onClick={() => chapter && router.push(`/write/${chapter.id}`)}
+          >
+            <PenLine aria-hidden />
+            Editar
+          </Button>
+          <ProjectPicker />
+        </div>
       </header>
 
       {projectId === null ? (

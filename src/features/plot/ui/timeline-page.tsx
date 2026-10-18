@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { handleDialogEnter } from "@/shared/lib/keyboard";
 import {
   Dialog,
   DialogContent,
@@ -62,7 +63,14 @@ export function TimelinePage() {
 
   async function remove(event: TimelineEvent) {
     await timelineEventRepository.softDelete(event.id);
-    toast(`"${event.title}" removido da linha do tempo`);
+    toast(`"${event.title}" movido para a lixeira`, {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          void timelineEventRepository.restore(event.id);
+        },
+      },
+    });
   }
 
   return (
@@ -246,7 +254,10 @@ function EventDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
+      <DialogContent
+        className="sm:max-w-lg"
+        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
+      >
         <DialogHeader>
           <DialogTitle>{event ? "Editar evento" : "Novo evento"}</DialogTitle>
         </DialogHeader>

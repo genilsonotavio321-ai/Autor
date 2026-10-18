@@ -3,6 +3,7 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowRight, Clock, Flame, PenLine, Plus, Target } from "lucide-react";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -16,8 +17,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   estimateReadingMinutes,
   summariseWriting,
+  type WritingLog,
 } from "@/features/productivity/domain/writing-log";
 import { getWritingLog } from "@/features/productivity/infra/writing-log-repository";
+import { buildActivityDays } from "@/features/productivity/domain/activity-chart";
+import { ActivityHeatmap } from "@/features/productivity/ui/activity-heatmap";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
 
@@ -40,6 +44,7 @@ interface DashboardData {
   wordsWeek: number;
   streak: number;
   readingMinutes: number;
+  log: WritingLog;
   resume: { chapterId: string; projectTitle: string; chapterTitle: string } | null;
   byProject: RecentProject[];
 }
@@ -53,6 +58,8 @@ function formatDuration(minutes: number): string {
 
 export function DashboardPage() {
   const dailyWordGoal = useUiStore((state) => state.dailyWordGoal);
+  const resumeNoticeSeconds = useUiStore((state) => state.resumeNoticeSeconds);
+  const [resumeVisible, setResumeVisible] = useState(true);
 
   const stats = useLiveQuery(async (): Promise<DashboardData> => {
     const projects = await projectRepository.listActive();
@@ -108,10 +115,24 @@ export function DashboardPage() {
       wordsWeek: summary.week,
       streak: summary.streak,
       readingMinutes: estimateReadingMinutes(wordCount),
+      log,
       resume,
       byProject,
     };
   }, []);
+
+  // Oculta o card "Continuar de onde parou" após o tempo configurado
+  // (0 = nunca exibir). O timer reinicia quando o capítulo-alvo muda.
+  const resumeKey = stats?.resume?.chapterId ?? null;
+  useEffect(() => {
+    setResumeVisible(true);
+    if (resumeKey === null || resumeNoticeSeconds <= 0) return;
+    const timer = setTimeout(
+      () => setResumeVisible(false),
+      resumeNoticeSeconds * 1000,
+    );
+    return () => clearTimeout(timer);
+  }, [resumeKey, resumeNoticeSeconds]);
 
   if (!stats) {
     return (
@@ -131,6 +152,8 @@ export function DashboardPage() {
     dailyWordGoal > 0
       ? Math.min(100, Math.round((stats.wordsToday / dailyWordGoal) * 100))
       : 0;
+
+  const activityDays = buildActivityDays(stats.log, new Date(), 12, dailyWordGoal);
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
@@ -165,11 +188,11 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      <section aria-label="Continuar de onde parou">
-        <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-          Continuar de onde parou
-        </h2>
-        {stats.resume ? (
+      {stats.resume && resumeNoticeSeconds > 0 && resumeVisible ? (
+        <section aria-label="Continuar de onde parou">
+          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            Continuar de onde parou
+          </h2>
           <Card>
             <CardHeader>
               <CardTitle className="font-serif">
@@ -187,7 +210,12 @@ export function DashboardPage() {
               </Button>
             </CardContent>
           </Card>
-        ) : (
+        </section>
+      ) : stats.resume ? null : (
+        <section aria-label="Continuar de onde parou">
+          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
+            Continuar de onde parou
+          </h2>
           <div className="rounded-xl border border-dashed p-8 text-center">
             <p className="text-sm text-muted-foreground">
               {stats.projectCount === 0
@@ -201,10 +229,13 @@ export function DashboardPage() {
               </Link>
             </Button>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      <section aria-label="Estatísticas" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section
+        aria-label="Estatísticas"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-4"
+      >
         <StatCard label="Projetos" value={stats.projectCount.toLocaleString("pt-BR")} />
         <StatCard label="Capítulos" value={stats.chapterCount.toLocaleString("pt-BR")} />
         <StatCard label="Palavras" value={stats.wordCount.toLocaleString("pt-BR")} />
@@ -215,7 +246,10 @@ export function DashboardPage() {
         />
       </section>
 
-      <section aria-label="Progresso" className="grid gap-3 sm:grid-cols-3">
+      <section
+        aria-label="Progresso"
+        className="grid grid-cols-2 gap-3 sm:grid-cols-3"
+      >
         <div className="rounded-xl border bg-card p-4">
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
             <Target aria-hidden className="size-3.5" />
@@ -248,6 +282,9 @@ export function DashboardPage() {
           value={`${stats.streak} ${stats.streak === 1 ? "dia" : "dias"}`}
           icon={<Flame aria-hidden className="size-3.5" />}
         />
+        <div className="col-span-2 sm:col-span-3">
+          <ActivityHeatmap days={activityDays} />
+        </div>
       </section>
 
       {stats.byProject.length > 0 ? (
@@ -322,12 +359,14 @@ function StatCard({
   icon?: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl border bg-card p-4">
+    <div className="rounded-xl border bg-card p-3 sm:p-4">
       <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
         {icon}
         {label}
       </p>
-      <p className="mt-1 font-serif text-2xl font-semibold">{value}</p>
+      <p className="mt-1 font-serif text-xl font-semibold sm:text-2xl">
+        {value}
+      </p>
     </div>
   );
 }

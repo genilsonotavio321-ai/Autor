@@ -76,6 +76,11 @@ export class DexieCharacterRepository implements CharacterRepository {
       .modify({ deletedAt: undefined });
   }
 
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().characters.delete(id);
+  }
+
   async listDeleted(): Promise<Character[]> {
     await ensureDbReady();
     const all = await getDatabase()

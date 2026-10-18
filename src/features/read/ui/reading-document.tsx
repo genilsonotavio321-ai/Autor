@@ -31,8 +31,8 @@ export function ReadingDocument({
   mentions = [],
   onOpenMention,
 }: ReadingDocumentProps) {
-  const mentionHighlightEnabled = useUiStore(
-    (state) => state.mentionHighlightEnabled,
+  const mentionHighlightReadEnabled = useUiStore(
+    (state) => state.mentionHighlightReadEnabled,
   );
   const mentionColorCharacter = useUiStore(
     (state) => state.mentionColorCharacter,
@@ -49,7 +49,7 @@ export function ReadingDocument({
     title: "",
   });
   mentionSettingsRef.current = {
-    enabled: mentionHighlightEnabled,
+    enabled: mentionHighlightReadEnabled,
     entities: mentions,
     colorFor: (type) =>
       type === "character" ? mentionColorCharacter : mentionColorLocation,
@@ -87,7 +87,7 @@ export function ReadingDocument({
   }, [
     editor,
     mentions,
-    mentionHighlightEnabled,
+    mentionHighlightReadEnabled,
     mentionColorCharacter,
     mentionColorLocation,
   ]);

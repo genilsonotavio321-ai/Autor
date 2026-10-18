@@ -28,11 +28,11 @@ export function WorldPage() {
     [projectId],
   );
   const locations = useMemo(() => liveLocations ?? [], [liveLocations]);
-  const loreEntries =
-    useLiveQuery(
-      () => (projectId ? loreEntryRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveLoreEntries = useLiveQuery(
+    () => (projectId ? loreEntryRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  const loreEntries = useMemo(() => liveLoreEntries ?? [], [liveLoreEntries]);
   const characters =
     useLiveQuery(
       () => (projectId ? characterRepository.listByProject(projectId) : []),
@@ -47,23 +47,39 @@ export function WorldPage() {
     open: boolean;
     entry?: LoreEntry | null;
   }>({ open: false });
-  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [pendingLocationId, setPendingLocationId] = useState<string | null>(null);
+  const [pendingLoreId, setPendingLoreId] = useState<string | null>(null);
+  const [worldTab, setWorldTab] = useState("locations");
 
-  // Open a location directly when navigated with ?location=<id> (mentions).
+  // Open a location/lore entry directly when navigated with
+  // ?location=<id> / ?lore=<id> (search results and mentions).
   useEffect(() => {
-    const id = new URLSearchParams(window.location.search).get("location");
-    if (!id) return;
-    setPendingId(id);
+    const params = new URLSearchParams(window.location.search);
+    const locationId = params.get("location");
+    const loreId = params.get("lore");
+    if (!locationId && !loreId) return;
+    if (locationId) setPendingLocationId(locationId);
+    if (loreId) setPendingLoreId(loreId);
     window.history.replaceState({}, "", "/world");
   }, []);
 
   useEffect(() => {
-    if (!pendingId) return;
-    const found = locations.find((location) => location.id === pendingId);
+    if (!pendingLocationId) return;
+    const found = locations.find((location) => location.id === pendingLocationId);
     if (!found) return;
+    setWorldTab("locations");
     setLocationDialog({ open: true, location: found });
-    setPendingId(null);
-  }, [pendingId, locations]);
+    setPendingLocationId(null);
+  }, [pendingLocationId, locations]);
+
+  useEffect(() => {
+    if (!pendingLoreId) return;
+    const found = loreEntries.find((entry) => entry.id === pendingLoreId);
+    if (!found) return;
+    setWorldTab("lore");
+    setLoreDialog({ open: true, entry: found });
+    setPendingLoreId(null);
+  }, [pendingLoreId, loreEntries]);
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);
@@ -103,7 +119,7 @@ export function WorldPage() {
           </p>
         </div>
       ) : (
-        <Tabs defaultValue="locations">
+        <Tabs value={worldTab} onValueChange={setWorldTab}>
           <TabsList>
             <TabsTrigger value="locations">
               Locais{" "}

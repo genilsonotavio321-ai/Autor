@@ -71,6 +71,11 @@ export class DexieLocationRepository implements LocationRepository {
       .modify({ deletedAt: undefined });
   }
 
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().locations.delete(id);
+  }
+
   async listDeleted(): Promise<Location[]> {
     await ensureDbReady();
     const all = await getDatabase()

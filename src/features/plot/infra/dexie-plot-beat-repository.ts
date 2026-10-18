@@ -17,8 +17,11 @@ export class DexiePlotBeatRepository implements PlotBeatRepository {
   async create(input: PlotBeatCreateInput): Promise<PlotBeat> {
     await ensureDbReady();
     const db = getDatabase();
+    // Ignora beats na lixeira (mesmo critério dos capítulos — A0).
     const existing = await db.plotBeats
-      .filter((beat) => beat.projectId === input.projectId)
+      .filter(
+        (beat) => beat.projectId === input.projectId && !beat.deletedAt,
+      )
       .toArray();
     const order =
       existing.reduce((max, beat) => Math.max(max, beat.order), 0) + 1;
@@ -96,6 +99,30 @@ export class DexiePlotBeatRepository implements PlotBeatRepository {
       deletedAt: nowIso(),
       updatedAt: nowIso(),
     });
+  }
+
+  async restore(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    // `modify` with undefined removes the property (Table.update would not).
+    await getDatabase()
+      .plotBeats.where("id")
+      .equals(id)
+      .modify({ deletedAt: undefined });
+  }
+
+  async hardDelete(id: EntityId): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().plotBeats.delete(id);
+  }
+
+  async listDeleted(): Promise<PlotBeat[]> {
+    await ensureDbReady();
+    const all = await getDatabase()
+      .plotBeats.filter((beat) => Boolean(beat.deletedAt))
+      .toArray();
+    return all.sort((a, b) =>
+      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
+    );
   }
 }
 
