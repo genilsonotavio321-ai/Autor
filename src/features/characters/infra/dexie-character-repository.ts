@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { Character, EntityId } from "@/shared/types/database";
 
 import type {
@@ -17,7 +18,7 @@ export class DexieCharacterRepository implements CharacterRepository {
     await ensureDbReady();
     const now = nowIso();
     const character: Character = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       name: input.name.trim() || "Sem nome",
       role: input.role ?? "supporting",

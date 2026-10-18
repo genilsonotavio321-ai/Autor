@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, LastEdit, Project } from "@/shared/types/database";
 
 import type {
@@ -17,7 +18,7 @@ export class DexieProjectRepository implements ProjectRepository {
     await ensureDbReady();
     const now = nowIso();
     const project: Project = {
-      id: crypto.randomUUID(),
+      id: createId(),
       title: input.title,
       subtitle: input.subtitle,
       author: input.author,

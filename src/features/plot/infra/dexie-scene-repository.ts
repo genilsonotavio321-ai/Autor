@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, Scene } from "@/shared/types/database";
 
 import { EMPTY_SCENE_DOC } from "../domain/repository";
@@ -25,7 +26,7 @@ export class DexieSceneRepository implements SceneRepository {
       existing.reduce((max, scene) => Math.max(max, scene.order), 0) + 1;
     const now = nowIso();
     const scene: Scene = {
-      id: crypto.randomUUID(),
+      id: createId(),
       chapterId: input.chapterId,
       title: input.title?.trim() || `Cena ${order}`,
       order,

@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, LoreEntry } from "@/shared/types/database";
 
 import { DEFAULT_LORE_CATEGORY } from "../domain/repository";
@@ -18,7 +19,7 @@ export class DexieLoreEntryRepository implements LoreEntryRepository {
     await ensureDbReady();
     const now = nowIso();
     const entry: LoreEntry = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       title: input.title.trim() || "Sem título",
       category: input.category?.trim() || DEFAULT_LORE_CATEGORY,

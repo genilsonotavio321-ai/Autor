@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, PlotBeat } from "@/shared/types/database";
 
 import type {
@@ -23,7 +24,7 @@ export class DexiePlotBeatRepository implements PlotBeatRepository {
       existing.reduce((max, beat) => Math.max(max, beat.order), 0) + 1;
     const now = nowIso();
     const beat: PlotBeat = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       structure: input.structure,
       title: input.title,

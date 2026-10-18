@@ -1,5 +1,7 @@
 import { BroadcastChannel } from "broadcast-channel";
 
+import { createId } from "@/shared/lib/id";
+
 const CHANNEL_NAME = "autor:tab";
 const HEARTBEAT_MS = 5_000;
 const PEER_TIMEOUT_MS = 15_000;
@@ -33,7 +35,7 @@ export class TabCoordinator {
   private heartbeatTimer: ReturnType<typeof setInterval> | undefined;
 
   constructor() {
-    this.tabId = crypto.randomUUID();
+    this.tabId = createId();
     this.channel = new BroadcastChannel<TabMessage>(CHANNEL_NAME);
     this.channel.onmessage = (message) => this.handleMessage(message);
 

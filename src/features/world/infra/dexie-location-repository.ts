@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, Location } from "@/shared/types/database";
 
 import type {
@@ -17,7 +18,7 @@ export class DexieLocationRepository implements LocationRepository {
     await ensureDbReady();
     const now = nowIso();
     const location: Location = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       name: input.name.trim() || "Sem nome",
       type: input.type?.trim() || "Local",

@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, TimelineEvent } from "@/shared/types/database";
 
 import type {
@@ -17,7 +18,7 @@ export class DexieTimelineEventRepository implements TimelineEventRepository {
     await ensureDbReady();
     const now = nowIso();
     const event: TimelineEvent = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       date: input.date.trim(),
       title: input.title.trim(),

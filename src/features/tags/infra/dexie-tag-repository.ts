@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, Tag } from "@/shared/types/database";
 
 import {
@@ -19,7 +20,7 @@ export class DexieTagRepository implements TagRepository {
   async create(input: TagCreateInput): Promise<Tag> {
     await ensureDbReady();
     const tag: Tag = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       name: input.name.trim() || "Sem nome",
       color: input.color?.trim() || DEFAULT_TAG_COLOR,

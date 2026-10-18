@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import { countDocWords } from "@/features/editor/domain/word-count";
 import type { Chapter, EntityId, Json } from "@/shared/types/database";
 
@@ -28,7 +29,7 @@ export class DexieChapterRepository implements ChapterRepository {
       ? structuredClone(input.content)
       : structuredClone(EMPTY_DOC);
     const chapter: Chapter = {
-      id: crypto.randomUUID(),
+      id: createId(),
       projectId: input.projectId,
       title: input.title?.trim() || `Capítulo ${order}`,
       order,

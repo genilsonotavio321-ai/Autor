@@ -1,5 +1,6 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
+import { createId } from "@/shared/lib/id";
 import type { EntityId, Version } from "@/shared/types/database";
 
 import type {
@@ -11,7 +12,7 @@ export class DexieVersionRepository implements VersionRepository {
   async create(input: VersionCreateInput): Promise<Version> {
     await ensureDbReady();
     const version: Version = {
-      id: crypto.randomUUID(),
+      id: createId(),
       entityType: input.entityType,
       entityId: input.entityId,
       snapshot: input.snapshot,
