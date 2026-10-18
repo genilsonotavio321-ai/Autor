@@ -65,6 +65,27 @@ export const CHAPTER_STATUS_LABELS: Record<ChapterStatus, string> = {
   done: "Concluído",
 };
 
+/**
+ * Tinted styling per story-unit status (chapters and scenes share the status
+ * set). Each state gets its own color so it is identifiable at a glance.
+ */
+export const CHAPTER_STATUS_COLORS: Record<ChapterStatus, string> = {
+  todo: "border-slate-300 bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300",
+  draft:
+    "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300",
+  revising:
+    "border-sky-300 bg-sky-50 text-sky-800 dark:border-sky-800 dark:bg-sky-950 dark:text-sky-300",
+  done: "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+};
+
+/** Solid dot color per status (used inside select triggers and items). */
+export const CHAPTER_STATUS_DOT: Record<ChapterStatus, string> = {
+  todo: "bg-slate-400",
+  draft: "bg-amber-500",
+  revising: "bg-sky-500",
+  done: "bg-emerald-500",
+};
+
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   draft: "Rascunho",
   active: "Ativo",
