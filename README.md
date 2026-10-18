@@ -71,6 +71,13 @@ src/
 - PWA/offline: service worker (Serwist), manifest e ícones; o app funciona offline após o primeiro carregamento.
 - Desempenho: editor Tiptap carregado sob demanda (`next/dynamic`) — `/write/[chapterId]` caiu de ~346 kB para ~214 kB (First Load JS).
 
+## Recursos (Fase 6 — Refinamentos de UX)
+
+- Painel: estatísticas **separadas por projeto** em uma tabela (capítulos, palavras e tempo estimado de leitura), substituindo a antiga lista de projetos recentes.
+- Projetos (`/projects`): seletor de ordenação (alterados recentemente, mais recentes, mais antigos, A–Z, mais palavras, maior tempo de leitura) e alternância de disposição entre caixas e lista compacta; cada item mostra capítulos, palavras e leitura estimada. Preferências persistidas (`autor-ui`).
+- Capítulos: reordenação por arrasto **e teclado** direto na página do projeto; o status passou a ter um **único** seletor colorido por estado (A fazer, Rascunho, Revisão, Concluído) — corrige a duplicação de status (badge + select).
+- Destaques no texto: nomes de personagens e locais do projeto são coloridos e clicáveis no editor (Ctrl/Cmd+clique abre a ficha) e no modo leitura (clique simples). Cores e ligar/desligar em Configurações (`/settings`, cartão "Destaques no texto"). Destaques são apenas visuais (decorações), não entram no texto salvo nem na exportação.
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
