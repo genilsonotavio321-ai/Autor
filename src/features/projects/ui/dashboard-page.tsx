@@ -317,15 +317,17 @@ export function DashboardPage() {
                 {stats.byProject.map((project) => (
                   <tr key={project.id} className="border-t">
                     <td className="p-3">
-                      <Link
-                        href={`/projects/${project.id}`}
-                        className="font-medium hover:underline"
-                      >
-                        {project.title}
-                      </Link>
-                      <span className="ml-2 text-xs text-muted-foreground">
-                        {formatRelativeTime(project.updatedAt)}
-                      </span>
+                      <div className="flex flex-col gap-0.5">
+                        <Link
+                          href={`/projects/${project.id}`}
+                          className="text-sm font-medium hover:underline"
+                        >
+                          {project.title}
+                        </Link>
+                        <span className="text-xs text-muted-foreground">
+                          {formatRelativeTime(project.updatedAt)}
+                        </span>
+                      </div>
                     </td>
                     <td className="p-3 text-right tabular-nums">
                       {project.chapterCount.toLocaleString("pt-BR")}

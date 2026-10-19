@@ -230,7 +230,9 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         content: editor.getJSON() as unknown as Json,
         wordCount: words,
         cursorOffset: editor.state.selection.anchor,
-        scrollY: window.scrollY,
+        // O conteúdo do editor rola dentro dele mesmo (altura fixa): a página
+        // fica parada, então window.scrollY seria sempre ~0.
+        scrollY: editor.view.dom.scrollTop,
       });
     },
     [chapter, chapterId, save, title],
@@ -248,10 +250,17 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           const lastEdit = project?.lastEdit;
           if (!lastEdit || lastEdit.chapterId !== chapterId) return;
           const maxOffset = editor.state.doc.content.size;
-          editor.commands.setTextSelection(
-            Math.min(lastEdit.cursorOffset, maxOffset),
-          );
-          requestAnimationFrame(() => window.scrollTo(0, lastEdit.scrollY));
+          editor.commands.focus(Math.min(lastEdit.cursorOffset, maxOffset), {
+            scrollIntoView: false,
+          });
+          // Repõe a rolagem do próprio editor (não da página), repetindo
+          // enquanto o conteúdo/layout assenta.
+          const restoreScroll = () => {
+            editor.view.dom.scrollTop = lastEdit.scrollY;
+          };
+          requestAnimationFrame(restoreScroll);
+          window.setTimeout(restoreScroll, 100);
+          window.setTimeout(restoreScroll, 400);
         })
         .catch(() => undefined);
     },

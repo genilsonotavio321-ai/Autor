@@ -2,81 +2,39 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
-import { useLiveQuery } from "dexie-react-hooks";
 import { Search, SearchX } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
-import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
-import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
-import { locationRepository } from "@/features/world/infra/dexie-location-repository";
-import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
-import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
-import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
-import { ensureDbReady } from "@/infra/db/ready";
 import { useUiStore } from "@/shared/store/ui-store";
 
 import { createSearchIndex, searchDocs } from "../application/search-service";
-import {
-  buildSearchDocs,
-  SEARCH_TYPE_LABELS,
-  type SearchDocSource,
-} from "../domain/search-doc";
+import { useSearchDocs } from "../application/use-search-docs";
+import { SEARCH_TYPE_LABELS } from "../domain/search-doc";
 
-export function SearchPage() {
+interface SearchToolProps {
+  autoFocus?: boolean;
+  /** Chamado após clicar num resultado (ex.: fechar o popup). */
+  onSelect?: () => void;
+}
+
+/** Ferramenta de busca embutível (página inicial). */
+export function SearchTool({ autoFocus, onSelect }: SearchToolProps) {
   const [query, setQuery] = useState("");
-
-  const source = useLiveQuery(async (): Promise<SearchDocSource> => {
-    await ensureDbReady();
-    const projects = await projectRepository.listActive();
-    const empty: SearchDocSource = {
-      projects,
-      chapters: [],
-      scenes: [],
-      characters: [],
-      locations: [],
-      loreEntries: [],
-      notes: [],
-    };
-    for (const project of projects) {
-      const [chapters, scenes, characters, locations, loreEntries, notes] =
-        await Promise.all([
-          chapterRepository.listByProject(project.id),
-          sceneRepository.listByProject(project.id),
-          characterRepository.listByProject(project.id),
-          locationRepository.listByProject(project.id),
-          loreEntryRepository.listByProject(project.id),
-          noteRepository.listByProject(project.id),
-        ]);
-      empty.chapters.push(...chapters);
-      empty.scenes.push(...scenes);
-      empty.characters.push(...characters);
-      empty.locations.push(...locations);
-      empty.loreEntries.push(...loreEntries);
-      empty.notes.push(...notes);
-    }
-    return empty;
-  }, []);
-
-  const docs = useMemo(
-    () => (source ? buildSearchDocs(source) : []),
-    [source],
-  );
+  const docs = useSearchDocs();
   const index = useMemo(() => createSearchIndex(docs), [docs]);
   const results = searchDocs(index, query);
   const trimmed = query.trim();
 
-  return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="font-heading text-2xl font-semibold">Buscar</h1>
-        <p className="text-sm text-muted-foreground">
-          Procure em capítulos, cenas, personagens, locais, lore e notas de
-          todos os projetos.
-        </p>
-      </header>
+  const handleSelect = (projectId: string) => {
+    if (projectId) {
+      useUiStore.getState().setSelectedProjectId(projectId);
+    }
+    onSelect?.();
+  };
 
+  return (
+    <div className="flex flex-col gap-3">
       <div className="relative">
         <Search
           aria-hidden="true"
@@ -89,7 +47,7 @@ export function SearchPage() {
           placeholder="Personagens, capítulos, locais, notas..."
           aria-label="Buscar no acervo"
           className="pl-9"
-          autoFocus
+          autoFocus={autoFocus}
         />
       </div>
 
@@ -100,7 +58,7 @@ export function SearchPage() {
       </p>
 
       {trimmed.length > 0 && results.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-10 text-center">
+        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
           <SearchX aria-hidden="true" className="size-8 text-muted-foreground" />
           <p className="font-medium">Nenhum resultado encontrado.</p>
           <p className="text-sm text-muted-foreground">
@@ -114,9 +72,7 @@ export function SearchPage() {
           <li key={doc.id}>
             <Link
               href={doc.href}
-              onClick={() =>
-                useUiStore.getState().setSelectedProjectId(doc.projectId)
-              }
+              onClick={() => handleSelect(doc.projectId)}
               className="flex flex-col gap-1 rounded-lg border bg-card p-3 transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
             >
               <div className="flex flex-wrap items-center gap-2">

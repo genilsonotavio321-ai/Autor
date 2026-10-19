@@ -19,12 +19,16 @@ export interface LocationCreateInput {
   name: string;
   type?: string;
   description?: string;
+  /** Ficha-mãe quando criado como subficha. */
+  parentId?: EntityId | null;
 }
 
 export interface LocationUpdateInput {
   name?: string;
   type?: string;
   description?: string;
+  /** `null` desfaz a hierarquia (vira ficha de primeiro nível). */
+  parentId?: EntityId | null;
 }
 
 export interface LocationRepository {

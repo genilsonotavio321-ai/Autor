@@ -17,7 +17,8 @@ export type SearchEntityType =
   | "location"
   | "lore"
   | "note"
-  | "project";
+  | "project"
+  | "section";
 
 export const SEARCH_TYPE_LABELS: Record<SearchEntityType, string> = {
   chapter: "Capítulo",
@@ -27,6 +28,7 @@ export const SEARCH_TYPE_LABELS: Record<SearchEntityType, string> = {
   lore: "Lore",
   note: "Nota",
   project: "Projeto",
+  section: "Seção",
 };
 
 export interface SearchDoc {

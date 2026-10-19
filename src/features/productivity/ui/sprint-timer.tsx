@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { playSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 import { toDayKey } from "../domain/writing-log";
@@ -48,6 +49,8 @@ export function SprintTimer() {
     setRemaining(duration);
     setCompleted((count) => count + 1);
     setAnnouncement("Sprint concluído. Faça uma pausa.");
+    const { soundEnabled, soundVolume } = useUiStore.getState();
+    if (soundEnabled) playSound("complete", soundVolume);
     toast.success("Sprint concluído!", {
       description: "Boa escrita. Faça uma pausa antes do próximo.",
     });
@@ -68,39 +71,65 @@ export function SprintTimer() {
     setAnnouncement("Sprint reiniciado.");
   }
 
+  const progress = duration > 0 ? ((duration - remaining) / duration) * 100 : 0;
+
   return (
-    <div className="flex items-center gap-1" role="group" aria-label="Cronômetro de sprint">
-      <Timer aria-hidden className="size-4" />
-      <span
-        className="font-mono text-xs tabular-nums"
-        data-testid="sprint-timer"
+    <div
+      className="flex items-center gap-3 rounded-lg border bg-card px-3 py-1.5"
+      role="group"
+      aria-label="Cronômetro de sprint"
+    >
+      <div className="flex items-center gap-2">
+        <Timer aria-hidden className="size-4 text-muted-foreground" />
+        <span
+          className="font-mono text-base font-semibold tabular-nums"
+          data-testid="sprint-timer"
+        >
+          {formatClock(remaining)}
+        </span>
+      </div>
+      <div
+        className="h-1.5 w-20 overflow-hidden rounded-full bg-muted"
+        role="progressbar"
+        aria-label="Progresso do sprint"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(progress)}
       >
-        {formatClock(remaining)}
-      </span>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7"
-        onClick={toggle}
-        aria-label={running ? "Pausar sprint" : "Iniciar sprint"}
-      >
-        {running ? (
-          <Pause aria-hidden className="size-3.5" />
-        ) : (
-          <Play aria-hidden className="size-3.5" />
-        )}
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="size-7"
-        onClick={reset}
-        aria-label="Reiniciar sprint"
-      >
-        <RotateCcw aria-hidden className="size-3.5" />
-      </Button>
+        <div
+          className="h-full rounded-full bg-primary transition-[width]"
+          style={{ width: `${progress}%` }}
+        />
+      </div>
+      <div className="flex items-center gap-0.5">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={toggle}
+          aria-label={running ? "Pausar sprint" : "Iniciar sprint"}
+        >
+          {running ? (
+            <Pause aria-hidden className="size-3.5" />
+          ) : (
+            <Play aria-hidden className="size-3.5" />
+          )}
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={reset}
+          aria-label="Reiniciar sprint"
+        >
+          <RotateCcw aria-hidden className="size-3.5" />
+        </Button>
+      </div>
       {completed > 0 ? (
-        <span className="text-xs text-muted-foreground" title="Sprints concluídos nesta sessão">
+        <span
+          className="text-xs text-muted-foreground"
+          title="Sprints concluídos nesta sessão"
+        >
           {completed}×
         </span>
       ) : null}

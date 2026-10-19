@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useTheme } from "next-themes";
 import { Menu, Moon, Search, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { useUiStore } from "@/shared/store/ui-store";
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -13,6 +13,7 @@ interface TopbarProps {
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const { resolvedTheme, setTheme } = useTheme();
+  const openSearch = useUiStore((state) => state.openSearch);
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => setMounted(true), []);
@@ -37,17 +38,19 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           variant="outline"
           size="sm"
           className="hidden text-muted-foreground md:flex"
-          asChild
+          onClick={openSearch}
         >
-          <Link href="/search">
-            <Search aria-hidden="true" />
-            <span>Buscar</span>
-          </Link>
+          <Search aria-hidden="true" />
+          <span>Buscar</span>
         </Button>
-        <Button variant="ghost" size="icon" asChild className="md:hidden">
-          <Link href="/search" aria-label="Ir para a busca">
-            <Search aria-hidden="true" />
-          </Link>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden"
+          onClick={openSearch}
+          aria-label="Abrir a busca"
+        >
+          <Search aria-hidden="true" />
         </Button>
         <Button
           variant="ghost"

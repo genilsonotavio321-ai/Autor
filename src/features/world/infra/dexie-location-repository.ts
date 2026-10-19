@@ -30,6 +30,7 @@ export class DexieLocationRepository implements LocationRepository {
       order: nextOrder(live),
       type: input.type?.trim() || "Local",
       description: input.description,
+      parentId: input.parentId ?? undefined,
       tags: [],
       createdAt: now,
       updatedAt: now,
@@ -57,7 +58,15 @@ export class DexieLocationRepository implements LocationRepository {
 
   async update(id: EntityId, patch: LocationUpdateInput): Promise<Location> {
     await ensureDbReady();
-    await getDatabase().locations.update(id, { ...patch, updatedAt: nowIso() });
+    const { parentId, ...rest } = patch;
+    await getDatabase().locations.update(id, { ...rest, updatedAt: nowIso() });
+    if (parentId !== undefined) {
+      // `modify` with undefined removes the property (Table.update would not).
+      await getDatabase()
+        .locations.where("id")
+        .equals(id)
+        .modify({ parentId: parentId === null ? undefined : parentId });
+    }
     const updated = await getDatabase().locations.get(id);
     if (!updated) throw new Error(`Location not found: ${id}`);
     return updated;

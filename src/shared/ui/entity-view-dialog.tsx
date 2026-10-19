@@ -1,13 +1,13 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { Pencil, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -43,8 +43,30 @@ export function EntityViewDialog({
 }: EntityViewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-lg" showCloseButton={false}>
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={onEdit}
+            aria-label="Editar"
+            title="Editar"
+          >
+            <Pencil aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onOpenChange(false)}
+            aria-label="Fechar"
+            title="Fechar"
+          >
+            <X aria-hidden />
+          </Button>
+        </div>
+        <DialogHeader className="pr-20">
           <DialogTitle>{title}</DialogTitle>
           <DialogDescription>{subtitle}</DialogDescription>
         </DialogHeader>
@@ -66,14 +88,6 @@ export function EntityViewDialog({
             ))
           )}
         </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onEdit}>
-            Editar
-          </Button>
-          <Button type="button" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-        </DialogFooter>
         {floatingAction}
       </DialogContent>
     </Dialog>

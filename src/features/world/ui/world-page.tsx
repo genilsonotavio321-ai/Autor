@@ -32,7 +32,7 @@ import { formatRelativeTime } from "@/shared/lib/dates";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
-import type { Location, LoreEntry } from "@/shared/types/database";
+import type { EntityId, Location, LoreEntry } from "@/shared/types/database";
 
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 
@@ -49,6 +49,28 @@ export function WorldPage() {
     [projectId],
   );
   const locations = useMemo(() => liveLocations ?? [], [liveLocations]);
+  const locationIds = useMemo(
+    () => new Set(locations.map((location) => location.id)),
+    [locations],
+  );
+  // Item 7: hierarquia de locais — subfichas agrupadas sob a ficha-mãe.
+  const locationChildren = useMemo(() => {
+    const map = new Map<EntityId, Location[]>();
+    for (const location of locations) {
+      if (!location.parentId || !locationIds.has(location.parentId)) continue;
+      const list = map.get(location.parentId) ?? [];
+      list.push(location);
+      map.set(location.parentId, list);
+    }
+    return map;
+  }, [locations, locationIds]);
+  const topLevelLocations = useMemo(
+    () =>
+      locations.filter(
+        (location) => !location.parentId || !locationIds.has(location.parentId),
+      ),
+    [locations, locationIds],
+  );
   const liveLoreEntries = useLiveQuery(
     () => (projectId ? loreEntryRepository.listByProject(projectId) : []),
     [projectId],
@@ -63,6 +85,7 @@ export function WorldPage() {
   const [locationDialog, setLocationDialog] = useState<{
     open: boolean;
     location?: Location | null;
+    parentId?: EntityId | null;
   }>({ open: false });
   const [loreDialog, setLoreDialog] = useState<{
     open: boolean;
@@ -156,7 +179,7 @@ export function WorldPage() {
     }, 0);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const ids = locations.map((location) => location.id);
+    const ids = topLevelLocations.map((location) => location.id);
     const oldIndex = ids.indexOf(String(active.id));
     const newIndex = ids.indexOf(String(over.id));
     if (oldIndex === -1 || newIndex === -1) return;
@@ -258,17 +281,24 @@ export function WorldPage() {
                 onDragCancel={handleDragCancel}
               >
                 <SortableContext
-                  items={locations.map((location) => location.id)}
+                  items={topLevelLocations.map((location) => location.id)}
                   strategy={rectSortingStrategy}
                 >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                    {locations.map((location) => (
+                    {topLevelLocations.map((location) => (
                       <LocationCard
                         key={location.id}
                         location={location}
+                        childrenLocations={locationChildren.get(location.id) ?? []}
                         suppressClick={suppressClick}
                         onView={setViewLocation}
                         onRemove={removeLocation}
+                        onNewChild={(parent) =>
+                          setLocationDialog({
+                            open: true,
+                            parentId: parent.id,
+                          })
+                        }
                       />
                     ))}
                   </ul>
@@ -327,6 +357,8 @@ export function WorldPage() {
         }
         location={locationDialog.location ?? null}
         projectId={projectId}
+        locations={locations}
+        defaultParentId={locationDialog.parentId ?? null}
       />
       <LoreDialog
         open={loreDialog.open}
@@ -349,6 +381,13 @@ export function WorldPage() {
           viewLocation
             ? [
                 { label: "Tipo", value: viewLocation.type },
+                {
+                  label: "Ficha-mãe",
+                  value:
+                    locations.find(
+                      (item) => item.id === viewLocation.parentId,
+                    )?.name ?? "",
+                },
                 { label: "Descrição", value: viewLocation.description ?? "" },
               ].filter((section) => section.value.length > 0)
             : []
@@ -398,16 +437,21 @@ export function WorldPage() {
 
 interface LocationCardProps {
   location: Location;
+  /** Subfichas deste local (item 7). */
+  childrenLocations: Location[];
   suppressClick: RefObject<boolean>;
   onView: (location: Location) => void;
   onRemove: (location: Location) => void;
+  onNewChild: (location: Location) => void;
 }
 
 function LocationCard({
   location,
+  childrenLocations,
   suppressClick,
   onView,
   onRemove,
+  onNewChild,
 }: LocationCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: location.id });
@@ -455,6 +499,19 @@ function LocationCard({
         <Button
           variant="ghost"
           size="icon"
+          aria-label={`Nova subficha em ${location.name}`}
+          title="Nova subficha"
+          onPointerDown={(event) => event.stopPropagation()}
+          onClick={(event) => {
+            event.stopPropagation();
+            onNewChild(location);
+          }}
+        >
+          <Plus aria-hidden />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
           aria-label={`Excluir ${location.name}`}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {
@@ -480,6 +537,28 @@ function LocationCard({
       <span className="mt-2 text-xs text-muted-foreground">
         atualizado {formatRelativeTime(location.updatedAt)}
       </span>
+      {childrenLocations.length > 0 ? (
+        <ul className="mt-3 flex flex-col gap-1 border-l-2 border-border pl-3">
+          {childrenLocations.map((child) => (
+            <li key={child.id}>
+              <button
+                type="button"
+                onPointerDown={(event) => event.stopPropagation()}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onView(child);
+                }}
+                className="flex w-full items-center gap-2 text-left text-sm hover:underline"
+              >
+                <span className="truncate">{child.name}</span>
+                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+                  {child.type}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </li>
   );
 }

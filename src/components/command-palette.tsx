@@ -28,6 +28,7 @@ export function CommandPalette() {
   const toggleCommandPalette = useUiStore(
     (state) => state.toggleCommandPalette,
   );
+  const openSearch = useUiStore((state) => state.openSearch);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
 
@@ -60,7 +61,13 @@ export function CommandPalette() {
         <CommandList>
           <CommandEmpty>Nenhum resultado encontrado.</CommandEmpty>
           <CommandGroup heading="Navegação">
-            <CommandItem value="Buscar no acervo /search" onSelect={() => navigate("/search")}>
+            <CommandItem
+              value="Buscar no acervo popup"
+              onSelect={() => {
+                closeCommandPalette();
+                openSearch();
+              }}
+            >
               <SearchIcon aria-hidden="true" />
               <span>Buscar no acervo</span>
             </CommandItem>

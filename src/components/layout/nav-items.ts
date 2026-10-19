@@ -5,6 +5,7 @@ import {
   Feather,
   FolderKanban,
   Globe,
+  Home,
   LayoutDashboard,
   ListTree,
   Settings,
@@ -28,7 +29,8 @@ export interface NavGroup {
 export const navGroups: NavGroup[] = [
   {
     items: [
-      { title: "Painel", href: "/", icon: LayoutDashboard },
+      { title: "Início", href: "/", icon: Home },
+      { title: "Painel", href: "/dashboard", icon: LayoutDashboard },
       { title: "Projetos", href: "/projects", icon: FolderKanban },
       { title: "Estrutura", href: "/outline", icon: ListTree },
       { title: "Ler", href: "/read", icon: BookOpen },

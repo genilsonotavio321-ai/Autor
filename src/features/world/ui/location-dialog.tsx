@@ -14,6 +14,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import type { EntityId, Location } from "@/shared/types/database";
 
@@ -26,6 +33,10 @@ interface LocationDialogProps {
   onOpenChange: (open: boolean) => void;
   location: Location | null;
   projectId: EntityId | null;
+  /** Todos os locais do projeto (para escolher a ficha-mãe). */
+  locations?: Location[];
+  /** Ficha-mãe pré-selecionada ao criar uma subficha. */
+  defaultParentId?: EntityId | null;
 }
 
 export function LocationDialog({
@@ -33,10 +44,13 @@ export function LocationDialog({
   onOpenChange,
   location,
   projectId,
+  locations = [],
+  defaultParentId = null,
 }: LocationDialogProps) {
   const [name, setName] = useState("");
   const [type, setType] = useState("");
   const [description, setDescription] = useState("");
+  const [parentId, setParentId] = useState<EntityId | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -44,7 +58,25 @@ export function LocationDialog({
     setName(location?.name ?? "");
     setType(location?.type === "Local" ? "" : (location?.type ?? ""));
     setDescription(location?.description ?? "");
-  }, [open, location]);
+    setParentId(location ? (location.parentId ?? null) : defaultParentId);
+  }, [open, location, defaultParentId]);
+
+  // Evita ciclos: exclui a própria ficha e os descendentes dela.
+  const parentCandidates = (() => {
+    if (!location) return locations;
+    const blocked = new Set<EntityId>([location.id]);
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const item of locations) {
+        if (item.parentId && blocked.has(item.parentId) && !blocked.has(item.id)) {
+          blocked.add(item.id);
+          changed = true;
+        }
+      }
+    }
+    return locations.filter((item) => !blocked.has(item.id));
+  })();
 
   async function submit() {
     if (!projectId) return;
@@ -56,6 +88,7 @@ export function LocationDialog({
           name: nextName,
           type: type.trim() || "Local",
           description: description.trim() || undefined,
+          parentId,
         });
         // Item 16: renomear a ficha reescreve as menções nos capítulos/cenas.
         let renamed = 0;
@@ -81,6 +114,7 @@ export function LocationDialog({
           name: name.trim(),
           type: type.trim() || undefined,
           description: description.trim() || undefined,
+          parentId,
         });
         toast.success("Local criado");
       }
@@ -125,6 +159,27 @@ export function LocationDialog({
                 <option key={suggestion} value={suggestion} />
               ))}
             </datalist>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="loc-parent">Local pai</Label>
+            <Select
+              value={parentId ?? "none"}
+              onValueChange={(value) =>
+                setParentId(value === "none" ? null : value)
+              }
+            >
+              <SelectTrigger id="loc-parent" className="w-full">
+                <SelectValue placeholder="Nenhum (primeiro nível)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nenhum (primeiro nível)</SelectItem>
+                {parentCandidates.map((candidate) => (
+                  <SelectItem key={candidate.id} value={candidate.id}>
+                    {candidate.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="loc-description">Descrição</Label>

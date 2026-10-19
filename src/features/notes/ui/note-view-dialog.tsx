@@ -1,11 +1,12 @@
 "use client";
 
+import { Pencil, Share2, X } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -26,8 +27,44 @@ interface NoteViewDialogProps {
 export function NoteViewDialog({ note, onEdit, onShare, onOpenChange }: NoteViewDialogProps) {
   return (
     <Dialog open={note !== null} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
+      <DialogContent className="max-w-lg" showCloseButton={false}>
+        <div className="absolute top-2 right-2 flex items-center gap-1">
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              if (note) onShare(note);
+            }}
+            aria-label="Compartilhar"
+            title="Compartilhar"
+          >
+            <Share2 aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => {
+              if (note) onEdit(note);
+            }}
+            aria-label="Editar"
+            title="Editar"
+          >
+            <Pencil aria-hidden />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            onClick={() => onOpenChange(false)}
+            aria-label="Fechar"
+            title="Fechar"
+          >
+            <X aria-hidden />
+          </Button>
+        </div>
+        <DialogHeader className="pr-24">
           <DialogTitle>{note?.title}</DialogTitle>
           <DialogDescription>
             {note ? `Atualizada ${formatRelativeTime(note.updatedAt)}` : null}
@@ -38,29 +75,6 @@ export function NoteViewDialog({ note, onEdit, onShare, onOpenChange }: NoteView
             {note?.content || "Esta nota está vazia."}
           </p>
         </div>
-        <DialogFooter>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (note) onShare(note);
-            }}
-          >
-            Compartilhar
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              if (note) onEdit(note);
-            }}
-          >
-            Editar
-          </Button>
-          <Button type="button" onClick={() => onOpenChange(false)}>
-            Fechar
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

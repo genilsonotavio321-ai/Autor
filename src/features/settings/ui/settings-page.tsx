@@ -23,6 +23,7 @@ import { TagsManager } from "@/features/tags/ui/tags-manager";
 import {
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
+  type HomeSection,
   useUiStore,
 } from "@/shared/store/ui-store";
 
@@ -31,6 +32,13 @@ const THEME_OPTIONS = [
   { value: "dark", label: "Escuro", icon: Moon },
   { value: "system", label: "Sistema", icon: Monitor },
 ] as const;
+
+const HOME_SECTION_OPTIONS: { value: HomeSection; label: string }[] = [
+  { value: "search", label: "Buscar" },
+  { value: "projects", label: "Projetos" },
+  { value: "dashboard", label: "Painel" },
+  { value: "data", label: "Dados" },
+];
 
 const SHORTCUTS = [
   { keys: "Ctrl/Cmd + K", action: "Abrir a paleta de comandos e a busca" },
@@ -107,6 +115,34 @@ export function SettingsPage() {
   const setMentionBackToTextSeconds = useUiStore(
     (state) => state.setMentionBackToTextSeconds,
   );
+  const soundEnabled = useUiStore((state) => state.soundEnabled);
+  const soundVolume = useUiStore((state) => state.soundVolume);
+  const setSoundEnabled = useUiStore((state) => state.setSoundEnabled);
+  const setSoundVolume = useUiStore((state) => state.setSoundVolume);
+  const animationsEnabled = useUiStore((state) => state.animationsEnabled);
+  const animationDuration = useUiStore((state) => state.animationDuration);
+  const setAnimationsEnabled = useUiStore(
+    (state) => state.setAnimationsEnabled,
+  );
+  const setAnimationDuration = useUiStore(
+    (state) => state.setAnimationDuration,
+  );
+  const searchGlobalEnabled = useUiStore(
+    (state) => state.searchGlobalEnabled,
+  );
+  const setSearchGlobalEnabled = useUiStore(
+    (state) => state.setSearchGlobalEnabled,
+  );
+  const homeSections = useUiStore((state) => state.homeSections);
+  const setHomeSections = useUiStore((state) => state.setHomeSections);
+
+  const toggleHomeSection = (section: HomeSection) => {
+    setHomeSections(
+      homeSections.includes(section)
+        ? homeSections.filter((item) => item !== section)
+        : [...homeSections, section],
+    );
+  };
 
   useEffect(() => setMounted(true), []);
 
@@ -119,7 +155,7 @@ export function SettingsPage() {
         </p>
       </div>
 
-      <Card>
+      <Card id="aparencia">
         <CardHeader>
           <CardTitle>Aparência</CardTitle>
           <CardDescription>Tema claro, escuro ou conforme o sistema.</CardDescription>
@@ -145,7 +181,69 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="som">
+        <CardHeader>
+          <CardTitle>Som</CardTitle>
+          <CardDescription>
+            Efeitos sonoros nos botões e aviso ao concluir um sprint.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="sound-enabled">Ativar efeitos sonoros</Label>
+            <Switch
+              id="sound-enabled"
+              checked={soundEnabled}
+              onCheckedChange={setSoundEnabled}
+            />
+          </div>
+          <div className="max-w-xs">
+            <SettingSlider
+              id="sound-volume"
+              label="Volume do efeito"
+              unit="%"
+              value={soundVolume}
+              min={0}
+              max={100}
+              step={5}
+              onValueChange={setSoundVolume}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="animacoes">
+        <CardHeader>
+          <CardTitle>Animações</CardTitle>
+          <CardDescription>
+            Tempo de easy-in, easy-out, fade-in e fade-out do app.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="animations-disabled">Desativar animações</Label>
+            <Switch
+              id="animations-disabled"
+              checked={!animationsEnabled}
+              onCheckedChange={(checked) => setAnimationsEnabled(!checked)}
+            />
+          </div>
+          <div className="max-w-xs">
+            <SettingSlider
+              id="animation-duration"
+              label="Duração da animação"
+              unit="ms"
+              value={animationDuration}
+              min={50}
+              max={1000}
+              step={50}
+              onValueChange={setAnimationDuration}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="editor">
         <CardHeader>
           <CardTitle>Editor</CardTitle>
           <CardDescription>Fonte e tamanho do texto ao escrever.</CardDescription>
@@ -189,7 +287,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="destaques">
         <CardHeader>
           <CardTitle>Destaques no texto</CardTitle>
           <CardDescription>
@@ -299,7 +397,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="escrita">
         <CardHeader>
           <CardTitle>Escrita</CardTitle>
           <CardDescription>Metas e sessões de escrita.</CardDescription>
@@ -338,7 +436,54 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="busca">
+        <CardHeader>
+          <CardTitle>Busca</CardTitle>
+          <CardDescription>
+            A busca global procura também seções do app e opções das
+            configurações. Desative para buscar apenas dentro do projeto.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="search-global">Incluir seções do app</Label>
+            <Switch
+              id="search-global"
+              checked={searchGlobalEnabled}
+              onCheckedChange={setSearchGlobalEnabled}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="pagina-inicial">
+        <CardHeader>
+          <CardTitle>Página inicial</CardTitle>
+          <CardDescription>
+            Seções oferecidas ao abrir o app. Por padrão: buscar, projetos e
+            dados.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {HOME_SECTION_OPTIONS.map((option) => (
+            <div
+              key={option.value}
+              className="flex items-center justify-between gap-4"
+            >
+              <Label htmlFor={`home-section-${option.value}`}>
+                {option.label}
+              </Label>
+              <Switch
+                id={`home-section-${option.value}`}
+                checked={homeSections.includes(option.value)}
+                onCheckedChange={() => toggleHomeSection(option.value)}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card id="tags">
         <CardHeader>
           <CardTitle>Tags</CardTitle>
           <CardDescription>
@@ -351,7 +496,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="atalhos">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <Keyboard aria-hidden className="size-4" />
@@ -378,7 +523,7 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card>
+      <Card id="dados">
         <CardHeader>
           <CardTitle>Dados</CardTitle>
           <CardDescription>

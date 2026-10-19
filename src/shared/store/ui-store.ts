@@ -28,6 +28,9 @@ export const PROJECTS_SORT_LABELS: Record<ProjectsSort, string> = {
 /** Como os projetos são dispostos na lista. */
 export type ProjectsLayout = "grid" | "list";
 
+/** Seções oferecidas na página inicial (item 10). */
+export type HomeSection = "search" | "projects" | "dashboard" | "data";
+
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
   return Math.min(max, Math.max(min, value));
@@ -64,6 +67,20 @@ interface UiState {
   mentionBackToTextEnabled: boolean;
   /** Segundos até o pop-up "Voltar ao texto" desaparecer (0 = nunca). */
   mentionBackToTextSeconds: number;
+  /** Popup de busca (item 2). Transiente. */
+  searchOpen: boolean;
+  /** Efeitos sonoros nos botões (item 6). */
+  soundEnabled: boolean;
+  /** Volume dos efeitos sonoros, 0–100 (item 6). */
+  soundVolume: number;
+  /** Animações do app ligadas (item 9). */
+  animationsEnabled: boolean;
+  /** Duração global das animações em ms (item 9). */
+  animationDuration: number;
+  /** Busca inclui seções/opções do app (item 3). */
+  searchGlobalEnabled: boolean;
+  /** Seções da página inicial (item 4). */
+  homeSections: HomeSection[];
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -86,6 +103,14 @@ interface UiState {
   setMentionColorLocation: (color: string) => void;
   setMentionBackToTextEnabled: (enabled: boolean) => void;
   setMentionBackToTextSeconds: (seconds: number) => void;
+  openSearch: () => void;
+  closeSearch: () => void;
+  setSoundEnabled: (enabled: boolean) => void;
+  setSoundVolume: (volume: number) => void;
+  setAnimationsEnabled: (enabled: boolean) => void;
+  setAnimationDuration: (duration: number) => void;
+  setSearchGlobalEnabled: (enabled: boolean) => void;
+  setHomeSections: (sections: HomeSection[]) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -109,6 +134,13 @@ export const useUiStore = create<UiState>()(
       mentionColorLocation: "#0d9488",
       mentionBackToTextEnabled: true,
       mentionBackToTextSeconds: 8,
+      searchOpen: false,
+      soundEnabled: true,
+      soundVolume: 50,
+      animationsEnabled: true,
+      animationDuration: 150,
+      searchGlobalEnabled: true,
+      homeSections: ["search", "projects", "data"],
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -144,6 +176,17 @@ export const useUiStore = create<UiState>()(
         set({ mentionBackToTextEnabled: enabled }),
       setMentionBackToTextSeconds: (seconds) =>
         set({ mentionBackToTextSeconds: clamp(seconds, 0, 30) }),
+      openSearch: () => set({ searchOpen: true }),
+      closeSearch: () => set({ searchOpen: false }),
+      setSoundEnabled: (enabled) => set({ soundEnabled: enabled }),
+      setSoundVolume: (volume) =>
+        set({ soundVolume: clamp(volume, 0, 100) }),
+      setAnimationsEnabled: (enabled) => set({ animationsEnabled: enabled }),
+      setAnimationDuration: (duration) =>
+        set({ animationDuration: clamp(duration, 50, 1000) }),
+      setSearchGlobalEnabled: (enabled) =>
+        set({ searchGlobalEnabled: enabled }),
+      setHomeSections: (sections) => set({ homeSections: sections }),
     }),
     {
       name: "autor-ui",
@@ -165,6 +208,12 @@ export const useUiStore = create<UiState>()(
         mentionColorLocation: state.mentionColorLocation,
         mentionBackToTextEnabled: state.mentionBackToTextEnabled,
         mentionBackToTextSeconds: state.mentionBackToTextSeconds,
+        soundEnabled: state.soundEnabled,
+        soundVolume: state.soundVolume,
+        animationsEnabled: state.animationsEnabled,
+        animationDuration: state.animationDuration,
+        searchGlobalEnabled: state.searchGlobalEnabled,
+        homeSections: state.homeSections,
       }),
     },
   ),

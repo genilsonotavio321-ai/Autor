@@ -133,6 +133,8 @@ export interface Location extends BaseEntity {
   order?: number;
   type: string;
   description?: string;
+  /** Ficha-mãe quando este local é uma subficha (item 7). */
+  parentId?: EntityId;
   tags: EntityId[];
 }
 

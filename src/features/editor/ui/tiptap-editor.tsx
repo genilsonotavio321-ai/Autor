@@ -128,10 +128,9 @@ export function TiptapEditor({
         // fontSize/fontFamily do store via estilo inline no container, e
         // classes utilitárias neste elemento sobrescreveriam o valor herdado.
         // Altura estática com scroll interno (F1): o contenteditable não
-        // cresce a página — o scroll acontece dentro dele. Consequência
-        // aceitável: window.scrollY salvo pelo autosave fica ~0 (ver
-        // scheduleSave em editor-page.tsx), então a restauração de scroll
-        // ao voltar ao capítulo não tem efeito prático.
+        // cresce a página — o scroll acontece dentro dele. Por isso o
+        // autosave guarda editor.view.dom.scrollTop (e não window.scrollY)
+        // para "Continuar escrevendo" (ver scheduleSave em editor-page.tsx).
         class:
           "h-[calc(100dvh-14rem)] min-h-72 overflow-y-auto px-1 py-4 leading-relaxed outline-none",
       },
