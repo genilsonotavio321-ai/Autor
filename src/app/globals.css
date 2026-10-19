@@ -170,6 +170,15 @@
   @apply my-2 list-decimal pl-6;
 }
 
+.tiptap .ProseMirror hr {
+  @apply my-6;
+  height: 0;
+  border: 0;
+  border-top-width: 1px;
+  border-style: solid;
+  border-color: var(--border);
+}
+
 /* Mention highlights (characters and locations) */
 .tiptap .ProseMirror .mention {
   font-weight: 500;

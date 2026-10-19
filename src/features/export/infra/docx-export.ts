@@ -1,4 +1,5 @@
 import {
+  BorderStyle,
   Document,
   HeadingLevel,
   LevelFormat,
@@ -109,7 +110,21 @@ function paragraphsFromDoc(doc: Json): Paragraph[] {
         break;
       }
       case "horizontalRule":
-        out.push(new Paragraph({ children: [] }));
+        // Visible separator: an empty paragraph carrying a bottom border.
+        out.push(
+          new Paragraph({
+            children: [],
+            spacing: { before: 120, after: 120 },
+            border: {
+              bottom: {
+                style: BorderStyle.SINGLE,
+                size: 6,
+                color: "999999",
+                space: 1,
+              },
+            },
+          }),
+        );
         break;
       default: {
         const children = Array.isArray(record.content) ? record.content : [];

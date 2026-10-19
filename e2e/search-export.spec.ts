@@ -49,19 +49,24 @@ test("exporta o projeto em markdown, docx, pdf e backup", async ({ page }) => {
   await page.getByRole("button", { name: "Novo capítulo" }).click();
 
   await page.goto("/export");
-  await expect(
-    page.getByRole("heading", { name: "Exportar" }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Dados", exact: true })).toBeVisible();
 
+  const exportButton = page.getByRole("button", { name: "Exportar projeto" });
+
+  await exportButton.click();
   const mdDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Markdown (.md)" }).click();
   const md = await mdDownload;
   expect(md.suggestedFilename()).toMatch(/\.md$/);
 
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
   const docxDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "Word (.docx)" }).click();
   expect((await docxDownload).suggestedFilename()).toMatch(/\.docx$/);
 
+  await expect(exportButton).toBeEnabled();
+  await exportButton.click();
   const pdfDownload = page.waitForEvent("download");
   await page.getByRole("button", { name: "PDF (.pdf)" }).click();
   expect((await pdfDownload).suggestedFilename()).toMatch(/\.pdf$/);
@@ -111,6 +116,7 @@ test("importa capítulos .md e o export round-trip preserva o conteúdo", async 
 
   // Round-trip: re-export and keep both chapters with their text.
   await page.goto("/export");
+  await page.getByRole("button", { name: "Exportar projeto" }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Markdown (.md)" }).click();
   const download = await downloadPromise;

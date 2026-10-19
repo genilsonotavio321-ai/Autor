@@ -205,10 +205,6 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
                 className={`relative z-10 ml-auto h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
                 aria-label={`Status de ${chapter.title}`}
               >
-                <span
-                  aria-hidden
-                  className={`size-2 shrink-0 rounded-full ${CHAPTER_STATUS_DOT[chapter.status]}`}
-                />
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>

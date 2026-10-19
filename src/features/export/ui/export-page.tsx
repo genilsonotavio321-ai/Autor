@@ -27,6 +27,10 @@ import { projectToMarkdown } from "../domain/markdown";
 import { buildBackupBlob, importBackupJson } from "../infra/backup";
 import { downloadBlob, safeFilename } from "../infra/download";
 import { importMarkdownFile } from "../infra/md-import";
+import {
+  ExportFormatDialog,
+  type ExportFormat,
+} from "./export-format-dialog";
 import type { Scene } from "@/shared/types/database";
 
 type BusyAction =
@@ -44,12 +48,22 @@ export function ExportPage() {
   const { projects, projectId } = useSelectedProject();
   const [busy, setBusy] = useState<BusyAction>(null);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
+  const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const pendingBackupJson = useRef<string | null>(null);
   const mdInputRef = useRef<HTMLInputElement>(null);
   const docxInputRef = useRef<HTMLInputElement>(null);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   const project = projects.find((item) => item.id === projectId) ?? null;
+  const exporting =
+    busy === "markdown" || busy === "docx" || busy === "pdf";
+
+  /** "Memória": picks the project export format chosen in the dialog. */
+  function handleExportProject(format: ExportFormat) {
+    if (format === "md") void exportMarkdown();
+    else if (format === "docx") void exportDocx();
+    else if (format === "pdf") void exportPdf();
+  }
 
   async function gather() {
     if (!project) throw new Error("Nenhum projeto selecionado.");
@@ -210,50 +224,34 @@ export function ExportPage() {
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-semibold">Exportar</h1>
+          <h1 className="font-heading text-2xl font-semibold">Dados</h1>
           <p className="text-sm text-muted-foreground">
-            Exporte o projeto inteiro ou faça backup de todos os dados.
+            Exporte o projeto, importe capítulos e cuide do backup dos dados.
           </p>
         </div>
         <ProjectPicker />
       </header>
 
-      <section aria-labelledby="export-project-heading" className="flex flex-col gap-3">
+      <section aria-labelledby="memory-heading" className="flex flex-col gap-3">
         <div className="flex items-center gap-2">
-          <h2 id="export-project-heading" className="font-heading text-lg font-semibold">
-            Projeto
+          <h2 id="memory-heading" className="font-heading text-lg font-semibold">
+            Memória
           </h2>
           {project && <Badge variant="outline">{project.title}</Badge>}
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <Button
-            variant="outline"
-            onClick={exportMarkdown}
-            disabled={!project || busy !== null}
-            aria-busy={busy === "markdown"}
-          >
-            <FileDown aria-hidden="true" />
-            {busy === "markdown" ? "Exportando..." : "Markdown (.md)"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={exportDocx}
-            disabled={!project || busy !== null}
-            aria-busy={busy === "docx"}
-          >
-            <FileDown aria-hidden="true" />
-            {busy === "docx" ? "Exportando..." : "Word (.docx)"}
-          </Button>
-          <Button
-            variant="outline"
-            onClick={exportPdf}
-            disabled={!project || busy !== null}
-            aria-busy={busy === "pdf"}
-          >
-            <FileDown aria-hidden="true" />
-            {busy === "pdf" ? "Exportando..." : "PDF (.pdf)"}
-          </Button>
-        </div>
+        <p className="text-sm text-muted-foreground">
+          Baixe o projeto inteiro em Markdown, Word ou PDF.
+        </p>
+        <Button
+          variant="outline"
+          className="w-fit"
+          onClick={() => setExportDialogOpen(true)}
+          disabled={!project || busy !== null}
+          aria-busy={exporting}
+        >
+          <FileDown aria-hidden="true" />
+          {exporting ? "Exportando..." : "Exportar projeto"}
+        </Button>
         {!project && (
           <p className="text-sm text-muted-foreground">
             Crie um projeto para exportar capítulos.
@@ -261,10 +259,13 @@ export function ExportPage() {
         )}
       </section>
 
-      <section aria-labelledby="import-heading" className="flex flex-col gap-3">
-        <h2 id="import-heading" className="font-heading text-lg font-semibold">
-          Importar
+      <section aria-labelledby="import-project-heading" className="flex flex-col gap-3">
+        <h2 id="import-project-heading" className="font-heading text-lg font-semibold">
+          Importar projeto
         </h2>
+        <p className="text-sm text-muted-foreground">
+          Cria capítulos no projeto selecionado a partir de um arquivo.
+        </p>
         <div className="rounded-lg border p-4">
           <Label htmlFor="import-md-input">Importar capítulos (.md)</Label>
           <input
@@ -296,6 +297,12 @@ export function ExportPage() {
             um capítulo por seção.
           </p>
         </div>
+      </section>
+
+      <section aria-labelledby="restore-heading" className="flex flex-col gap-3">
+        <h2 id="restore-heading" className="font-heading text-lg font-semibold">
+          Restaurar dados
+        </h2>
         <div className="rounded-lg border p-4">
           <Label htmlFor="import-backup-input">Restaurar backup completo (.json)</Label>
           <input
@@ -332,6 +339,15 @@ export function ExportPage() {
           configurações.
         </p>
       </section>
+
+      <ExportFormatDialog
+        open={exportDialogOpen}
+        onOpenChange={setExportDialogOpen}
+        title="Exportar projeto"
+        description="Escolha o formato do arquivo para baixar."
+        formats={["md", "docx", "pdf"]}
+        onExport={handleExportProject}
+      />
 
       <AlertDialog open={backupDialogOpen} onOpenChange={setBackupDialogOpen}>
         <AlertDialogContent>

@@ -46,7 +46,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Sistema",
     items: [
-      { title: "Exportar", href: "/export", icon: Download },
+      { title: "Dados", href: "/export", icon: Download },
       { title: "Lixeira", href: "/trash", icon: Trash2 },
       { title: "Configurações", href: "/settings", icon: Settings },
     ],

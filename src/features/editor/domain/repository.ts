@@ -13,4 +13,6 @@ export interface VersionRepository {
   /** Versions of one entity, most recent first. */
   listByEntity(entityId: EntityId): Promise<Version[]>;
   delete(id: string): Promise<void>;
+  /** Permanently deletes every version of an entity. */
+  deleteByEntity(entityId: EntityId): Promise<void>;
 }

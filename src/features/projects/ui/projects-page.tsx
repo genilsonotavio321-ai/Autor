@@ -14,6 +14,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { estimateReadingMinutes } from "@/features/productivity/domain/writing-log";
 import { PROJECTS_SORT_LABELS, useUiStore } from "@/shared/store/ui-store";
 
@@ -23,9 +24,12 @@ import { projectRepository } from "../infra/dexie-project-repository";
 import { ProjectCard, ProjectRow } from "./project-card";
 import { ProjectFormDialog } from "./project-form-dialog";
 
+type ProjectsTab = "active" | "archived";
+
 export function ProjectsPage() {
   const router = useRouter();
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [tab, setTab] = useState<ProjectsTab>("active");
 
   const projectsSort = useUiStore((state) => state.projectsSort);
   const projectsLayout = useUiStore((state) => state.projectsLayout);
@@ -53,6 +57,12 @@ export function ProjectsPage() {
 
   const sorted = entries ? sortProjectEntries(entries, projectsSort) : undefined;
 
+  const visible = sorted?.filter(({ project }) =>
+    tab === "archived"
+      ? project.status === "archived"
+      : project.status !== "archived",
+  );
+
   return (
     <div className="mx-auto max-w-5xl space-y-6">
       <header className="flex flex-wrap items-center justify-between gap-4">
@@ -68,7 +78,17 @@ export function ProjectsPage() {
         </Button>
       </header>
 
-      {sorted && sorted.length > 0 ? (
+      <Tabs
+        value={tab}
+        onValueChange={(value) => setTab(value as ProjectsTab)}
+      >
+        <TabsList>
+          <TabsTrigger value="active">Ativos</TabsTrigger>
+          <TabsTrigger value="archived">Arquivados</TabsTrigger>
+        </TabsList>
+      </Tabs>
+
+      {visible && visible.length > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <label
@@ -126,32 +146,41 @@ export function ProjectsPage() {
         </div>
       ) : null}
 
-      {sorted === undefined ? (
+      {visible === undefined ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }, (_, i) => (
             <Skeleton key={i} className="h-44 rounded-lg" />
           ))}
         </div>
-      ) : sorted.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="font-serif text-lg">Nenhum projeto ainda</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Crie seu primeiro projeto e comece a escrever.
-          </p>
-          <Button className="mt-4" onClick={() => setDialogOpen(true)}>
-            <Plus aria-hidden />
-            Novo projeto
-          </Button>
-        </div>
+      ) : visible.length === 0 ? (
+        tab === "archived" ? (
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <p className="font-serif text-lg">Nenhum projeto arquivado</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Projetos arquivados ficam guardados aqui.
+            </p>
+          </div>
+        ) : (
+          <div className="rounded-lg border border-dashed p-10 text-center">
+            <p className="font-serif text-lg">Nenhum projeto ainda</p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Crie seu primeiro projeto e comece a escrever.
+            </p>
+            <Button className="mt-4" onClick={() => setDialogOpen(true)}>
+              <Plus aria-hidden />
+              Novo projeto
+            </Button>
+          </div>
+        )
       ) : projectsLayout === "list" ? (
         <div className="grid gap-2">
-          {sorted.map(({ project, ...stats }) => (
+          {visible.map(({ project, ...stats }) => (
             <ProjectRow key={project.id} project={project} stats={stats} />
           ))}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {sorted.map(({ project, ...stats }) => (
+          {visible.map(({ project, ...stats }) => (
             <ProjectCard key={project.id} project={project} stats={stats} />
           ))}
         </div>

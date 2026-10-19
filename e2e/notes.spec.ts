@@ -85,7 +85,8 @@ test("limpar move todas as notas para a lixeira", async ({ page }) => {
   await addNote(page, "Segunda", "b");
   await waitNoToasts(page);
 
-  await page.getByRole("button", { name: "Limpar", exact: true }).click();
+  await page.getByRole("button", { name: "Mais opções de notas" }).click();
+  await page.getByRole("menuitem", { name: "Limpar" }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText("serão movidas para a lixeira");
   await confirm.getByRole("button", { name: "Limpar notas" }).click();
@@ -98,4 +99,25 @@ test("limpar move todas as notas para a lixeira", async ({ page }) => {
   await expect(notes).toBeVisible({ timeout: 15_000 });
   await expect(notes.getByText("Primeira")).toBeVisible();
   await expect(notes.getByText("Segunda")).toBeVisible();
+});
+
+test("importa notas de um arquivo .md pelo menu", async ({ page }) => {
+  await createProject(page, "Projeto Importar");
+  await page.goto("/notes");
+  await waitNoToasts(page);
+
+  await page.getByRole("button", { name: "Mais opções de notas" }).click();
+  const [chooser] = await Promise.all([
+    page.waitForEvent("filechooser"),
+    page.getByRole("menuitem", { name: "Importar notas" }).click(),
+  ]);
+  await chooser.setFiles({
+    name: "notas.md",
+    mimeType: "text/markdown",
+    buffer: Buffer.from("## Alfa\n\nconteúdo alfa\n\n## Beta\n\nconteúdo beta\n"),
+  });
+
+  await expect(page.getByText("2 notas importadas")).toBeVisible();
+  await expect(noteCard(page, "Alfa")).toBeVisible();
+  await expect(noteCard(page, "Beta")).toBeVisible();
 });

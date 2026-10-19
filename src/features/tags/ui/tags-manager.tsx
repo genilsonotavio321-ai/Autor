@@ -135,6 +135,14 @@ function ColorPicker({
           style={{ backgroundColor: hex }}
         />
       ))}
+      <Input
+        type="color"
+        className="h-7 w-9 cursor-pointer p-0.5"
+        value={/^#[0-9a-fA-F]{6}$/.test(value) ? value : DEFAULT_TAG_COLOR}
+        onChange={(event) => onChange(event.target.value)}
+        aria-label="Cor personalizada (RGB)"
+        title="Cor personalizada (RGB)"
+      />
     </fieldset>
   );
 }

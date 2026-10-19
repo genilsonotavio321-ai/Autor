@@ -1,5 +1,7 @@
 "use client";
 
+import type { ReactNode } from "react";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -22,6 +24,8 @@ interface EntityViewDialogProps {
   sections: EntityViewSection[];
   onEdit: () => void;
   onOpenChange: (open: boolean) => void;
+  /** Optional element floating over the sheet (e.g. "Voltar ao texto"). */
+  floatingAction?: ReactNode;
 }
 
 /**
@@ -35,6 +39,7 @@ export function EntityViewDialog({
   sections,
   onEdit,
   onOpenChange,
+  floatingAction,
 }: EntityViewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -69,6 +74,7 @@ export function EntityViewDialog({
             Fechar
           </Button>
         </DialogFooter>
+        {floatingAction}
       </DialogContent>
     </Dialog>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { Content } from "@tiptap/core";
+import TextAlign from "@tiptap/extension-text-align";
 import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
@@ -62,6 +63,9 @@ export function ReadingDocument({
     editable: false,
     extensions: [
       StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+      // Same alignment attribute as the editor, so centered/right/justified
+      // paragraphs keep their `text-align` style in read mode.
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       EntityHighlight.configure({
         getSettings: () => mentionSettingsRef.current,
       }),

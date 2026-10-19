@@ -21,7 +21,17 @@ const STATUS_VARIANT: Record<
 > = {
   active: "default",
   draft: "secondary",
+  completed: "outline",
   archived: "outline",
+};
+
+/** Extra tint per status — "Concluído" reads as success (same as chapter "done"). */
+const STATUS_CLASS: Record<Project["status"], string> = {
+  active: "",
+  draft: "",
+  completed:
+    "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950 dark:text-emerald-300",
+  archived: "",
 };
 
 export interface ProjectStats {
@@ -58,7 +68,10 @@ export function ProjectCard({
             >
               {project.title.charAt(0).toUpperCase()}
             </div>
-            <Badge variant={STATUS_VARIANT[project.status]}>
+            <Badge
+              variant={STATUS_VARIANT[project.status]}
+              className={STATUS_CLASS[project.status]}
+            >
               {PROJECT_STATUS_LABELS[project.status]}
             </Badge>
           </div>
@@ -116,7 +129,10 @@ export function ProjectRow({
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
         {formatRelativeTime(project.updatedAt)}
       </span>
-      <Badge variant={STATUS_VARIANT[project.status]}>
+      <Badge
+        variant={STATUS_VARIANT[project.status]}
+        className={STATUS_CLASS[project.status]}
+      >
         {PROJECT_STATUS_LABELS[project.status]}
       </Badge>
     </Link>

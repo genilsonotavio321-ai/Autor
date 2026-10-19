@@ -23,6 +23,11 @@ export function listVersions(entityId: EntityId): Promise<Version[]> {
   return versionRepository.listByEntity(entityId);
 }
 
+/** Permanently removes every saved version of a chapter. */
+export function clearVersions(entityId: EntityId): Promise<void> {
+  return versionRepository.deleteByEntity(entityId);
+}
+
 /**
  * Snapshots `previousSnapshot` if the auto interval elapsed.
  * Returns the (possibly updated) last auto timestamp to keep in state.

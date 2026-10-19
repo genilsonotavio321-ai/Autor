@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 
 /** File formats offered when sharing a piece of writing. */
-export type ExportFormat = "txt" | "md" | "pdf";
+export type ExportFormat = "txt" | "md" | "pdf" | "docx";
 
 const FORMAT_OPTIONS: Array<{
   value: ExportFormat;
@@ -30,11 +30,19 @@ const FORMAT_OPTIONS: Array<{
     description: "Títulos e formatação em Markdown.",
   },
   {
+    value: "docx",
+    label: "Word (.docx)",
+    description: "Documento do Word, com estilos de título.",
+  },
+  {
     value: "pdf",
     label: "PDF (.pdf)",
     description: "Pronto para ler, compartilhar ou imprimir.",
   },
 ];
+
+/** Formats every dialog offers by default (Word is opt-in per caller). */
+const DEFAULT_FORMATS: ExportFormat[] = ["txt", "md", "pdf"];
 
 interface ExportFormatDialogProps {
   open: boolean;
@@ -43,6 +51,8 @@ interface ExportFormatDialogProps {
   onExport: (format: ExportFormat) => void;
   title?: string;
   description?: string;
+  /** Restricts the offered formats (order follows `FORMAT_OPTIONS`). */
+  formats?: ExportFormat[];
 }
 
 export function ExportFormatDialog({
@@ -51,7 +61,11 @@ export function ExportFormatDialog({
   onExport,
   title = "Compartilhar capítulo",
   description = "Escolha o formato do arquivo para baixar.",
+  formats = DEFAULT_FORMATS,
 }: ExportFormatDialogProps) {
+  const options = FORMAT_OPTIONS.filter((option) =>
+    formats.includes(option.value),
+  );
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
@@ -60,7 +74,7 @@ export function ExportFormatDialog({
           <DialogDescription>{description}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-2">
-          {FORMAT_OPTIONS.map((option) => (
+          {options.map((option) => (
             <Button
               key={option.value}
               type="button"

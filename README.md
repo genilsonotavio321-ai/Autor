@@ -93,8 +93,21 @@ src/
 - Lixeira ampliada: agora cobre também capítulos, cenas, eventos da linha do tempo e beats (além de projetos, notas, personagens, locais e lore). Restauração em cascata: uma cena órfã de um capítulo excluído restaura o capítulo junto, para não sumir da visualização.
 - Restauração segura: exclusões em `/timeline` e na lista de beats ganharam o toast com "Desfazer", igual às demais telas.
 - Diff de versões: o diálogo de versões do editor mostra um **preview das diferenças** (parágrafo a parágrafo, com linhas removidas/adicionadas destacadas) antes de restaurar — nada mais é restaurado às cegas.
-- Importar Word (`.docx`): round-trip com a exportação DOCX existente (`/export` → "Importar capítulos (.docx)"). Lê um capítulo por título (reconhece títulos grandes em negrito do arquivo do Autor e estilos de título do Word) e listas, blocos de citação e código.
+- Importar Word (`.docx`): round-trip com a exportação DOCX existente (`/export` → "Importar projeto"). Lê um capítulo por título (reconhece títulos grandes em negrito do arquivo do Autor e estilos de título do Word) e listas, blocos de citação e código.
 - Gráfico de atividade no Painel: mapa de calor dos últimos 12 semanas (estilo GitHub) ao lado da meta diária, lendo o log de escrita por dia já registrado.
+
+## Recursos (Fase 8)
+
+- Status de projeto "Concluído": o projeto passa a ter quatro estados (Rascunho, Ativo, Concluído, Arquivado); o Badge de "Concluído" tem tom esmeralda.
+- Projetos (`/projects`) com abas **Ativos** (rascunho, ativo e concluído) e **Arquivados** — os arquivados ficam guardados na própria aba, sem se misturar aos ativos.
+- Importar notas: no menu (⋯) da página de notas, importa `.md` (`## Título` por nota) ou `.txt` (blocos separados por linha em branco); exportar e limpar também migraram para o mesmo menu.
+- Limpar histórico de versões: o diálogo de versões do editor ganhou o botão "Limpar", que apaga definitivamente todas as versões do capítulo (com confirmação).
+- Atalhos de teclado atualizados em Configurações, e reordenação por teclado (Espaço + setas) agora funciona também em personagens, locais, lore e notas.
+- Tags com seletor de cor livre: além dos tons predefinidos, o seletor RGB nativo permite qualquer cor.
+- `---` sozinho na linha vira uma quebra de parágrafo visível (linha horizontal) no editor, no modo leitura e nos PDFs e DOCX exportados.
+- Alinhamento (esquerda, centro, direita e justificado) preservado no modo leitura e nos PDFs exportados; citações ganham recuo e barra lateral, e listas aninhadas mantêm o recuo no PDF.
+- Ficha in-place no editor: Ctrl/Cmd+clique em um nome destacado abre a ficha sobre o texto, com o pop-up "Voltar ao texto" que devolve o cursor e a rolagem ao ponto exato de escrita; comportamento configurável em Configurações (`/settings`, cartão "Destaques no texto").
+- Aba **Dados** (antes "Exportar"): exportar o projeto em Markdown, Word ou PDF (Memória), importar capítulos `.md`/`.docx`, restaurar um backup completo `.json` (Restaurar dados) e baixar o backup dos dados.
 
 ## Notas
 

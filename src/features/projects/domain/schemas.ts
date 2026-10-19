@@ -13,7 +13,7 @@ export const projectFormSchema = z.object({
     .trim()
     .max(5000, "Máximo de 5000 caracteres")
     .optional(),
-  status: z.enum(["draft", "active", "archived"]),
+  status: z.enum(["draft", "active", "completed", "archived"]),
 });
 
 export type ProjectFormValues = z.infer<typeof projectFormSchema>;

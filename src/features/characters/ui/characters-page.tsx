@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -16,6 +17,7 @@ import {
   SortableContext,
   arrayMove,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -44,6 +46,7 @@ import { CHARACTER_ROLE_LABELS } from "../domain/repository";
 import { characterRepository } from "../infra/dexie-character-repository";
 
 import { CharacterDialog } from "./character-dialog";
+import { buildCharacterSections } from "./character-sections";
 
 const ROLE_BADGE_VARIANT: Record<
   Character["role"],
@@ -86,6 +89,9 @@ export function CharactersPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 250, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
@@ -283,28 +289,7 @@ export function CharactersPage() {
         }
         sections={
           viewCharacter
-            ? [
-                {
-                  label: "Papel",
-                  value: CHARACTER_ROLE_LABELS[viewCharacter.role],
-                },
-                { label: "Descrição", value: viewCharacter.description ?? "" },
-                {
-                  label: "Características",
-                  value: viewCharacter.traits.join(", "),
-                },
-                {
-                  label: "Relações",
-                  value: viewCharacter.relationships
-                    .map((relationship) => {
-                      const target = characters.find(
-                        (item) => item.id === relationship.targetId,
-                      );
-                      return `${target?.name ?? "Personagem"} — ${relationship.type}`;
-                    })
-                    .join("\n"),
-                },
-              ].filter((section) => section.value.length > 0)
+            ? buildCharacterSections(viewCharacter, { characters, tags })
             : []
         }
         onEdit={() => {

@@ -36,6 +36,16 @@ export class DexieVersionRepository implements VersionRepository {
     await ensureDbReady();
     await getDatabase().versions.delete(id);
   }
+
+  async deleteByEntity(entityId: EntityId): Promise<void> {
+    await ensureDbReady();
+    const ids = await getDatabase()
+      .versions.filter((version) => version.entityId === entityId)
+      .primaryKeys();
+    if (ids.length > 0) {
+      await getDatabase().versions.bulkDelete(ids);
+    }
+  }
 }
 
 export const versionRepository: VersionRepository = new DexieVersionRepository();

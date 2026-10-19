@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { createProject, waitForToastCycle } from "./helpers";
 
 test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   page,
@@ -53,6 +53,22 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   await expect(page.getByRole("link", { name: "Capítulo 1" })).toHaveCount(0);
   await page.getByRole("button", { name: "Desfazer" }).click();
   await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible();
+});
+
+test("aba Arquivados guarda os projetos arquivados", async ({ page }) => {
+  await createProject(page, "Projeto Guardado");
+
+  await page.getByRole("button", { name: "Mais ações" }).click();
+  await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
+  await waitForToastCycle(page);
+
+  // Arquivado sai da aba Ativos e fica guardado na aba Arquivados.
+  await page.goto("/projects");
+  await expect(page.getByText("Projeto Guardado")).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Arquivados" }).click();
+  await expect(page.getByText("Projeto Guardado")).toBeVisible();
+  await expect(page.getByText("Nenhum projeto arquivado")).toHaveCount(0);
 });
 
 test("mover projeto para a lixeira e restaurar", async ({ page }) => {

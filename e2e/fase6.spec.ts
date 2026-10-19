@@ -173,13 +173,19 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await expect(mention).toHaveText("Aurora");
     await expect(mention).toHaveCSS("color", "rgb(124, 58, 237)");
 
-    // Ctrl+clique abre a ficha do personagem.
+    // Ctrl+clique abre a ficha sobre o editor, sem sair da escrita.
     await mention.click({ modifiers: ["Control"] });
-    await expect(page).toHaveURL(/\/characters/);
-    await expect(page.getByRole("dialog")).toBeVisible();
-    await expect(page.getByLabel("Nome", { exact: true })).toHaveValue(
-      "Aurora",
-    );
+    await expect(page).toHaveURL(/\/write\//);
+    const sheet = page.getByRole("dialog");
+    await expect(sheet).toBeVisible();
+    await expect(
+      sheet.getByRole("heading", { name: "Aurora" }),
+    ).toBeVisible();
+
+    // O pop-up "Voltar ao texto" fecha a ficha e mantém o editor aberto.
+    await page.getByRole("button", { name: "Voltar ao texto" }).click();
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page).toHaveURL(/\/write\//);
   });
 
   test("o destaque pode ser desligado nas configurações", async ({ page }) => {

@@ -14,7 +14,7 @@ export type Json =
   | Json[]
   | { [key: string]: Json };
 
-export type ProjectStatus = "draft" | "active" | "archived";
+export type ProjectStatus = "draft" | "active" | "completed" | "archived";
 
 export type StoryUnitStatus = "todo" | "draft" | "revising" | "done";
 export type ChapterStatus = StoryUnitStatus;

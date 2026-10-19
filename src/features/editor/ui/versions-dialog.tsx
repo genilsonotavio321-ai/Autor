@@ -1,8 +1,20 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
+import { ArrowLeft, Eraser, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +29,7 @@ import { formatDateTime } from "@/shared/lib/dates";
 import type { Json, Version } from "@/shared/types/database";
 
 import { diffDocAgainstSnapshot, type DiffLine } from "../domain/version-diff";
-import { listVersions } from "../application/version-service";
+import { clearVersions, listVersions } from "../application/version-service";
 import { versionRepository } from "../infra/dexie-version-repository";
 
 interface VersionsDialogProps {
@@ -79,6 +91,15 @@ export function VersionsDialog({
   function close() {
     setPreview(null);
     onOpenChange(false);
+  }
+
+  async function clearAll() {
+    try {
+      await clearVersions(chapterId);
+      toast.success("Histórico de versões apagado");
+    } catch {
+      toast.error("Falha ao limpar o histórico");
+    }
   }
 
   return (
@@ -175,6 +196,42 @@ export function VersionsDialog({
           </ul>
         )}
         <Separator />
+        <div className="flex items-center justify-between gap-2">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={versions.length === 0}
+              >
+                <Eraser aria-hidden />
+                Limpar
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>
+                  Limpar o histórico de versões?
+                </AlertDialogTitle>
+                <AlertDialogDescription>
+                  {versions.length === 1
+                    ? "1 versão será apagada"
+                    : `${versions.length} versões serão apagadas`}{" "}
+                  definitivamente. Esta ação não pode ser desfeita.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={() => void clearAll()}>
+                  Limpar histórico
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+          <p className="text-xs text-muted-foreground">
+            Exclusão permanente das versões deste capítulo.
+          </p>
+        </div>
       </DialogContent>
     </Dialog>
   );

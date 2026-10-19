@@ -60,6 +60,10 @@ interface UiState {
   mentionConfirmOpen: boolean;
   mentionColorCharacter: string;
   mentionColorLocation: string;
+  /** Mostra o pop-up "Voltar ao texto" ao abrir a ficha pelo editor. */
+  mentionBackToTextEnabled: boolean;
+  /** Segundos até o pop-up "Voltar ao texto" desaparecer (0 = nunca). */
+  mentionBackToTextSeconds: number;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -80,6 +84,8 @@ interface UiState {
   setMentionConfirmOpen: (open: boolean) => void;
   setMentionColorCharacter: (color: string) => void;
   setMentionColorLocation: (color: string) => void;
+  setMentionBackToTextEnabled: (enabled: boolean) => void;
+  setMentionBackToTextSeconds: (seconds: number) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -101,6 +107,8 @@ export const useUiStore = create<UiState>()(
       mentionConfirmOpen: true,
       mentionColorCharacter: "#7c3aed",
       mentionColorLocation: "#0d9488",
+      mentionBackToTextEnabled: true,
+      mentionBackToTextSeconds: 8,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -132,6 +140,10 @@ export const useUiStore = create<UiState>()(
       setMentionColorCharacter: (color) =>
         set({ mentionColorCharacter: color }),
       setMentionColorLocation: (color) => set({ mentionColorLocation: color }),
+      setMentionBackToTextEnabled: (enabled) =>
+        set({ mentionBackToTextEnabled: enabled }),
+      setMentionBackToTextSeconds: (seconds) =>
+        set({ mentionBackToTextSeconds: clamp(seconds, 0, 30) }),
     }),
     {
       name: "autor-ui",
@@ -151,6 +163,8 @@ export const useUiStore = create<UiState>()(
         mentionConfirmOpen: state.mentionConfirmOpen,
         mentionColorCharacter: state.mentionColorCharacter,
         mentionColorLocation: state.mentionColorLocation,
+        mentionBackToTextEnabled: state.mentionBackToTextEnabled,
+        mentionBackToTextSeconds: state.mentionBackToTextSeconds,
       }),
     },
   ),

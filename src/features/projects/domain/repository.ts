@@ -95,5 +95,6 @@ export const CHAPTER_STATUS_DOT: Record<ChapterStatus, string> = {
 export const PROJECT_STATUS_LABELS: Record<ProjectStatus, string> = {
   draft: "Rascunho",
   active: "Ativo",
+  completed: "Concluído",
   archived: "Arquivado",
 };

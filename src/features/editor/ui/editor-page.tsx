@@ -60,6 +60,7 @@ import {
 import { toDayKey } from "@/features/productivity/domain/writing-log";
 import { recordWords } from "@/features/productivity/infra/writing-log-repository";
 import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
+import { MentionSheet } from "./mention-sheet";
 import { VersionsDialog } from "./versions-dialog";
 
 // O editor Tiptap é pesado (~145 kB): carrega só nesta rota (plan §7.9 — perf).
@@ -102,6 +103,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     id: string;
     name: string;
   } | null>(null);
+  // Ficha aberta *sobre* o editor (item 10), sem navegar para outra página.
+  const [mentionSheet, setMentionSheet] = useState<{
+    type: MentionType;
+    id: string;
+  } | null>(null);
 
   const focusMode = useUiStore((state) => state.focusMode);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
@@ -114,6 +120,12 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const setSelectedProjectId = useUiStore(
     (state) => state.setSelectedProjectId,
   );
+  const mentionBackToTextEnabled = useUiStore(
+    (state) => state.mentionBackToTextEnabled,
+  );
+  const mentionBackToTextSeconds = useUiStore(
+    (state) => state.mentionBackToTextSeconds,
+  );
   const mentionEntities = useMentionEntities(chapter?.projectId ?? null);
 
   const editorRef = useRef<Editor | null>(null);
@@ -121,6 +133,10 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const lastAutoAtRef = useRef<number | null>(null);
   const lastWordCountRef = useRef(0);
   const restoredRef = useRef(false);
+  // Ponto exato de escrita (cursor + rolagem) guardado ao abrir a ficha.
+  const returnPointRef = useRef<{ offset: number; scrollTop: number } | null>(
+    null,
+  );
 
   // Load chapter (and remember its content for auto-versioning).
   useEffect(() => {
@@ -330,11 +346,40 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     [chapter, router, setSelectedProjectId],
   );
 
+  // Item 10: abre a ficha sobre o editor, guardando o ponto de escrita
+  // (cursor + rolagem do ProseMirror) para o "Voltar ao texto".
+  const openMentionSheet = useCallback((type: MentionType, id: string) => {
+    const editor = editorRef.current;
+    if (editor) {
+      returnPointRef.current = {
+        offset: editor.state.selection.anchor,
+        scrollTop: editor.view.dom.scrollTop,
+      };
+    }
+    setMentionSheet({ type, id });
+  }, []);
+
+  const closeMentionSheet = useCallback(() => setMentionSheet(null), []);
+
+  const backToText = useCallback(() => {
+    setMentionSheet(null);
+    const editor = editorRef.current;
+    const point = returnPointRef.current;
+    if (!editor || !point) return;
+    const maxOffset = editor.state.doc.content.size;
+    editor.commands.focus(Math.min(point.offset, maxOffset), {
+      scrollIntoView: false,
+    });
+    requestAnimationFrame(() => {
+      editor.view.dom.scrollTop = point.scrollTop;
+    });
+  }, []);
+
   const openMention = useCallback(
     (type: MentionType, id: string, source: MentionClickSource) => {
       // Ctrl/Cmd+click is the documented shortcut — always opens directly.
       if (source === "modifier" || !mentionConfirmOpen) {
-        goToMention(type, id);
+        openMentionSheet(type, id);
         return;
       }
       const entity = mentionEntities.find(
@@ -342,7 +387,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       );
       setPendingMention({ type, id, name: entity?.name ?? "" });
     },
-    [goToMention, mentionConfirmOpen, mentionEntities],
+    [openMentionSheet, mentionConfirmOpen, mentionEntities],
   );
 
   async function handleShare(format: ExportFormat) {
@@ -363,7 +408,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           }),
           filename,
         );
-      } else {
+      } else if (format === "pdf") {
         // jsPDF é pesado: carrega só quando o usuário pede PDF.
         const { buildPdf } = await import(
           "@/features/export/infra/pdf-export"
@@ -445,10 +490,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             className={`h-9 w-36 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
             aria-label="Status do capítulo"
           >
-            <span
-              aria-hidden
-              className={`size-2 shrink-0 rounded-full ${CHAPTER_STATUS_DOT[status ?? chapter.status]}`}
-            />
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -555,6 +596,20 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         onExport={(format) => void handleShare(format)}
       />
 
+      <MentionSheet
+        target={mentionSheet}
+        backToTextSeconds={mentionBackToTextSeconds}
+        backToTextEnabled={mentionBackToTextEnabled}
+        onBackToText={backToText}
+        onEdit={(target) => {
+          closeMentionSheet();
+          goToMention(target.type, target.id);
+        }}
+        onOpenChange={(open) => {
+          if (!open) closeMentionSheet();
+        }}
+      />
+
       <AlertDialog
         open={pendingMention !== null}
         onOpenChange={(open) => {
@@ -576,7 +631,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             <AlertDialogAction
               onClick={() => {
                 if (pendingMention) {
-                  goToMention(pendingMention.type, pendingMention.id);
+                  openMentionSheet(pendingMention.type, pendingMention.id);
                 }
               }}
             >
@@ -586,7 +641,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
               onClick={() => {
                 setMentionConfirmOpen(false);
                 if (pendingMention) {
-                  goToMention(pendingMention.type, pendingMention.id);
+                  openMentionSheet(pendingMention.type, pendingMention.id);
                 }
                 toast.info(
                   "Aviso desativado. Você pode reativar nas Configurações.",

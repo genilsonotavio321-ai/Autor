@@ -35,8 +35,17 @@ const THEME_OPTIONS = [
 const SHORTCUTS = [
   { keys: "Ctrl/Cmd + K", action: "Abrir a paleta de comandos e a busca" },
   { keys: "Esc", action: "Sair do modo foco no editor" },
-  { keys: "Espaço + Setas", action: "Reordenar capítulos e cenas (teclado)" },
   { keys: "Ctrl/Cmd + B / I", action: "Negrito e itálico no editor" },
+  {
+    keys: "Ctrl/Cmd + clique",
+    action: "Abrir a ficha de um nome destacado no texto",
+  },
+  { keys: "Enter / Espaço", action: "Abrir a ficha de um card em listas" },
+  { keys: "Enter", action: "Salvar em diálogos" },
+  {
+    keys: "Espaço + Setas",
+    action: "Reordenar capítulos, cenas, beats e cards (teclado)",
+  },
 ];
 
 export function SettingsPage() {
@@ -85,6 +94,18 @@ export function SettingsPage() {
   );
   const setMentionColorLocation = useUiStore(
     (state) => state.setMentionColorLocation,
+  );
+  const mentionBackToTextEnabled = useUiStore(
+    (state) => state.mentionBackToTextEnabled,
+  );
+  const setMentionBackToTextEnabled = useUiStore(
+    (state) => state.setMentionBackToTextEnabled,
+  );
+  const mentionBackToTextSeconds = useUiStore(
+    (state) => state.mentionBackToTextSeconds,
+  );
+  const setMentionBackToTextSeconds = useUiStore(
+    (state) => state.setMentionBackToTextSeconds,
   );
 
   useEffect(() => setMounted(true), []);
@@ -205,6 +226,16 @@ export function SettingsPage() {
               onCheckedChange={setMentionConfirmOpen}
             />
           </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="mention-back-to-text">
+              Mostrar &quot;Voltar ao texto&quot; na ficha
+            </Label>
+            <Switch
+              id="mention-back-to-text"
+              checked={mentionBackToTextEnabled}
+              onCheckedChange={setMentionBackToTextEnabled}
+            />
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="mention-color-character">
@@ -252,6 +283,18 @@ export function SettingsPage() {
                 </span>
               </div>
             </div>
+          </div>
+          <div className="max-w-xs">
+            <SettingSlider
+              id="mention-back-to-text-seconds"
+              label='Pop-up "Voltar ao texto"'
+              unit="segundos"
+              value={mentionBackToTextSeconds}
+              min={0}
+              max={30}
+              step={1}
+              onValueChange={setMentionBackToTextSeconds}
+            />
           </div>
         </CardContent>
       </Card>
@@ -347,7 +390,7 @@ export function SettingsPage() {
           <Button asChild variant="outline">
             <Link href="/export">
               <Download aria-hidden />
-              Exportar e fazer backup
+              Exportar, importar e fazer backup
             </Link>
           </Button>
         </CardContent>

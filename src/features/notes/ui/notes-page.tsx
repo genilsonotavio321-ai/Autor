@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import {
   DndContext,
+  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   closestCenter,
@@ -16,12 +17,15 @@ import {
   SortableContext,
   arrayMove,
   rectSortingStrategy,
+  sortableKeyboardCoordinates,
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpDown,
   FileDown,
+  FileUp,
+  MoreHorizontal,
   Pin,
   PinOff,
   Plus,
@@ -40,7 +44,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -51,6 +54,12 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
@@ -73,6 +82,7 @@ import { ProjectPicker } from "@/features/projects/ui/project-picker";
 
 import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
 import { noteRepository } from "../infra/dexie-note-repository";
+import { importNotesFile } from "../infra/notes-import";
 import { NoteViewDialog } from "./note-view-dialog";
 
 const SORT_STORAGE_KEY = "autor.notes.sort";
@@ -101,6 +111,8 @@ export function NotesPage() {
     open: boolean;
     note?: Note | null;
   }>({ open: false });
+  const [clearOpen, setClearOpen] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
   // Deep link: /notes?note=<id> opens the note view (search result clicks).
   const [pendingId, setPendingId] = useState<string | null>(null);
   // Set while a drag is in flight so the trailing click doesn't open the view.
@@ -144,6 +156,9 @@ export function NotesPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
       activationConstraint: { delay: 250, tolerance: 8 },
+    }),
+    useSensor(KeyboardSensor, {
+      coordinateGetter: sortableKeyboardCoordinates,
     }),
   );
 
@@ -277,6 +292,25 @@ export function NotesPage() {
     }
   }
 
+  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || !projectId) return;
+    try {
+      const text = await file.text();
+      const { created } = await importNotesFile(projectId, file.name, text);
+      if (created === 0) {
+        toast.error("Nenhuma nota encontrada no arquivo.");
+        return;
+      }
+      toast.success(
+        created === 1 ? "1 nota importada" : `${created} notas importadas`,
+      );
+    } catch {
+      toast.error("Falha ao importar as notas.");
+    }
+  }
+
   return (
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
@@ -296,21 +330,45 @@ export function NotesPage() {
               ))}
             </SelectContent>
           </Select>
-          <Button
-            variant="outline"
-            disabled={notes.length === 0}
-            onClick={() => setExportTarget({ open: true })}
-          >
-            <FileDown aria-hidden />
-            Exportar notas
-          </Button>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="outline" disabled={notes.length === 0}>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="outline"
+                size="icon"
+                aria-label="Mais opções de notas"
+              >
+                <MoreHorizontal aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                disabled={notes.length === 0}
+                onSelect={() => setExportTarget({ open: true })}
+              >
+                <FileDown aria-hidden />
+                Exportar notas
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                disabled={!projectId}
+                onSelect={() => {
+                  // Abre o seletor após o menu fechar (evita corrida de foco).
+                  window.setTimeout(() => importInputRef.current?.click(), 0);
+                }}
+              >
+                <FileUp aria-hidden />
+                Importar notas
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                variant="destructive"
+                disabled={notes.length === 0}
+                onSelect={() => setClearOpen(true)}
+              >
                 <Trash2 aria-hidden />
                 Limpar
-              </Button>
-            </AlertDialogTrigger>
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
             <AlertDialogContent>
               <AlertDialogHeader>
                 <AlertDialogTitle>Limpar as notas?</AlertDialogTitle>
@@ -330,6 +388,13 @@ export function NotesPage() {
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>
+          <input
+            ref={importInputRef}
+            type="file"
+            accept=".md,.txt,text/markdown,text/plain"
+            className="hidden"
+            onChange={(event) => void handleImportFile(event)}
+          />
           <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
             <Plus aria-hidden />
             Nova nota
