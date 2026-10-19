@@ -28,8 +28,11 @@ export interface NavGroup {
 
 export const navGroups: NavGroup[] = [
   {
+    items: [{ title: "Início", href: "/", icon: Home }],
+  },
+  {
+    label: "Produção",
     items: [
-      { title: "Início", href: "/", icon: Home },
       { title: "Painel", href: "/dashboard", icon: LayoutDashboard },
       { title: "Projetos", href: "/projects", icon: FolderKanban },
       { title: "Estrutura", href: "/outline", icon: ListTree },

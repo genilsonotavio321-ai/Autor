@@ -24,6 +24,8 @@ const RESULT_LIMIT = 50;
  */
 export function createSearchIndex(docs: SearchDoc[]): SearchIndex {
   const index = new Document({
+    // "full" enables partial-word matches ("configura" ~ "Configurações").
+    tokenize: "full",
     document: {
       id: "id",
       index: ["title", "content"],

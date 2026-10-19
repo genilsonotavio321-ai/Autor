@@ -135,7 +135,7 @@ export const useUiStore = create<UiState>()(
       mentionBackToTextEnabled: true,
       mentionBackToTextSeconds: 8,
       searchOpen: false,
-      soundEnabled: true,
+      soundEnabled: false,
       soundVolume: 50,
       animationsEnabled: true,
       animationDuration: 150,

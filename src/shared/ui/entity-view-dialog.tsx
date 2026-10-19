@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { Pencil, X } from "lucide-react";
+import { Pencil, Trash2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,6 +23,8 @@ interface EntityViewDialogProps {
   subtitle?: string;
   sections: EntityViewSection[];
   onEdit: () => void;
+  /** Mostra o ícone de lixeira ao lado do editar (exclusão). */
+  onTrash?: () => void;
   onOpenChange: (open: boolean) => void;
   /** Optional element floating over the sheet (e.g. "Voltar ao texto"). */
   floatingAction?: ReactNode;
@@ -38,6 +40,7 @@ export function EntityViewDialog({
   subtitle,
   sections,
   onEdit,
+  onTrash,
   onOpenChange,
   floatingAction,
 }: EntityViewDialogProps) {
@@ -55,6 +58,18 @@ export function EntityViewDialog({
           >
             <Pencil aria-hidden />
           </Button>
+          {onTrash ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              onClick={onTrash}
+              aria-label="Excluir"
+              title="Excluir"
+            >
+              <Trash2 aria-hidden />
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="ghost"

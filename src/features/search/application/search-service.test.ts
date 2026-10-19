@@ -217,4 +217,31 @@ describe("searchDocs", () => {
     expect(searchDocs(projectIndex, "coracao de fogo")).toHaveLength(1);
     expect(searchDocs(projectIndex, "fogo")[0]?.doc.type).toBe("project");
   });
+
+  it("matches partial words, including app section docs", () => {
+    const sectionIndex = createSearchIndex([
+      ...docs,
+      {
+        id: "section:/settings#editor",
+        type: "section",
+        title: "Editor",
+        excerpt: "Opção de configurações: Editor fonte tamanho texto",
+        projectId: "",
+        projectTitle: "",
+        href: "/settings#editor",
+        searchText: "configurações editor fonte tamanho texto",
+      },
+    ]);
+
+    expect(
+      searchDocs(sectionIndex, "configu").some(
+        (result) => result.doc.id === "section:/settings#editor",
+      ),
+    ).toBe(true);
+    expect(
+      searchDocs(sectionIndex, "edit").some(
+        (result) => result.doc.id === "section:/settings#editor",
+      ),
+    ).toBe(true);
+  });
 });

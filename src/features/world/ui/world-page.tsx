@@ -398,6 +398,12 @@ export function WorldPage() {
           setViewLocation(null);
           setLocationDialog({ open: true, location });
         }}
+        onTrash={() => {
+          if (!viewLocation) return;
+          const location = viewLocation;
+          setViewLocation(null);
+          void removeLocation(location);
+        }}
         onOpenChange={(open) => {
           if (!open) setViewLocation(null);
         }}
