@@ -87,4 +87,19 @@ describe("useUiStore", () => {
     useUiStore.getState().setMentionHighlightReadEnabled(true);
     expect(useUiStore.getState().mentionHighlightReadEnabled).toBe(true);
   });
+
+  it("seção 'Continuar escrevendo' é opt-in (padrão desligado)", () => {
+    expect(useUiStore.getState().homeSections).not.toContain("continue");
+  });
+
+  it("ativa e persiste a seção 'continue' na página inicial", () => {
+    localStorage.clear();
+    useUiStore.getState().setHomeSections([
+      "search",
+      "continue",
+      "projects",
+    ]);
+    expect(useUiStore.getState().homeSections).toContain("continue");
+    expect(localStorage.getItem("autor-ui")).toContain('"continue"');
+  });
 });

@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight, PenLine } from "lucide-react";
+import { ChevronLeft, ChevronRight, Eye, PenLine } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -47,6 +47,8 @@ export function ReadPage() {
   );
   const chapters = useMemo(() => liveChapters ?? [], [liveChapters]);
   const [chapterId, setChapterId] = useState<string | null>(null);
+  // Destaque ampliado dos trechos grifados (toggle visual, sem navegação).
+  const [grifarReveal, setGrifarReveal] = useState(false);
   const requestedChapterRef = useRef(true);
 
   // Keep a valid selection when the project or chapter list changes.
@@ -101,6 +103,14 @@ export function ReadPage() {
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-3xl">Ler</h1>
         <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            aria-pressed={grifarReveal}
+            onClick={() => setGrifarReveal((value) => !value)}
+          >
+            <Eye aria-hidden />
+            Revelar grifados
+          </Button>
           <Button
             variant="outline"
             disabled={!chapter}
@@ -172,11 +182,13 @@ export function ReadPage() {
                 {estimateReadingMinutes(chapter.wordCount)} min de leitura ·
                 atualizado {formatRelativeTime(chapter.updatedAt)}
               </p>
-              <ReadingDocument
-                content={chapter.content}
-                mentions={mentionEntities}
-                onOpenMention={openMention}
-              />
+              <div className={grifarReveal ? "grifar-reveal" : undefined}>
+                <ReadingDocument
+                  content={chapter.content}
+                  mentions={mentionEntities}
+                  onOpenMention={openMention}
+                />
+              </div>
             </article>
           ) : null}
         </>

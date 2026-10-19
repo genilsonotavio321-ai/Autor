@@ -6,6 +6,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
+import { BubbleMenu } from "@tiptap/react/menus";
 import StarterKit from "@tiptap/starter-kit";
 import {
   AlignCenter,
@@ -13,9 +14,11 @@ import {
   AlignLeft,
   AlignRight,
   Bold,
+  Eye,
   Heading1,
   Heading2,
   Heading3,
+  Highlighter,
   Italic,
   List,
   ListOrdered,
@@ -33,6 +36,7 @@ import {
   setDocumentAlignment,
   type TextAlignValue,
 } from "@/features/editor/domain/alignment";
+import { GrifarMark } from "@/features/editor/domain/grifar-mark";
 import { ReviewButton, ReviewDialog } from "@/features/editor/ui/review-dialog";
 import { SearchHighlight } from "@/features/editor/ui/search-highlight";
 import {
@@ -65,6 +69,15 @@ interface TiptapEditorProps {
   onUpdate?: (editor: Editor) => void;
 }
 
+// Identidades estáveis: o efeito interno do BubbleMenu (@tiptap/react/menus)
+// depende de shouldShow/options e dispara updateOptions no editor a cada nova
+// referência — props inline aqui re-renderizam → dispatch → loop infinito.
+const GRIFAR_BUBBLE_OPTIONS = { placement: "top" } as const;
+
+function grifarBubbleShouldShow({ editor }: { editor: Editor }): boolean {
+  return !editor.state.selection.empty;
+}
+
 export function TiptapEditor({
   content,
   placeholder = "Comece a escrever…",
@@ -83,6 +96,8 @@ export function TiptapEditor({
     (state) => state.mentionColorLocation,
   );
   const [reviewOpen, setReviewOpen] = useState(false);
+  // Destaque dos trechos grifados ("Revelar grifados" → classe grifar-reveal).
+  const [grifarReveal, setGrifarReveal] = useState(false);
   // Item 20: com o switch "Capítulo inteiro" ligado, o alinhamento vale para
   // todos os parágrafos; desligado, só para a seleção atual.
   const [alignmentScope, setAlignmentScope] = useState<
@@ -120,6 +135,7 @@ export function TiptapEditor({
         getSettings: () => mentionSettingsRef.current,
       }),
       SearchHighlight,
+      GrifarMark,
     ],
     content: content as Content,
     editorProps: {
@@ -165,6 +181,7 @@ export function TiptapEditor({
         ? {
             bold: current.isActive("bold"),
             italic: current.isActive("italic"),
+            grifar: current.isActive("grifar"),
             heading1: current.isActive("heading", { level: 1 }),
             heading2: current.isActive("heading", { level: 2 }),
             heading3: current.isActive("heading", { level: 3 }),
@@ -220,6 +237,15 @@ export function TiptapEditor({
     editor.chain().focus().setTextAlign(value).run();
   }
 
+  function toggleGrifar() {
+    if (!editor) return;
+    if (editor.isActive("grifar")) {
+      editor.chain().focus().unsetMark("grifar").run();
+    } else {
+      editor.chain().focus().setMark("grifar").run();
+    }
+  }
+
   return (
     <div className="rounded-lg border">
       <div
@@ -242,6 +268,14 @@ export function TiptapEditor({
             false,
             () => editor.chain().focus().toggleItalic().run(),
             <Italic aria-hidden className="size-4" />,
+          )}
+        {toolbar &&
+          toolButton(
+            "Grifar seleção",
+            toolbar.grifar,
+            false,
+            toggleGrifar,
+            <Highlighter aria-hidden className="size-4" />,
           )}
         <Separator orientation="vertical" className="mx-1 h-5" />
         {toolbar &&
@@ -343,6 +377,14 @@ export function TiptapEditor({
           </Label>
         </div>
         <Separator orientation="vertical" className="mx-1 h-5" />
+        {toolbar &&
+          toolButton(
+            "Revelar grifados",
+            grifarReveal,
+            false,
+            () => setGrifarReveal((value) => !value),
+            <Eye aria-hidden className="size-4" />,
+          )}
         <ReviewButton onClick={() => setReviewOpen(true)} />
         <Separator orientation="vertical" className="mx-1 h-5" />
         {toolbar &&
@@ -362,7 +404,27 @@ export function TiptapEditor({
             <Redo aria-hidden className="size-4" />,
           )}
       </div>
-      <EditorContent editor={editor} className="tiptap px-3" />
+      <BubbleMenu
+        editor={editor}
+        shouldShow={grifarBubbleShouldShow}
+        options={GRIFAR_BUBBLE_OPTIONS}
+        className="rounded-lg border bg-popover p-1 shadow-md"
+      >
+        <Button
+          type="button"
+          variant={editor.isActive("grifar") ? "secondary" : "ghost"}
+          size="sm"
+          className="h-8 gap-1.5"
+          aria-pressed={editor.isActive("grifar")}
+          onClick={toggleGrifar}
+        >
+          <Highlighter aria-hidden className="size-3.5" />
+          Grifar
+        </Button>
+      </BubbleMenu>
+      <div className={grifarReveal ? "grifar-reveal" : undefined}>
+        <EditorContent editor={editor} className="tiptap px-3" />
+      </div>
       <ReviewDialog
         editor={editor}
         open={reviewOpen}

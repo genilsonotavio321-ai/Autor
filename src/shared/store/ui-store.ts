@@ -29,7 +29,12 @@ export const PROJECTS_SORT_LABELS: Record<ProjectsSort, string> = {
 export type ProjectsLayout = "grid" | "list";
 
 /** Seções oferecidas na página inicial (item 10). */
-export type HomeSection = "search" | "projects" | "dashboard" | "data";
+export type HomeSection =
+  | "search"
+  | "projects"
+  | "dashboard"
+  | "data"
+  | "continue";
 
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;

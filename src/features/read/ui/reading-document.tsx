@@ -6,6 +6,8 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
 
+import { GrifarMark } from "@/features/editor/domain/grifar-mark";
+
 import type {
   MentionEntity,
   MentionType,
@@ -69,6 +71,7 @@ export function ReadingDocument({
       EntityHighlight.configure({
         getSettings: () => mentionSettingsRef.current,
       }),
+      GrifarMark,
     ],
     content: content as Content,
     editorProps: {

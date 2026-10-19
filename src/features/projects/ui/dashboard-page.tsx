@@ -1,9 +1,8 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowRight, Clock, Flame, PenLine, Plus, Target } from "lucide-react";
+import { Clock, Flame, Plus, Target } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -28,6 +27,8 @@ import { useUiStore } from "@/shared/store/ui-store";
 import { chapterRepository } from "../infra/dexie-chapter-repository";
 import { projectRepository } from "../infra/dexie-project-repository";
 
+import { ResumeWritingCard } from "./resume-writing-card";
+
 interface RecentProject {
   id: string;
   title: string;
@@ -45,7 +46,6 @@ interface DashboardData {
   streak: number;
   readingMinutes: number;
   log: WritingLog;
-  resume: { chapterId: string; projectTitle: string; chapterTitle: string } | null;
   byProject: RecentProject[];
 }
 
@@ -58,8 +58,6 @@ function formatDuration(minutes: number): string {
 
 export function DashboardPage() {
   const dailyWordGoal = useUiStore((state) => state.dailyWordGoal);
-  const resumeNoticeSeconds = useUiStore((state) => state.resumeNoticeSeconds);
-  const [resumeVisible, setResumeVisible] = useState(true);
 
   const stats = useLiveQuery(async (): Promise<DashboardData> => {
     const projects = await projectRepository.listActive();
@@ -67,8 +65,6 @@ export function DashboardPage() {
 
     let chapterCount = 0;
     let wordCount = 0;
-    let resume: DashboardData["resume"] = null;
-    let latestEdit = "";
     const recent: RecentProject[] = [];
 
     for (const project of projects) {
@@ -86,19 +82,6 @@ export function DashboardPage() {
         wordCount: projectWords,
         updatedAt: project.updatedAt,
       });
-
-      const lastEdit = project.lastEdit;
-      if (lastEdit && lastEdit.updatedAt > latestEdit) {
-        const chapter = await chapterRepository.getById(lastEdit.chapterId);
-        if (chapter && !chapter.deletedAt) {
-          latestEdit = lastEdit.updatedAt;
-          resume = {
-            chapterId: chapter.id,
-            projectTitle: project.title,
-            chapterTitle: chapter.title,
-          };
-        }
-      }
     }
 
     const summary = summariseWriting(log, new Date());
@@ -116,23 +99,9 @@ export function DashboardPage() {
       streak: summary.streak,
       readingMinutes: estimateReadingMinutes(wordCount),
       log,
-      resume,
       byProject,
     };
   }, []);
-
-  // Oculta o card "Continuar de onde parou" após o tempo configurado
-  // (0 = nunca exibir). O timer reinicia quando o capítulo-alvo muda.
-  const resumeKey = stats?.resume?.chapterId ?? null;
-  useEffect(() => {
-    setResumeVisible(true);
-    if (resumeKey === null || resumeNoticeSeconds <= 0) return;
-    const timer = setTimeout(
-      () => setResumeVisible(false),
-      resumeNoticeSeconds * 1000,
-    );
-    return () => clearTimeout(timer);
-  }, [resumeKey, resumeNoticeSeconds]);
 
   if (!stats) {
     return (
@@ -188,49 +157,7 @@ export function DashboardPage() {
         </Card>
       ) : null}
 
-      {stats.resume && resumeNoticeSeconds > 0 && resumeVisible ? (
-        <section aria-label="Continuar de onde parou">
-          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Continuar de onde parou
-          </h2>
-          <Card>
-            <CardHeader>
-              <CardTitle className="font-serif">
-                {stats.resume.chapterTitle}
-              </CardTitle>
-              <CardDescription>{stats.resume.projectTitle}</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <Button asChild>
-                <Link href={`/write/${stats.resume.chapterId}`}>
-                  <PenLine aria-hidden />
-                  Continuar escrevendo
-                  <ArrowRight aria-hidden />
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        </section>
-      ) : stats.resume ? null : (
-        <section aria-label="Continuar de onde parou">
-          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Continuar de onde parou
-          </h2>
-          <div className="rounded-xl border border-dashed p-8 text-center">
-            <p className="text-sm text-muted-foreground">
-              {stats.projectCount === 0
-                ? "Crie um projeto para começar a escrever."
-                : "Abra um capítulo para retomar de onde parou."}
-            </p>
-            <Button asChild className="mt-4">
-              <Link href="/projects">
-                <Plus aria-hidden />
-                Ir para projetos
-              </Link>
-            </Button>
-          </div>
-        </section>
-      )}
+      <ResumeWritingCard />
 
       <section
         aria-label="Estatísticas"

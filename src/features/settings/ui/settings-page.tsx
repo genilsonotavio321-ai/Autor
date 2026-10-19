@@ -35,6 +35,7 @@ const THEME_OPTIONS = [
 
 const HOME_SECTION_OPTIONS: { value: HomeSection; label: string }[] = [
   { value: "search", label: "Buscar" },
+  { value: "continue", label: "Continuar escrevendo" },
   { value: "projects", label: "Projetos" },
   { value: "dashboard", label: "Painel" },
   { value: "data", label: "Dados" },

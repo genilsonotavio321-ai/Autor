@@ -38,6 +38,7 @@ import { characterRepository } from "@/features/characters/infra/dexie-character
 
 import { locationRepository } from "../infra/dexie-location-repository";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
+import { MAX_LOCATION_DEPTH } from "../domain/repository";
 
 import { LocationDialog } from "./location-dialog";
 import { LoreDialog } from "./lore-dialog";
@@ -289,7 +290,7 @@ export function WorldPage() {
                       <LocationCard
                         key={location.id}
                         location={location}
-                        childrenLocations={locationChildren.get(location.id) ?? []}
+                        childrenByParent={locationChildren}
                         suppressClick={suppressClick}
                         onView={setViewLocation}
                         onRemove={removeLocation}
@@ -443,8 +444,8 @@ export function WorldPage() {
 
 interface LocationCardProps {
   location: Location;
-  /** Subfichas deste local (item 7). */
-  childrenLocations: Location[];
+  /** Filhos por ficha-mãe (item 7) — usados na renderização recursiva. */
+  childrenByParent: Map<EntityId, Location[]>;
   suppressClick: RefObject<boolean>;
   onView: (location: Location) => void;
   onRemove: (location: Location) => void;
@@ -453,7 +454,7 @@ interface LocationCardProps {
 
 function LocationCard({
   location,
-  childrenLocations,
+  childrenByParent,
   suppressClick,
   onView,
   onRemove,
@@ -543,25 +544,110 @@ function LocationCard({
       <span className="mt-2 text-xs text-muted-foreground">
         atualizado {formatRelativeTime(location.updatedAt)}
       </span>
-      {childrenLocations.length > 0 ? (
+      {childrenByParent.get(location.id) ? (
         <ul className="mt-3 flex flex-col gap-1 border-l-2 border-border pl-3">
-          {childrenLocations.map((child) => (
-            <li key={child.id}>
-              <button
-                type="button"
-                onPointerDown={(event) => event.stopPropagation()}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onView(child);
-                }}
-                className="flex w-full items-center gap-2 text-left text-sm hover:underline"
-              >
-                <span className="truncate">{child.name}</span>
-                <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-                  {child.type}
-                </span>
-              </button>
-            </li>
+          {(childrenByParent.get(location.id) ?? []).map((child) => (
+            <LocationChildRow
+              key={child.id}
+              location={child}
+              depth={2}
+              childrenByParent={childrenByParent}
+              suppressClick={suppressClick}
+              onView={onView}
+              onRemove={onRemove}
+              onNewChild={onNewChild}
+            />
+          ))}
+        </ul>
+      ) : null}
+    </li>
+  );
+}
+
+interface LocationChildRowProps {
+  location: Location;
+  /** Nível da ficha na hierarquia (raiz = 1). */
+  depth: number;
+  childrenByParent: Map<EntityId, Location[]>;
+  suppressClick: RefObject<boolean>;
+  onView: (location: Location) => void;
+  onRemove: (location: Location) => void;
+  onNewChild: (location: Location) => void;
+}
+
+/**
+ * Linha de subficha (display-only, sem dnd) com os filhos aninhados
+ * recursivamente até MAX_LOCATION_DEPTH. Cada pai tem um único parentId,
+ * então a travessia a partir de fichas de primeiro nível é uma árvore.
+ */
+function LocationChildRow({
+  location,
+  depth,
+  childrenByParent,
+  suppressClick,
+  onView,
+  onRemove,
+  onNewChild,
+}: LocationChildRowProps) {
+  const children = childrenByParent.get(location.id) ?? [];
+  const stop = (event: React.SyntheticEvent) => {
+    event.stopPropagation();
+  };
+
+  return (
+    <li>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onPointerDown={stop}
+          onClick={(event) => {
+            stop(event);
+            if (suppressClick.current) return;
+            onView(location);
+          }}
+          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm hover:underline"
+        >
+          <span className="truncate">{location.name}</span>
+          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
+            {location.type}
+          </span>
+        </button>
+        {depth < MAX_LOCATION_DEPTH ? (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="size-6"
+            aria-label={`Nova subficha em ${location.name}`}
+            title="Nova subficha"
+            onPointerDown={stop}
+            onClick={(event) => {
+              stop(event);
+              onNewChild(location);
+            }}
+          >
+            <Plus aria-hidden className="size-3.5" />
+          </Button>
+        ) : null}
+      </div>
+      {depth > MAX_LOCATION_DEPTH ? (
+        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
+          Acima do limite de {MAX_LOCATION_DEPTH} níveis — não é possível criar
+          novas subfichas aqui.
+        </p>
+      ) : null}
+      {children.length > 0 ? (
+        <ul className="mt-1 flex flex-col gap-1 border-l-2 border-border pl-3">
+          {children.map((child) => (
+            <LocationChildRow
+              key={child.id}
+              location={child}
+              depth={depth + 1}
+              childrenByParent={childrenByParent}
+              suppressClick={suppressClick}
+              onView={onView}
+              onRemove={onRemove}
+              onNewChild={onNewChild}
+            />
           ))}
         </ul>
       ) : null}

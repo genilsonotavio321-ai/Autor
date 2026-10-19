@@ -24,7 +24,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type { EntityId, Location } from "@/shared/types/database";
 
-import { LOCATION_TYPE_SUGGESTIONS } from "../domain/repository";
+import { LOCATION_TYPE_SUGGESTIONS, MAX_LOCATION_DEPTH, locationDepth, locationParentCandidates } from "../domain/repository";
 import { renameMentionsInProject } from "@/features/mentions/application/rename-mentions-service";
 import { locationRepository } from "../infra/dexie-location-repository";
 
@@ -61,25 +61,22 @@ export function LocationDialog({
     setParentId(location ? (location.parentId ?? null) : defaultParentId);
   }, [open, location, defaultParentId]);
 
-  // Evita ciclos: exclui a própria ficha e os descendentes dela.
-  const parentCandidates = (() => {
-    if (!location) return locations;
-    const blocked = new Set<EntityId>([location.id]);
-    let changed = true;
-    while (changed) {
-      changed = false;
-      for (const item of locations) {
-        if (item.parentId && blocked.has(item.parentId) && !blocked.has(item.id)) {
-          blocked.add(item.id);
-          changed = true;
-        }
-      }
-    }
-    return locations.filter((item) => !blocked.has(item.id));
-  })();
+  // Evita ciclos e ultrapassar o máximo de níveis na escolha do pai.
+  const parentCandidates = locationParentCandidates(location, locations);
 
   async function submit() {
     if (!projectId) return;
+    // Validação no limite de confiança: nunca gravar além de MAX_LOCATION_DEPTH.
+    if (parentId) {
+      const byId = new Map(locations.map((item) => [item.id, item]));
+      const parent = byId.get(parentId);
+      if (parent && locationDepth(parent, byId) >= MAX_LOCATION_DEPTH) {
+        toast.error(
+          `Hierarquia limitada a ${MAX_LOCATION_DEPTH} níveis: "${parent.name}" já está no nível máximo`,
+        );
+        return;
+      }
+    }
     setSaving(true);
     try {
       if (location) {

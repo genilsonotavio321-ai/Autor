@@ -11,10 +11,11 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { SearchTool } from "@/features/search/ui/search-tool";
+import { ResumeWritingCard } from "@/features/projects/ui/resume-writing-card";
 import { useUiStore, type HomeSection } from "@/shared/store/ui-store";
 
 const SECTION_CARDS: Record<
-  Exclude<HomeSection, "search">,
+  Exclude<HomeSection, "search" | "continue">,
   { title: string; description: string; href: string; icon: typeof Database }
 > = {
   projects: {
@@ -68,6 +69,8 @@ export function HomePage() {
         </Card>
       )}
 
+      {homeSections.includes("continue") && <ResumeWritingCard />}
+
       {cards.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
           {cards.map((section) => {
@@ -89,7 +92,9 @@ export function HomePage() {
         </div>
       )}
 
-      {!showSearch && cards.length === 0 && (
+      {!showSearch &&
+        cards.length === 0 &&
+        !homeSections.includes("continue") && (
         <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
           Nenhuma seção selecionada. Escolha as seções em Configurações →
           Página inicial.
