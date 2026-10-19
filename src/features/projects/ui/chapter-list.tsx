@@ -189,11 +189,13 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
             </span>
             {chapter.title}
           </Link>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-            <span>
-              {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
-              {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
-              {formatRelativeTime(chapter.updatedAt)}
+          <p className="text-xs text-muted-foreground">
+            {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
+            {estimateReadingMinutes(chapter.wordCount)} min
+          </p>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+            <span className="text-xs text-muted-foreground">
+              atualizado {formatRelativeTime(chapter.updatedAt)}
             </span>
             <Select
               value={chapter.status}
@@ -202,7 +204,7 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
               }
             >
               <SelectTrigger
-                className={`relative z-10 ml-auto h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
+                className={`relative z-10 h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
                 aria-label={`Status de ${chapter.title}`}
               >
                 <SelectValue />

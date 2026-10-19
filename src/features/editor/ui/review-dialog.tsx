@@ -207,7 +207,7 @@ export function ReviewDialog({ editor, open, onOpenChange }: ReviewDialogProps) 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[80vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="max-h-[80vh] overflow-x-hidden overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>Revisar</DialogTitle>
           <DialogDescription>
@@ -226,7 +226,7 @@ export function ReviewDialog({ editor, open, onOpenChange }: ReviewDialogProps) 
                 key={`${issue.type}-${issue.from}-${issue.to}`}
                 className="rounded-md border p-3 text-sm"
               >
-                <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                   <div className="min-w-0">
                     <span className="text-muted-foreground text-xs">
                       {TYPE_LABELS[issue.type]}
@@ -237,7 +237,7 @@ export function ReviewDialog({ editor, open, onOpenChange }: ReviewDialogProps) 
                       <span className="text-foreground">{issue.suggestion}</span>
                     </p>
                   </div>
-                  <div className="flex shrink-0 gap-1">
+                  <div className="flex shrink-0 flex-wrap justify-end gap-1">
                     <Button
                       type="button"
                       size="sm"
@@ -296,7 +296,7 @@ export function ReviewDialog({ editor, open, onOpenChange }: ReviewDialogProps) 
             <p className="text-muted-foreground text-xs" aria-live="polite">
               {matchLabel}
             </p>
-            <div className="flex items-center gap-1">
+            <div className="flex flex-wrap items-center justify-end gap-1">
               <Button
                 type="button"
                 size="icon"

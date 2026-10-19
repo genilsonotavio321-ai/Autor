@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -54,6 +54,16 @@ export function Kanban({ projectId, chapters }: KanbanProps) {
     }),
   );
 
+  // Touch drags also end with a click under the finger; without this guard a
+  // release would open the edit dialog and the on-screen keyboard.
+  const suppressClick = useRef(false);
+
+  function suppressNextClick() {
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -80,7 +90,14 @@ export function Kanban({ projectId, chapters }: KanbanProps) {
   return (
     <DndContext
       sensors={sensors}
-      onDragEnd={(event) => void handleDragEnd(event)}
+      onDragStart={() => {
+        suppressClick.current = true;
+      }}
+      onDragCancel={suppressNextClick}
+      onDragEnd={(event) => {
+        suppressNextClick();
+        void handleDragEnd(event);
+      }}
     >
       <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {SCENE_STATUSES.map((status) => (
@@ -91,6 +108,7 @@ export function Kanban({ projectId, chapters }: KanbanProps) {
             chapterTitle={(scene) =>
               chapterById.get(scene.chapterId)?.title ?? "?"
             }
+            suppressClick={suppressClick}
             onEdit={(scene) => setDialog({ open: true, scene })}
           />
         ))}
@@ -109,10 +127,17 @@ interface KanbanColumnProps {
   status: SceneStatus;
   scenes: Scene[];
   chapterTitle: (scene: Scene) => string;
+  suppressClick: RefObject<boolean>;
   onEdit: (scene: Scene) => void;
 }
 
-function KanbanColumn({ status, scenes, chapterTitle, onEdit }: KanbanColumnProps) {
+function KanbanColumn({
+  status,
+  scenes,
+  chapterTitle,
+  suppressClick,
+  onEdit,
+}: KanbanColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: `column-${status}`,
     data: { type: "column", status },
@@ -138,6 +163,7 @@ function KanbanColumn({ status, scenes, chapterTitle, onEdit }: KanbanColumnProp
               key={scene.id}
               scene={scene}
               chapterTitle={chapterTitle(scene)}
+              suppressClick={suppressClick}
               onEdit={() => onEdit(scene)}
             />
           ))}
@@ -155,10 +181,16 @@ function KanbanColumn({ status, scenes, chapterTitle, onEdit }: KanbanColumnProp
 interface KanbanCardProps {
   scene: Scene;
   chapterTitle: string;
+  suppressClick: RefObject<boolean>;
   onEdit: () => void;
 }
 
-function KanbanCard({ scene, chapterTitle, onEdit }: KanbanCardProps) {
+function KanbanCard({
+  scene,
+  chapterTitle,
+  suppressClick,
+  onEdit,
+}: KanbanCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: scene.id,
@@ -181,7 +213,7 @@ function KanbanCard({ scene, chapterTitle, onEdit }: KanbanCardProps) {
           {...attributes}
           {...listeners}
           aria-label={`Mover ${scene.title}`}
-          className="inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-6 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical aria-hidden />
         </button>
@@ -192,7 +224,10 @@ function KanbanCard({ scene, chapterTitle, onEdit }: KanbanCardProps) {
         <button
           type="button"
           aria-label={`Editar ${scene.title}`}
-          onClick={onEdit}
+          onClick={() => {
+            if (suppressClick.current) return;
+            onEdit();
+          }}
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <Pencil aria-hidden />

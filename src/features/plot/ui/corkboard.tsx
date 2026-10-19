@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -95,6 +95,16 @@ export function Corkboard({ projectId, chapters }: CorkboardProps) {
     }),
   );
 
+  // Touch drags also end with a click under the finger; without this guard a
+  // release would open the edit dialog and the on-screen keyboard.
+  const suppressClick = useRef(false);
+
+  function suppressNextClick() {
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -155,18 +165,26 @@ export function Corkboard({ projectId, chapters }: CorkboardProps) {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
-          onDragEnd={(event) => void handleDragEnd(event)}
+          onDragStart={() => {
+            suppressClick.current = true;
+          }}
+          onDragCancel={suppressNextClick}
+          onDragEnd={(event) => {
+            suppressNextClick();
+            void handleDragEnd(event);
+          }}
         >
           <SortableContext
             items={visible.map((scene) => scene.id)}
             strategy={rectSortingStrategy}
           >
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3 xl:grid-cols-4">
               {visible.map((scene) => (
                 <SceneCard
                   key={scene.id}
                   scene={scene}
                   chapterTitle={chapterById.get(scene.chapterId)?.title ?? "?"}
+                  suppressClick={suppressClick}
                   onEdit={() => setDialog({ open: true, scene })}
                 />
               ))}
@@ -189,10 +207,16 @@ export function Corkboard({ projectId, chapters }: CorkboardProps) {
 interface SceneCardProps {
   scene: Scene;
   chapterTitle: string;
+  suppressClick: RefObject<boolean>;
   onEdit: () => void;
 }
 
-function SceneCard({ scene, chapterTitle, onEdit }: SceneCardProps) {
+function SceneCard({
+  scene,
+  chapterTitle,
+  suppressClick,
+  onEdit,
+}: SceneCardProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: scene.id,
@@ -215,13 +239,16 @@ function SceneCard({ scene, chapterTitle, onEdit }: SceneCardProps) {
           {...attributes}
           {...listeners}
           aria-label={`Reordenar ${scene.title}`}
-          className="inline-flex size-6 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-6 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >
           <GripVertical aria-hidden />
         </button>
         <button
           type="button"
-          onClick={onEdit}
+          onClick={() => {
+            if (suppressClick.current) return;
+            onEdit();
+          }}
           className="min-w-0 flex-1 text-left font-medium hover:underline"
         >
           {scene.title}

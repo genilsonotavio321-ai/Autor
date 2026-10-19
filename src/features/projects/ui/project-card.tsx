@@ -106,7 +106,7 @@ export function ProjectRow({
   return (
     <Link
       href={`/projects/${project.id}`}
-      className="flex items-center gap-3 rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+      className="flex flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <div
         aria-hidden
@@ -131,7 +131,7 @@ export function ProjectRow({
       </span>
       <Badge
         variant={STATUS_VARIANT[project.status]}
-        className={STATUS_CLASS[project.status]}
+        className={`shrink-0 ${STATUS_CLASS[project.status]}`}
       >
         {PROJECT_STATUS_LABELS[project.status]}
       </Badge>

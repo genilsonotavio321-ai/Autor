@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -105,6 +105,16 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
     }
   }
 
+  // Touch drags also end with a click under the finger; without this guard a
+  // release would open the edit dialog and the on-screen keyboard.
+  const suppressClick = useRef(false);
+
+  function suppressNextClick() {
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -178,7 +188,14 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
         <DndContext
           sensors={sensors}
           collisionDetection={closestCorners}
-          onDragEnd={(event) => void handleDragEnd(event)}
+          onDragStart={() => {
+            suppressClick.current = true;
+          }}
+          onDragCancel={suppressNextClick}
+          onDragEnd={(event) => {
+            suppressNextClick();
+            void handleDragEnd(event);
+          }}
         >
           <SortableContext
             items={beats.map((beat) => beat.id)}
@@ -190,7 +207,9 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
                   key={beat.id}
                   beat={beat}
                   chapters={chapters}
+                  suppressClick={suppressClick}
                   onEdit={() => {
+                    if (suppressClick.current) return;
                     setEditing(beat);
                     setEditOpen(true);
                   }}
@@ -234,6 +253,7 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
 interface BeatRowProps {
   beat: PlotBeat;
   chapters: Chapter[];
+  suppressClick: RefObject<boolean>;
   onEdit: () => void;
   onLinkChapter: (value: string) => void;
   onRemove: () => void;
@@ -242,6 +262,7 @@ interface BeatRowProps {
 function BeatRow({
   beat,
   chapters,
+  suppressClick,
   onEdit,
   onLinkChapter,
   onRemove,
@@ -264,14 +285,17 @@ function BeatRow({
         {...attributes}
         {...listeners}
         aria-label={`Reordenar ${beat.title}`}
-        className="inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        className="inline-flex size-8 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
         <GripVertical aria-hidden />
       </button>
       <div className="min-w-0 flex-1">
         <button
           type="button"
-          onClick={onEdit}
+          onClick={() => {
+            if (suppressClick.current) return;
+            onEdit();
+          }}
           className="block truncate text-left font-medium hover:underline"
         >
           {beat.title}
@@ -350,6 +374,7 @@ function BeatEditDialog({ open, onOpenChange, beat }: BeatEditDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-lg"
+        onOpenAutoFocus={(event) => event.preventDefault()}
         onKeyDown={(event) => handleDialogEnter(event, () => void save())}
       >
         <DialogHeader>

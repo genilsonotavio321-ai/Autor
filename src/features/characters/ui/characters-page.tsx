@@ -185,7 +185,7 @@ export function CharactersPage() {
     <div className="grid gap-6">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-serif text-3xl">Personagens</h1>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <ProjectPicker />
           <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
             <Plus aria-hidden />
@@ -263,7 +263,7 @@ export function CharactersPage() {
             items={visible.map((character) => character.id)}
             strategy={rectSortingStrategy}
           >
-            <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
               {visible.map((character) => (
                 <CharacterCard
                   key={character.id}
@@ -358,14 +358,14 @@ function CharacterCard({
           openView();
         }
       }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:p-4 ${
         isDragging ? "opacity-60" : ""
       }`}
     >
-      <div className="mb-3 flex items-start gap-3">
+      <div className="mb-2 flex items-start gap-3">
         <span
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 font-serif text-lg text-primary"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/10 font-serif text-lg text-primary sm:size-10"
         >
           {character.name.charAt(0).toUpperCase()}
         </span>
@@ -409,9 +409,12 @@ function CharacterCard({
       )}
       <div className="flex flex-wrap items-center gap-1">
         {character.traits.slice(0, 3).map((trait) => (
-          <Badge key={trait} variant="outline">
+          <span
+            key={trait}
+            className="inline-block max-w-full truncate rounded-md border px-2 py-0.5 text-xs text-muted-foreground"
+          >
             {trait}
-          </Badge>
+          </span>
         ))}
         {character.traits.length > 3 ? (
           <span className="text-xs text-muted-foreground">
@@ -424,14 +427,14 @@ function CharacterCard({
           {characterTags.map((tag) => (
             <span
               key={tag.id}
-              className="inline-flex items-center gap-1 text-xs text-muted-foreground"
+              className="inline-flex max-w-full items-center gap-1 text-xs text-muted-foreground"
             >
               <span
                 aria-hidden
-                className="size-2.5 rounded-full"
+                className="size-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: resolveTagColor(tag.color) }}
               />
-              {tag.name}
+              <span className="truncate">{tag.name}</span>
             </span>
           ))}
         </div>

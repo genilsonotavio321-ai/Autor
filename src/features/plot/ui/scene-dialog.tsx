@@ -118,6 +118,7 @@ export function SceneDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         className="sm:max-w-lg"
+        onOpenAutoFocus={(event) => event.preventDefault()}
         onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
       >
         <DialogHeader>

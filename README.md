@@ -109,6 +109,18 @@ src/
 - Ficha in-place no editor: Ctrl/Cmd+clique em um nome destacado abre a ficha sobre o texto, com o pop-up "Voltar ao texto" que devolve o cursor e a rolagem ao ponto exato de escrita; comportamento configurável em Configurações (`/settings`, cartão "Destaques no texto").
 - Aba **Dados** (antes "Exportar"): exportar o projeto em Markdown, Word ou PDF (Memória), importar capítulos `.md`/`.docx`, restaurar um backup completo `.json` (Restaurar dados) e baixar o backup dos dados.
 
+## Recursos (Fase 9 — Celular e PDF)
+
+- Correção do autosave do título: renomear um capítulo não perde mais a última letra digitada (o agendamento da salva agora recebe o valor fresco do campo).
+- Cards de personagem compactos no celular: chips de traços e tags truncam em vez de estourar a tela, cabeçalho com "Novo personagem" quebra linha e o avatar/box ficam menores (390×844 sem rolagem horizontal).
+- Diálogo "Revisar" adaptado ao celular: ocorrências empilham (chega + botões em linha) e a fileira de ações quebra linha; `overflow-x-hidden` evita sair da tela.
+- Espaçamento entre cards aumentado no celular em personagens, notas, mundo e corkboard (`gap-4` no celular, `gap-3` no desktop).
+- Linha de capítulo reorganizada em três faixas (título / contagem de palavras / rodapé "atualizado há X" + seletor de status), dentro e fora do modo outline.
+- Lista de projetos em modo "empilhada" não estoura mais: `overflow-hidden`, `min-w-0`, `flex-wrap` e badge encolhível.
+- Itens arrastáveis (estrutura, beats, corkboard, kanban): `touch-none` no pega de arraste e guard contra o clique-fantasma — soltar o arraste não abre o diálogo de edição nem o teclado, mas o toque simples ainda abre. Diálogos de cena/beat abrem sem foco automático (sem teclado no celular).
+- PDF com **negrito, itálico e negrito-itálico** reais (runs estilizados → fontes Times-Roman/Bold/Italic/BoldItalic) e alinhamento (esquerda, centro, direita, justificado) calculado linha a linha — justificado estica os espaços das linhas não finais.
+- Testes E2E novos: `e2e/fase9.spec.ts` (renomear capítulo, arraste na estrutura, PDF com marcas e alinhamento) e `e2e/mobile.spec.ts` (nenhuma tela estoura 390px; diálogo Revisar no celular).
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).

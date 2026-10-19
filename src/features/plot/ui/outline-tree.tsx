@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -51,7 +51,7 @@ function dragHandleProps(
     ...listeners,
     "aria-label": label,
     className:
-      "inline-flex size-8 shrink-0 cursor-grab items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+      "inline-flex size-8 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
   } as const;
 }
 
@@ -92,6 +92,16 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
   );
 
   const draggedOverId = useRef<EntityId | null>(null);
+  // On touch devices a drag also ends with a click on the element under the
+  // finger: without this guard, releasing a card would open the edit dialog
+  // (and the on-screen keyboard) by accident.
+  const suppressClick = useRef(false);
+
+  function suppressNextClick() {
+    window.setTimeout(() => {
+      suppressClick.current = false;
+    }, 0);
+  }
 
   // Track the current collision target on every move: keyboard drops can
   // fire `onDragEnd` with a null `over`, so we fall back to this.
@@ -177,7 +187,14 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
         collisionDetection={closestCorners}
         accessibility={{ announcements }}
         onDragOver={handleDragOver}
-        onDragEnd={(event) => void handleDragEnd(event)}
+        onDragStart={() => {
+          suppressClick.current = true;
+        }}
+        onDragCancel={suppressNextClick}
+        onDragEnd={(event) => {
+          suppressNextClick();
+          void handleDragEnd(event);
+        }}
       >
         <SortableContext
           items={chapters.map((chapter) => chapter.id)}
@@ -189,10 +206,12 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
                 key={chapter.id}
                 chapter={chapter}
                 scenes={scenesByChapter.get(chapter.id) ?? []}
+                suppressClick={suppressClick}
                 onAddScene={() => void addScene(chapter.id)}
-                onEditScene={(scene) =>
-                  setDialog({ open: true, scene, chapterId: chapter.id })
-                }
+                onEditScene={(scene) => {
+                  if (suppressClick.current) return;
+                  setDialog({ open: true, scene, chapterId: chapter.id });
+                }}
               />
             ))}
           </ul>
@@ -223,6 +242,7 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
 interface ChapterRowProps {
   chapter: Chapter;
   scenes: Scene[];
+  suppressClick: RefObject<boolean>;
   onAddScene: () => void;
   onEditScene: (scene: Scene) => void;
 }
@@ -230,6 +250,7 @@ interface ChapterRowProps {
 function ChapterRow({
   chapter,
   scenes,
+  suppressClick,
   onAddScene,
   onEditScene,
 }: ChapterRowProps) {
@@ -270,6 +291,9 @@ function ChapterRow({
         </span>
         <Link
           href={`/write/${chapter.id}`}
+          onClick={(event) => {
+            if (suppressClick.current) event.preventDefault();
+          }}
           className="min-w-0 flex-1 truncate font-medium hover:underline"
         >
           {chapter.title}
@@ -304,6 +328,7 @@ function ChapterRow({
               <SceneRow
                 key={scene.id}
                 scene={scene}
+                suppressClick={suppressClick}
                 onEdit={() => onEditScene(scene)}
               />
             ))}
@@ -316,10 +341,11 @@ function ChapterRow({
 
 interface SceneRowProps {
   scene: Scene;
+  suppressClick: RefObject<boolean>;
   onEdit: () => void;
 }
 
-function SceneRow({ scene, onEdit }: SceneRowProps) {
+function SceneRow({ scene, suppressClick, onEdit }: SceneRowProps) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({
       id: scene.id,
@@ -352,7 +378,10 @@ function SceneRow({ scene, onEdit }: SceneRowProps) {
         variant="ghost"
         size="icon"
         aria-label={`Editar ${scene.title}`}
-        onClick={onEdit}
+        onClick={() => {
+          if (suppressClick.current) return;
+          onEdit();
+        }}
       >
         <Pencil aria-hidden />
       </Button>

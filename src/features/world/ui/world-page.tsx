@@ -261,7 +261,7 @@ export function WorldPage() {
                   items={locations.map((location) => location.id)}
                   strategy={rectSortingStrategy}
                 >
-                  <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                  <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
                     {locations.map((location) => (
                       <LocationCard
                         key={location.id}
@@ -302,7 +302,7 @@ export function WorldPage() {
                   items={loreEntries.map((entry) => entry.id)}
                   strategy={rectSortingStrategy}
                 >
-                  <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
                     {loreEntries.map((entry) => (
                       <LoreCard
                         key={entry.id}

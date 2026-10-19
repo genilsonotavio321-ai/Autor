@@ -97,3 +97,78 @@ describe("buildPdf — citações e listas (item 11)", () => {
     expect(pdf).toContain("(- ItemB) Tj");
   });
 });
+
+/** Fonts used for the body text (12pt) — the chapter title uses 20pt. */
+function bodyFonts(pdf: string): Set<string> {
+  return new Set([...pdf.matchAll(/\/(\w+) 12 Tf/g)].map((match) => match[1]!));
+}
+
+function styledParagraph() {
+  return {
+    type: "paragraph",
+    content: [
+      { type: "text", text: "Normal " },
+      { type: "text", text: "Negrito", marks: [{ type: "bold" }] },
+      { type: "text", text: " e " },
+      { type: "text", text: "Italico", marks: [{ type: "italic" }] },
+      { type: "text", text: " fim." },
+    ],
+  };
+}
+
+describe("buildPdf — negrito e itálico", () => {
+  it("usa uma fonte diferente para os trechos marcados", async () => {
+    const plain = await stream(
+      doc([paragraph("Normal Negrito e Italico fim.")]),
+    );
+    const styled = await stream(doc([styledParagraph()]));
+
+    // Sem marcações o corpo usa uma única fonte; com marcações, três.
+    expect(bodyFonts(plain).size).toBe(1);
+    expect(bodyFonts(styled).size).toBe(3);
+    expect(styled).toContain("(Negrito) Tj");
+    expect(styled).toContain("(Italico) Tj");
+  });
+
+  it("combina negrito e itálico num mesmo trecho", async () => {
+    const plain = await stream(doc([paragraph("Texto")]));
+    const both = await stream(
+      doc([
+        {
+          type: "paragraph",
+          content: [
+            { type: "text", text: "Antes " },
+            {
+              type: "text",
+              text: "Ambos",
+              marks: [{ type: "bold" }, { type: "italic" }],
+            },
+          ],
+        },
+      ]),
+    );
+
+    const extra = [...bodyFonts(both)].filter(
+      (font) => !bodyFonts(plain).has(font),
+    );
+    expect(extra).toHaveLength(1);
+    expect(both).toContain("(Ambos) Tj");
+  });
+});
+
+describe("buildPdf — justificado", () => {
+  it("espalha as palavras das linhas não finais", async () => {
+    const long =
+      "Alinhamento justificado precisa distribuir o espaco entre as palavras " +
+      "de cada linha que nao e a ultima, empurrando a margem direita para o limite.";
+    const left = await stream(doc([paragraph(long, "left")]));
+    const justify = await stream(doc([paragraph(long, "justify")]));
+
+    const texts = (pdf: string) => [...pdf.matchAll(/\) Tj/g)].length;
+
+    // À esquerda cada linha sai como um único operador; justificada sai
+    // palavra por palavra (os espaços extra são calculados entre elas).
+    expect(texts(justify)).toBeGreaterThan(texts(left));
+    expect(justify).not.toBe(left);
+  });
+});

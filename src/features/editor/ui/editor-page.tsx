@@ -214,21 +214,27 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     [],
   );
 
-  const scheduleSave = useCallback(() => {
-    const editor = editorRef.current;
-    if (!chapter || !editor) return;
-    const words = editor.storage.characterCount.words() as number;
-    setWordCount(words);
-    save.schedule({
-      chapterId,
-      projectId: chapter.projectId,
-      title,
-      content: editor.getJSON() as unknown as Json,
-      wordCount: words,
-      cursorOffset: editor.state.selection.anchor,
-      scrollY: window.scrollY,
-    });
-  }, [chapter, chapterId, save, title]);
+  const scheduleSave = useCallback(
+    (nextTitle?: string) => {
+      const editor = editorRef.current;
+      if (!chapter || !editor) return;
+      const words = editor.storage.characterCount.words() as number;
+      setWordCount(words);
+      save.schedule({
+        chapterId,
+        projectId: chapter.projectId,
+        // The title input hands its fresh value over: without it the debounced
+        // payload would carry the previous render's title and the last typed
+        // character would be dropped by the autosave.
+        title: nextTitle ?? title,
+        content: editor.getJSON() as unknown as Json,
+        wordCount: words,
+        cursorOffset: editor.state.selection.anchor,
+        scrollY: window.scrollY,
+      });
+    },
+    [chapter, chapterId, save, title],
+  );
 
   const handleEditorReady = useCallback(
     (editor: Editor) => {
@@ -475,7 +481,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           value={title}
           onChange={(event) => {
             setTitle(event.target.value);
-            scheduleSave();
+            scheduleSave(event.target.value);
           }}
           className="h-11 min-w-0 flex-1 font-serif text-xl font-semibold sm:text-2xl"
           aria-label="Título do capítulo"
@@ -562,7 +568,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           mentions={mentionEntities}
           onOpenMention={openMention}
           onReady={handleEditorReady}
-          onUpdate={scheduleSave}
+          onUpdate={() => scheduleSave()}
         />
       </div>
 
