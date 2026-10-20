@@ -28,6 +28,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
+import { playUiSound } from "@/shared/lib/sound";
 import type { Chapter, EntityId, Scene } from "@/shared/types/database";
 
 import { computeChapterOrder, computeSceneMove } from "../domain/ordering";
@@ -266,6 +267,7 @@ function ChapterRow({
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
+    playUiSound("delete");
     toast(`"${chapter.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

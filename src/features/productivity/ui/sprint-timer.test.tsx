@@ -12,6 +12,7 @@ vi.mock("../infra/writing-log-repository", () => ({
 
 vi.mock("@/shared/lib/sound", () => ({
   playSound: vi.fn(),
+  playUiSound: vi.fn(),
 }));
 
 function clock(): string {

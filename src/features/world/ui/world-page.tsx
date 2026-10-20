@@ -29,6 +29,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
@@ -208,6 +209,7 @@ export function WorldPage() {
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);
+    playUiSound("delete");
     toast(`"${location.name}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -220,6 +222,7 @@ export function WorldPage() {
 
   async function removeLore(entry: LoreEntry) {
     await loreEntryRepository.softDelete(entry.id);
+    playUiSound("delete");
     toast(`"${entry.title}" movida para a lixeira`, {
       action: {
         label: "Desfazer",

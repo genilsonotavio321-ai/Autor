@@ -20,6 +20,7 @@ import { useSelectedProject } from "@/features/projects/application/use-selected
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
+import { playUiSound } from "@/shared/lib/sound";
 import {
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
@@ -68,6 +69,13 @@ const SHORTCUTS = [
     action: "Reordenar capítulos, cenas, beats e cards (teclado)",
   },
 ];
+
+/** Toca o som de toggle e aplica a mudança do switch. */
+const withToggle =
+  (apply: (checked: boolean) => void) => (checked: boolean) => {
+    playUiSound("toggle");
+    apply(checked);
+  };
 
 export function SettingsPage() {
   const { projectId } = useSelectedProject();
@@ -143,6 +151,12 @@ export function SettingsPage() {
   );
   const setAnimationDuration = useUiStore(
     (state) => state.setAnimationDuration,
+  );
+  const pageTransitionEnabled = useUiStore(
+    (state) => state.pageTransitionEnabled,
+  );
+  const setPageTransitionEnabled = useUiStore(
+    (state) => state.setPageTransitionEnabled,
   );
   const searchGlobalEnabled = useUiStore(
     (state) => state.searchGlobalEnabled,
@@ -251,7 +265,7 @@ export function SettingsPage() {
             <Switch
               id="sound-enabled"
               checked={soundEnabled}
-              onCheckedChange={setSoundEnabled}
+              onCheckedChange={withToggle(setSoundEnabled)}
             />
           </div>
           <div className="max-w-xs">
@@ -282,7 +296,9 @@ export function SettingsPage() {
             <Switch
               id="animations-disabled"
               checked={!animationsEnabled}
-              onCheckedChange={(checked) => setAnimationsEnabled(!checked)}
+              onCheckedChange={withToggle((checked) =>
+                setAnimationsEnabled(!checked),
+              )}
             />
           </div>
           <div className="max-w-xs">
@@ -295,6 +311,16 @@ export function SettingsPage() {
               max={1000}
               step={50}
               onValueChange={setAnimationDuration}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="page-transition-enabled">
+              Transição entre seções
+            </Label>
+            <Switch
+              id="page-transition-enabled"
+              checked={pageTransitionEnabled}
+              onCheckedChange={withToggle(setPageTransitionEnabled)}
             />
           </div>
         </CardContent>
@@ -358,7 +384,7 @@ export function SettingsPage() {
             <Switch
               id="mention-highlight"
               checked={mentionHighlightEnabled}
-              onCheckedChange={setMentionHighlightEnabled}
+              onCheckedChange={withToggle(setMentionHighlightEnabled)}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -368,7 +394,7 @@ export function SettingsPage() {
             <Switch
               id="mention-highlight-read"
               checked={mentionHighlightReadEnabled}
-              onCheckedChange={setMentionHighlightReadEnabled}
+              onCheckedChange={withToggle(setMentionHighlightReadEnabled)}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -376,7 +402,7 @@ export function SettingsPage() {
             <Switch
               id="read-grifar"
               checked={readGrifarEnabled}
-              onCheckedChange={setReadGrifarEnabled}
+              onCheckedChange={withToggle(setReadGrifarEnabled)}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -386,7 +412,7 @@ export function SettingsPage() {
             <Switch
               id="mention-confirm-open"
               checked={mentionConfirmOpen}
-              onCheckedChange={setMentionConfirmOpen}
+              onCheckedChange={withToggle(setMentionConfirmOpen)}
             />
           </div>
           <div className="flex items-center justify-between gap-4">
@@ -396,7 +422,7 @@ export function SettingsPage() {
             <Switch
               id="mention-back-to-text"
               checked={mentionBackToTextEnabled}
-              onCheckedChange={setMentionBackToTextEnabled}
+              onCheckedChange={withToggle(setMentionBackToTextEnabled)}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -515,7 +541,7 @@ export function SettingsPage() {
             <Switch
               id="search-global"
               checked={searchGlobalEnabled}
-              onCheckedChange={setSearchGlobalEnabled}
+              onCheckedChange={withToggle(setSearchGlobalEnabled)}
             />
           </div>
         </CardContent>
@@ -541,7 +567,9 @@ export function SettingsPage() {
               <Switch
                 id={`home-section-${option.value}`}
                 checked={homeSections.includes(option.value)}
-                onCheckedChange={() => toggleHomeSection(option.value)}
+                onCheckedChange={withToggle(() =>
+                  toggleHomeSection(option.value),
+                )}
               />
             </div>
           ))}

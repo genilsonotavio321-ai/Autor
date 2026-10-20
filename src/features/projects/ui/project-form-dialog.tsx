@@ -1,12 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
+import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -71,6 +72,14 @@ export function ProjectFormDialog({
     if (open) form.reset(defaultValues(project));
   }, [open, project, form]);
 
+  // Som de abrir/fechar via transição de estado (externa ao Radix).
+  const prevOpen = useRef(open);
+  useEffect(() => {
+    if (prevOpen.current === open) return;
+    prevOpen.current = open;
+    playUiSound(open ? "open" : "close");
+  }, [open]);
+
   const isEditing = Boolean(project);
 
   const submit = async (values: ProjectFormValues) => {
@@ -78,6 +87,7 @@ export function ProjectFormDialog({
       const saved = project
         ? await updateProject(project.id, values)
         : await createProject(values);
+      playUiSound(project ? "save" : "create");
       toast.success(isEditing ? "Projeto atualizado" : "Projeto criado");
       onOpenChange(false);
       onSaved?.(saved);

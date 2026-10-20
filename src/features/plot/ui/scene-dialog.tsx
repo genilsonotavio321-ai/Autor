@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
+import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -59,6 +60,14 @@ export function SceneDialog({
   const [chapterId, setChapterId] = useState<EntityId>("");
   const [saving, setSaving] = useState(false);
 
+  // Som de abrir/fechar via transição de estado (externa ao Radix).
+  const prevOpen = useRef(open);
+  useEffect(() => {
+    if (prevOpen.current === open) return;
+    prevOpen.current = open;
+    playUiSound(open ? "open" : "close");
+  }, [open]);
+
   useEffect(() => {
     if (!open) return;
     setTitle(scene?.title ?? "");
@@ -103,6 +112,7 @@ export function SceneDialog({
   async function remove() {
     if (!scene) return;
     await sceneRepository.softDelete(scene.id);
+    playUiSound("delete");
     toast(`"${scene.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

@@ -35,6 +35,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
@@ -140,6 +141,7 @@ export function CharactersPage() {
 
   async function remove(character: Character) {
     await characterRepository.softDelete(character.id);
+    playUiSound("delete");
     toast(`"${character.name}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

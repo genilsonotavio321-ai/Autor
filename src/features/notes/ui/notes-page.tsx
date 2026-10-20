@@ -72,6 +72,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
+import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId, Note } from "@/shared/types/database";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
@@ -224,6 +225,7 @@ export function NotesPage() {
 
   async function remove(note: Note) {
     await noteRepository.softDelete(note.id);
+    playUiSound("delete");
     toast(`"${note.title}" movida para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -238,6 +240,7 @@ export function NotesPage() {
     if (!projectId) return;
     const ids = await noteRepository.softDeleteByProject(projectId);
     if (ids.length === 0) return;
+    playUiSound("delete");
     toast(
       `${ids.length} ${ids.length === 1 ? "nota movida" : "notas movidas"} para a lixeira`,
       {

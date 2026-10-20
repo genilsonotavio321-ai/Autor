@@ -39,6 +39,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { playUiSound } from "@/shared/lib/sound";
 import type { Chapter, ChapterStatus } from "@/shared/types/database";
 
 import { computeChapterOrder } from "@/features/plot/domain/ordering";
@@ -153,6 +154,7 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
+    playUiSound("delete");
     toast(`"${chapter.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
+import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -63,6 +64,7 @@ export function TimelinePage() {
 
   async function remove(event: TimelineEvent) {
     await timelineEventRepository.softDelete(event.id);
+    playUiSound("delete");
     toast(`"${event.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

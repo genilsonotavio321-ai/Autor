@@ -23,6 +23,7 @@ import { plotBeatRepository } from "@/features/plot/infra/dexie-plot-beat-reposi
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
 import { timelineEventRepository } from "@/features/plot/infra/dexie-timeline-event-repository";
 import { formatDateTime } from "@/shared/lib/dates";
+import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId } from "@/shared/types/database";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
 import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
@@ -166,10 +167,12 @@ export function TrashPage() {
       purgeCascades: true,
       onRestore: async (item: TrashItem) => {
         await restoreProject(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("project", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -179,10 +182,12 @@ export function TrashPage() {
       items: (deletedNotes ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await noteRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("note", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -196,10 +201,12 @@ export function TrashPage() {
       })),
       onRestore: async (item: TrashItem) => {
         await characterRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("character", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -213,10 +220,12 @@ export function TrashPage() {
       })),
       onRestore: async (item: TrashItem) => {
         await locationRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("location", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -226,10 +235,12 @@ export function TrashPage() {
       items: (deletedLore ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await loreEntryRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("lore", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -240,10 +251,12 @@ export function TrashPage() {
       purgeCascades: true,
       onRestore: async (item: TrashItem) => {
         await chapterRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("chapter", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -262,15 +275,18 @@ export function TrashPage() {
             : undefined;
         if (chapter?.deletedAt) {
           await chapterRepository.restore(chapter.id);
+          playUiSound("restore");
           toast.success(
             `"${item.title}" restaurada com o capítulo "${chapter.title}"`,
           );
           return;
         }
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("scene", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -280,10 +296,12 @@ export function TrashPage() {
       items: (deletedEvents ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await timelineEventRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("event", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -293,10 +311,12 @@ export function TrashPage() {
       items: (deletedBeats ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await plotBeatRepository.restore(item.id);
+        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("beat", item.id);
+        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -351,7 +371,12 @@ export function TrashPage() {
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void handleEmptyTrash()}>
+                <AlertDialogAction
+                  onClick={() => {
+                    playUiSound("warn");
+                    void handleEmptyTrash();
+                  }}
+                >
                   Esvaziar
                 </AlertDialogAction>
               </AlertDialogFooter>

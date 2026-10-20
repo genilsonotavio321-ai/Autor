@@ -98,6 +98,8 @@ interface UiState {
   themeVariantDark: ThemeVariantDark;
   /** Duração global das animações em ms (item 9). */
   animationDuration: number;
+  /** Transição de entrada ao trocar de seção/página. */
+  pageTransitionEnabled: boolean;
   /** Busca inclui seções/opções do app (item 3). */
   searchGlobalEnabled: boolean;
   /** Seções da página inicial (item 4). */
@@ -136,6 +138,7 @@ interface UiState {
   setThemeVariantLight: (variant: ThemeVariantLight) => void;
   setThemeVariantDark: (variant: ThemeVariantDark) => void;
   setAnimationDuration: (duration: number) => void;
+  setPageTransitionEnabled: (enabled: boolean) => void;
   setSearchGlobalEnabled: (enabled: boolean) => void;
   setHomeSections: (sections: HomeSection[]) => void;
 }
@@ -172,6 +175,7 @@ export const useUiStore = create<UiState>()(
       soundVolume: 50,
       animationsEnabled: true,
       animationDuration: 150,
+      pageTransitionEnabled: true,
       themeVariantLight: "padrao",
       themeVariantDark: "padrao",
       searchGlobalEnabled: true,
@@ -261,6 +265,8 @@ export const useUiStore = create<UiState>()(
       setThemeVariantDark: (variant) => set({ themeVariantDark: variant }),
       setAnimationDuration: (duration) =>
         set({ animationDuration: clamp(duration, 50, 1000) }),
+      setPageTransitionEnabled: (enabled) =>
+        set({ pageTransitionEnabled: enabled }),
       setSearchGlobalEnabled: (enabled) =>
         set({ searchGlobalEnabled: enabled }),
       setHomeSections: (sections) => set({ homeSections: sections }),
@@ -290,6 +296,7 @@ export const useUiStore = create<UiState>()(
         soundVolume: state.soundVolume,
         animationsEnabled: state.animationsEnabled,
         animationDuration: state.animationDuration,
+        pageTransitionEnabled: state.pageTransitionEnabled,
         themeVariantLight: state.themeVariantLight,
         themeVariantDark: state.themeVariantDark,
         searchGlobalEnabled: state.searchGlobalEnabled,

@@ -10,18 +10,16 @@ import { Topbar } from "@/components/layout/topbar";
 import { SearchDialog } from "@/features/search/ui/search-dialog";
 import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { SprintTicker } from "@/features/productivity/ui/sprint-ticker";
-import { playSound } from "@/shared/lib/sound";
+import { playClickSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 // Efeitos sonoros: clique em qualquer botão/link toca o som "click" (item 6).
 function useClickSound() {
   useEffect(() => {
     const handleClick = (event: MouseEvent) => {
-      const { soundEnabled, soundVolume } = useUiStore.getState();
-      if (!soundEnabled || soundVolume === 0) return;
       const target = event.target as Element | null;
       if (!target?.closest('button, [role="button"], a[href]')) return;
-      playSound("click", soundVolume);
+      playClickSound();
     };
     document.addEventListener("click", handleClick);
     return () => document.removeEventListener("click", handleClick);
@@ -61,6 +59,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const sprintRunning = useUiStore((state) => state.sprintRunning);
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const pageTransitionEnabled = useUiStore(
+    (state) => state.pageTransitionEnabled,
+  );
 
   useClickSound();
   useThemeVariantAttribute();
@@ -86,6 +87,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const motionStyle = <MotionStyle />;
   const searchDialog = <SearchDialog />;
   const sprintTicker = <SprintTicker />;
+  // key={pathname} remonta o <main> a cada navegação, disparando a animação
+  // de entrada. Duração já segue o slider global via MotionStyle.
+  const pageMotionClass = pageTransitionEnabled
+    ? "animate-in fade-in-0 slide-in-from-bottom-1"
+    : "";
 
   // Focus mode: hide sidebar/topbar/palette so only the writing surface shows.
   if (focusMode) {
@@ -105,7 +111,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SprintTimer compact />
           </div>
         ) : null}
-        <main id="main-content" className="min-h-svh p-4 md:p-6">
+        <main
+          id="main-content"
+          key={pathname}
+          className={`min-h-svh p-4 md:p-6 ${pageMotionClass}`}
+        >
           {children}
         </main>
       </div>
@@ -122,7 +132,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar onMenuClick={handleMenuClick} />
-        <main id="main-content" className="flex-1 overflow-y-auto p-4 md:p-6">
+        <main
+          id="main-content"
+          key={pathname}
+          className={`flex-1 overflow-y-auto p-4 md:p-6 ${pageMotionClass}`}
+        >
           {children}
         </main>
       </div>

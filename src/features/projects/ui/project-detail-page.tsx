@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { playUiSound } from "@/shared/lib/sound";
 
 import { PROJECT_STATUS_LABELS } from "../domain/repository";
 import { chapterRepository } from "../infra/dexie-chapter-repository";
@@ -76,6 +77,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
 
   const remove = async () => {
     await projectRepository.softDelete(project.id);
+    playUiSound("delete");
     toast(`"${project.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

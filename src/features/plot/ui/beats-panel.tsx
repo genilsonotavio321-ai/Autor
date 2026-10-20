@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import { applyBeatTemplate } from "@/features/plot/application/plot-service";
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
+import { playUiSound } from "@/shared/lib/sound";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -140,6 +141,7 @@ export function BeatsPanel({ projectId, chapters }: BeatsPanelProps) {
 
   async function remove(beat: PlotBeat) {
     await plotBeatRepository.softDelete(beat.id);
+    playUiSound("delete");
     toast(`"${beat.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
