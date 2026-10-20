@@ -105,7 +105,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <SprintTimer compact />
           </div>
         ) : null}
-        <main id="main-content" className="min-h-svh">
+        <main id="main-content" className="min-h-svh p-4 md:p-6">
           {children}
         </main>
       </div>
