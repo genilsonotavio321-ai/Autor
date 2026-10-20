@@ -33,6 +33,18 @@ const THEME_OPTIONS = [
   { value: "system", label: "Sistema", icon: Monitor },
 ] as const;
 
+const THEME_VARIANTS_LIGHT = [
+  { value: "padrao", label: "Padrão" },
+  { value: "sepia", label: "Sépia" },
+  { value: "areia", label: "Areia" },
+] as const;
+
+const THEME_VARIANTS_DARK = [
+  { value: "padrao", label: "Padrão" },
+  { value: "meia-noite", label: "Meia-noite" },
+  { value: "floresta", label: "Floresta" },
+] as const;
+
 const HOME_SECTION_OPTIONS: { value: HomeSection; label: string }[] = [
   { value: "search", label: "Buscar" },
   { value: "continue", label: "Continuar escrevendo" },
@@ -59,7 +71,7 @@ const SHORTCUTS = [
 
 export function SettingsPage() {
   const { projectId } = useSelectedProject();
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
 
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
@@ -91,6 +103,10 @@ export function SettingsPage() {
   );
   const setMentionHighlightReadEnabled = useUiStore(
     (state) => state.setMentionHighlightReadEnabled,
+  );
+  const readGrifarEnabled = useUiStore((state) => state.readGrifarEnabled);
+  const setReadGrifarEnabled = useUiStore(
+    (state) => state.setReadGrifarEnabled,
   );
   const mentionConfirmOpen = useUiStore(
     (state) => state.mentionConfirmOpen,
@@ -136,6 +152,20 @@ export function SettingsPage() {
   );
   const homeSections = useUiStore((state) => state.homeSections);
   const setHomeSections = useUiStore((state) => state.setHomeSections);
+  const themeVariantLight = useUiStore((state) => state.themeVariantLight);
+  const themeVariantDark = useUiStore((state) => state.themeVariantDark);
+  const setThemeVariantLight = useUiStore(
+    (state) => state.setThemeVariantLight,
+  );
+  const setThemeVariantDark = useUiStore(
+    (state) => state.setThemeVariantDark,
+  );
+
+  const isDark = resolvedTheme === "dark";
+  const variantLabels = isDark
+    ? THEME_VARIANTS_DARK
+    : THEME_VARIANTS_LIGHT;
+  const activeVariant = isDark ? themeVariantDark : themeVariantLight;
 
   const toggleHomeSection = (section: HomeSection) => {
     setHomeSections(
@@ -161,7 +191,7 @@ export function SettingsPage() {
           <CardTitle>Aparência</CardTitle>
           <CardDescription>Tema claro, escuro ou conforme o sistema.</CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="grid gap-4">
           <div
             role="group"
             aria-label="Tema"
@@ -179,6 +209,32 @@ export function SettingsPage() {
               </Button>
             ))}
           </div>
+          {mounted && (
+            <div
+              role="group"
+              aria-label="Paleta do tema"
+              className="flex flex-wrap gap-2"
+            >
+              {variantLabels.map(({ value, label }) => (
+                <Button
+                  key={value}
+                  variant={activeVariant === value ? "default" : "outline"}
+                  aria-pressed={activeVariant === value}
+                  onClick={() =>
+                    isDark
+                      ? setThemeVariantDark(
+                          value as (typeof THEME_VARIANTS_DARK)[number]["value"],
+                        )
+                      : setThemeVariantLight(
+                          value as (typeof THEME_VARIANTS_LIGHT)[number]["value"],
+                        )
+                  }
+                >
+                  {label}
+                </Button>
+              ))}
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -313,6 +369,14 @@ export function SettingsPage() {
               id="mention-highlight-read"
               checked={mentionHighlightReadEnabled}
               onCheckedChange={setMentionHighlightReadEnabled}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="read-grifar">Grifar na seleção (modo leitura)</Label>
+            <Switch
+              id="read-grifar"
+              checked={readGrifarEnabled}
+              onCheckedChange={setReadGrifarEnabled}
             />
           </div>
           <div className="flex items-center justify-between gap-4">

@@ -150,7 +150,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
       timeout: 5000,
     });
 
-    await page.goto("/");
+    await page.goto("/dashboard");
     await expect(
       page.getByRole("heading", { name: "Estatísticas por projeto" }),
     ).toBeVisible();

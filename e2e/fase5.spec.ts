@@ -87,7 +87,7 @@ test("painel mostra meta diária, palavras de hoje e projetos recentes", async (
     timeout: 5_000,
   });
 
-  await page.goto("/");
+  await page.goto("/dashboard");
   await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
   await expect(page.getByText("Meta diária")).toBeVisible();
   await expect(page.getByRole("link", { name: /Projeto Painel/ })).toBeVisible();
@@ -132,13 +132,43 @@ test("cronômetro de sprint inicia, pausa e reinicia", async ({ page }) => {
   await page.getByRole("link", { name: "Capítulo 1" }).click();
   await page.waitForURL(/\/write\//);
 
-  const timer = page.getByTestId("sprint-timer");
+  // Timer global no Topbar duplica testid/aria-labels; foca na instância da página.
+  const pageScope = page.locator("#main-content");
+  const timer = pageScope.getByTestId("sprint-timer");
   await expect(timer).toHaveText("25:00");
 
-  await page.getByRole("button", { name: "Iniciar sprint", exact: true }).click();
+  await pageScope
+    .getByRole("button", { name: "Iniciar sprint", exact: true })
+    .click();
   await expect(timer).not.toHaveText("25:00", { timeout: 5_000 });
 
-  await page.getByRole("button", { name: "Pausar sprint", exact: true }).click();
-  await page.getByRole("button", { name: "Reiniciar sprint", exact: true }).click();
+  await pageScope
+    .getByRole("button", { name: "Pausar sprint", exact: true })
+    .click();
+  await pageScope
+    .getByRole("button", { name: "Reiniciar sprint", exact: true })
+    .click();
   await expect(timer).toHaveText("25:00");
+});
+
+test("sprint iniciado fora da escrita pode ser pausado no modo foco", async ({
+  page,
+}) => {
+  // Em focus mode o Topbar some; fora de /write o timer completo não existe.
+  // Sem o timer flutuante não haveria como sair do focus mode.
+  await page.goto("/dashboard");
+  await page.getByRole("button", { name: "Iniciar sprint", exact: true }).click();
+
+  // Focus mode engajado: Topbar oculto, timer flutuante visível.
+  await expect(page.getByRole("banner")).toBeHidden();
+  const floating = page.locator('[data-slot="app-shell-focus-timer"]');
+  await expect(floating).toBeVisible();
+
+  await floating.getByRole("button", { name: "Pausar sprint" }).click();
+
+  // Pausar restaura o chrome (sprintFocusEngaged).
+  await expect(page.getByRole("banner")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Iniciar sprint", exact: true }),
+  ).toBeVisible();
 });

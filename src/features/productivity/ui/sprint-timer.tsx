@@ -1,15 +1,9 @@
 "use client";
 
 import { Pause, Play, RotateCcw, Timer } from "lucide-react";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { playSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
-
-import { toDayKey } from "../domain/writing-log";
-import { recordSprint } from "../infra/writing-log-repository";
 
 function formatClock(totalSeconds: number): string {
   const minutes = Math.floor(totalSeconds / 60);
@@ -19,59 +13,53 @@ function formatClock(totalSeconds: number): string {
 
 /**
  * Sprint timer (plan §7.5): contagem regressiva para sessões de escrita.
- * Cada sprint concluído é registrado no log de escrita do dia.
+ * Estado vive no ui-store (SprintTicker conta); aqui só a UI.
+ * compact: variante enxuta para o Topbar (sem barra de progresso/reset).
  */
-export function SprintTimer() {
+export function SprintTimer({ compact = false }: { compact?: boolean }) {
   const sprintMinutes = useUiStore((state) => state.sprintMinutes);
+  const remaining = useUiStore((state) => state.sprintRemaining);
+  const running = useUiStore((state) => state.sprintRunning);
+  const completed = useUiStore((state) => state.sprintCompleted);
+  const announcement = useUiStore((state) => state.sprintAnnouncement);
+  const toggleSprintRunning = useUiStore((state) => state.toggleSprintRunning);
+  const resetSprint = useUiStore((state) => state.resetSprint);
+
   const duration = Math.max(1, sprintMinutes) * 60;
-
-  const [remaining, setRemaining] = useState(duration);
-  const [running, setRunning] = useState(false);
-  const [completed, setCompleted] = useState(0);
-  const [announcement, setAnnouncement] = useState("");
-
-  // Keep the ready time in sync while the timer is not running.
-  useEffect(() => {
-    if (!running) setRemaining(duration);
-  }, [duration, running]);
-
-  useEffect(() => {
-    if (!running) return;
-    const id = window.setInterval(() => {
-      setRemaining((value) => Math.max(0, value - 1));
-    }, 1000);
-    return () => window.clearInterval(id);
-  }, [running]);
-
-  useEffect(() => {
-    if (remaining > 0) return;
-    setRunning(false);
-    setRemaining(duration);
-    setCompleted((count) => count + 1);
-    setAnnouncement("Sprint concluído. Faça uma pausa.");
-    const { soundEnabled, soundVolume } = useUiStore.getState();
-    if (soundEnabled) playSound("complete", soundVolume);
-    toast.success("Sprint concluído!", {
-      description: "Boa escrita. Faça uma pausa antes do próximo.",
-    });
-    void recordSprint(toDayKey(new Date())).catch(() => undefined);
-  }, [remaining, duration]);
-
-  function toggle() {
-    setRunning((value) => {
-      const next = !value;
-      setAnnouncement(next ? "Sprint iniciado." : "Sprint pausado.");
-      return next;
-    });
-  }
-
-  function reset() {
-    setRunning(false);
-    setRemaining(duration);
-    setAnnouncement("Sprint reiniciado.");
-  }
-
   const progress = duration > 0 ? ((duration - remaining) / duration) * 100 : 0;
+
+  if (compact) {
+    return (
+      <div
+        className="flex items-center gap-1"
+        role="group"
+        aria-label="Cronômetro de sprint"
+      >
+        <span
+          className="font-mono text-sm font-semibold tabular-nums"
+          data-testid="sprint-timer"
+        >
+          {formatClock(remaining)}
+        </span>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="size-7"
+          onClick={toggleSprintRunning}
+          aria-label={running ? "Pausar sprint" : "Iniciar sprint"}
+        >
+          {running ? (
+            <Pause aria-hidden className="size-3.5" />
+          ) : (
+            <Play aria-hidden className="size-3.5" />
+          )}
+        </Button>
+        <span className="sr-only" aria-live="polite">
+          {announcement}
+        </span>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -106,7 +94,7 @@ export function SprintTimer() {
           variant="ghost"
           size="icon"
           className="size-7"
-          onClick={toggle}
+          onClick={toggleSprintRunning}
           aria-label={running ? "Pausar sprint" : "Iniciar sprint"}
         >
           {running ? (
@@ -119,7 +107,7 @@ export function SprintTimer() {
           variant="ghost"
           size="icon"
           className="size-7"
-          onClick={reset}
+          onClick={resetSprint}
           aria-label="Reiniciar sprint"
         >
           <RotateCcw aria-hidden className="size-3.5" />

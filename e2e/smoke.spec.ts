@@ -4,7 +4,7 @@ test.describe("smoke", () => {
   test("renders the app shell", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Início" })).toBeVisible();
     await expect(
       page.getByRole("navigation", { name: "Navegação principal" }).first(),
     ).toBeAttached();

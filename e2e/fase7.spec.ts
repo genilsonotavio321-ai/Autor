@@ -12,7 +12,7 @@ async function waitNoToasts(page: import("@playwright/test").Page) {
 test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
   test("painel exibe o gráfico de atividade recente", async ({ page }) => {
     await createProject(page, "Atividade");
-    await page.goto("/");
+    await page.goto("/dashboard");
 
     await expect(page.getByText("Atividade recente")).toBeVisible();
     // Células de dia presentes (cada uma tem aria-label com data e palavras).

@@ -16,8 +16,8 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // Projeto → página do projeto.
-  await page.goto("/search");
+  // Projeto → página do projeto. (Sem rota /search: a busca vive na home.)
+  await page.goto("/");
   await page.getByLabel("Buscar no acervo").fill("Deeplink");
   const project = page.getByRole("link", { name: /Projeto Deeplink/ });
   await expect(project).toBeVisible();
@@ -25,7 +25,7 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+$/);
 
   // Personagem → /characters com a ficha aberta.
-  await page.goto("/search");
+  await page.goto("/");
   await page.getByLabel("Buscar no acervo").fill("Helena");
   await page.getByRole("link", { name: /Helena/ }).click();
   await expect(page).toHaveURL(/\/characters/);
@@ -36,7 +36,7 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   ).toBeVisible();
 
   // Nota → visualização aberta em /notes.
-  await page.goto("/search");
+  await page.goto("/");
   await page.getByLabel("Buscar no acervo").fill("farol");
   await page.getByRole("link", { name: /Pista do farol/ }).click();
   await expect(page).toHaveURL(/\/notes/);

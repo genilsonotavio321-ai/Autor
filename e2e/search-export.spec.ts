@@ -18,7 +18,7 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
     timeout: 5_000,
   });
 
-  await page.goto("/search");
+  await page.goto("/");
   await page.getByLabel("Buscar no acervo").fill("dragao");
   const result = page.getByRole("link", { name: /Capítulo 1/ });
   await expect(result).toBeVisible();
@@ -39,7 +39,7 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.goto("/search");
+  await page.goto("/");
   await page.getByLabel("Buscar no acervo").fill("beatriz");
   await expect(page.getByRole("link", { name: /Ana Beatriz/ })).toBeVisible();
 });

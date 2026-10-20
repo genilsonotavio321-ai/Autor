@@ -23,7 +23,7 @@ import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repos
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
-import type { Chapter } from "@/shared/types/database";
+import type { Chapter, Json } from "@/shared/types/database";
 
 const ReadingDocument = dynamic(
   () =>
@@ -96,6 +96,14 @@ export function ReadPage() {
         ? `/characters?character=${id}`
         : `/world?location=${id}`,
     );
+  }
+
+  // Persiste a grife aplicada no modo leitura. Guard contra loop com
+  // useLiveQuery: só grava quando o documento difere do salvo.
+  function handleGrifarChange(json: Json) {
+    if (!chapter) return;
+    if (JSON.stringify(json) === JSON.stringify(chapter.content)) return;
+    void chapterRepository.update(chapter.id, { content: json }).catch(() => undefined);
   }
 
   return (
@@ -187,6 +195,7 @@ export function ReadPage() {
                   content={chapter.content}
                   mentions={mentionEntities}
                   onOpenMention={openMention}
+                  onGrifarChange={handleGrifarChange}
                 />
               </div>
             </article>

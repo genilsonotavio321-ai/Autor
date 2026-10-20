@@ -28,6 +28,10 @@ export const PROJECTS_SORT_LABELS: Record<ProjectsSort, string> = {
 /** Como os projetos são dispostos na lista. */
 export type ProjectsLayout = "grid" | "list";
 
+/** Variantes de tema por base (claro/escuro) — item: paletas escolhíveis. */
+export type ThemeVariantLight = "padrao" | "sepia" | "areia";
+export type ThemeVariantDark = "padrao" | "meia-noite" | "floresta";
+
 /** Seções oferecidas na página inicial (item 10). */
 export type HomeSection =
   | "search"
@@ -55,6 +59,13 @@ interface UiState {
   dailyWordGoal: number;
   /** Duração de uma sessão de sprint (minutos). */
   sprintMinutes: number;
+  /** Cronômetro de sprint (transiente, não persiste). */
+  sprintRemaining: number;
+  sprintRunning: boolean;
+  sprintCompleted: number;
+  sprintAnnouncement: string;
+  /** Focus mode ligado pelo sprint — restaurado ao pausar/concluir. */
+  sprintFocusEngaged: boolean;
   /** Tempo de exibição do botão "Continuar de onde parou" (segundos). */
   resumeNoticeSeconds: number;
   /** Ordenação e disposição da lista de projetos. */
@@ -64,6 +75,8 @@ interface UiState {
   mentionHighlightEnabled: boolean;
   /** Destaque no modo leitura (independe do editor). */
   mentionHighlightReadEnabled: boolean;
+  /** Botão "Grifar" na seleção no modo leitura. */
+  readGrifarEnabled: boolean;
   /** Pergunta antes de abrir ficha ao tocar num destaque (item 17). */
   mentionConfirmOpen: boolean;
   mentionColorCharacter: string;
@@ -80,6 +93,9 @@ interface UiState {
   soundVolume: number;
   /** Animações do app ligadas (item 9). */
   animationsEnabled: boolean;
+  /** Variante de tema aplicada sobre a base light/dark (next-themes). */
+  themeVariantLight: ThemeVariantLight;
+  themeVariantDark: ThemeVariantDark;
   /** Duração global das animações em ms (item 9). */
   animationDuration: number;
   /** Busca inclui seções/opções do app (item 3). */
@@ -98,11 +114,15 @@ interface UiState {
   setEditorFontSize: (size: number) => void;
   setDailyWordGoal: (goal: number) => void;
   setSprintMinutes: (minutes: number) => void;
+  toggleSprintRunning: () => void;
+  resetSprint: () => void;
+  completeSprint: () => void;
   setResumeNoticeSeconds: (seconds: number) => void;
   setProjectsSort: (sort: ProjectsSort) => void;
   setProjectsLayout: (layout: ProjectsLayout) => void;
   setMentionHighlightEnabled: (enabled: boolean) => void;
   setMentionHighlightReadEnabled: (enabled: boolean) => void;
+  setReadGrifarEnabled: (enabled: boolean) => void;
   setMentionConfirmOpen: (open: boolean) => void;
   setMentionColorCharacter: (color: string) => void;
   setMentionColorLocation: (color: string) => void;
@@ -113,6 +133,8 @@ interface UiState {
   setSoundEnabled: (enabled: boolean) => void;
   setSoundVolume: (volume: number) => void;
   setAnimationsEnabled: (enabled: boolean) => void;
+  setThemeVariantLight: (variant: ThemeVariantLight) => void;
+  setThemeVariantDark: (variant: ThemeVariantDark) => void;
   setAnimationDuration: (duration: number) => void;
   setSearchGlobalEnabled: (enabled: boolean) => void;
   setHomeSections: (sections: HomeSection[]) => void;
@@ -129,11 +151,17 @@ export const useUiStore = create<UiState>()(
       editorFontSize: 18,
       dailyWordGoal: 500,
       sprintMinutes: 25,
+      sprintRemaining: 25 * 60,
+      sprintRunning: false,
+      sprintCompleted: 0,
+      sprintAnnouncement: "",
+      sprintFocusEngaged: false,
       resumeNoticeSeconds: 5,
       projectsSort: "updated-desc",
       projectsLayout: "grid",
       mentionHighlightEnabled: true,
       mentionHighlightReadEnabled: true,
+      readGrifarEnabled: true,
       mentionConfirmOpen: true,
       mentionColorCharacter: "#7c3aed",
       mentionColorLocation: "#0d9488",
@@ -144,6 +172,8 @@ export const useUiStore = create<UiState>()(
       soundVolume: 50,
       animationsEnabled: true,
       animationDuration: 150,
+      themeVariantLight: "padrao",
+      themeVariantDark: "padrao",
       searchGlobalEnabled: true,
       homeSections: ["search", "projects", "data"],
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
@@ -165,6 +195,45 @@ export const useUiStore = create<UiState>()(
       setDailyWordGoal: (goal) => set({ dailyWordGoal: Math.max(0, goal || 0) }),
       setSprintMinutes: (minutes) =>
         set({ sprintMinutes: clamp(minutes, 1, 120) }),
+      toggleSprintRunning: () =>
+        set((state) => {
+          if (!state.sprintRunning) {
+            return {
+              sprintRunning: true,
+              sprintAnnouncement: "Sprint iniciado.",
+              focusMode: true,
+              // Só restaura o focus mode se o sprint foi quem ligou.
+              sprintFocusEngaged:
+                state.sprintFocusEngaged || !state.focusMode,
+            };
+          }
+          return {
+            sprintRunning: false,
+            sprintAnnouncement: "Sprint pausado.",
+            ...(state.sprintFocusEngaged
+              ? { focusMode: false, sprintFocusEngaged: false }
+              : {}),
+          };
+        }),
+      resetSprint: () =>
+        set((state) => ({
+          sprintRunning: false,
+          sprintRemaining: Math.max(1, state.sprintMinutes) * 60,
+          sprintAnnouncement: "Sprint reiniciado.",
+          ...(state.sprintFocusEngaged
+            ? { focusMode: false, sprintFocusEngaged: false }
+            : {}),
+        })),
+      completeSprint: () =>
+        set((state) => ({
+          sprintRunning: false,
+          sprintRemaining: Math.max(1, state.sprintMinutes) * 60,
+          sprintCompleted: state.sprintCompleted + 1,
+          sprintAnnouncement: "Sprint concluído. Faça uma pausa.",
+          ...(state.sprintFocusEngaged
+            ? { focusMode: false, sprintFocusEngaged: false }
+            : {}),
+        })),
       setResumeNoticeSeconds: (seconds) =>
         set({ resumeNoticeSeconds: clamp(seconds, 0, 30) }),
       setProjectsSort: (sort) => set({ projectsSort: sort }),
@@ -173,6 +242,7 @@ export const useUiStore = create<UiState>()(
         set({ mentionHighlightEnabled: enabled }),
       setMentionHighlightReadEnabled: (enabled) =>
         set({ mentionHighlightReadEnabled: enabled }),
+      setReadGrifarEnabled: (enabled) => set({ readGrifarEnabled: enabled }),
       setMentionConfirmOpen: (open) => set({ mentionConfirmOpen: open }),
       setMentionColorCharacter: (color) =>
         set({ mentionColorCharacter: color }),
@@ -187,6 +257,8 @@ export const useUiStore = create<UiState>()(
       setSoundVolume: (volume) =>
         set({ soundVolume: clamp(volume, 0, 100) }),
       setAnimationsEnabled: (enabled) => set({ animationsEnabled: enabled }),
+      setThemeVariantLight: (variant) => set({ themeVariantLight: variant }),
+      setThemeVariantDark: (variant) => set({ themeVariantDark: variant }),
       setAnimationDuration: (duration) =>
         set({ animationDuration: clamp(duration, 50, 1000) }),
       setSearchGlobalEnabled: (enabled) =>
@@ -208,6 +280,7 @@ export const useUiStore = create<UiState>()(
         projectsLayout: state.projectsLayout,
         mentionHighlightEnabled: state.mentionHighlightEnabled,
         mentionHighlightReadEnabled: state.mentionHighlightReadEnabled,
+        readGrifarEnabled: state.readGrifarEnabled,
         mentionConfirmOpen: state.mentionConfirmOpen,
         mentionColorCharacter: state.mentionColorCharacter,
         mentionColorLocation: state.mentionColorLocation,
@@ -217,6 +290,8 @@ export const useUiStore = create<UiState>()(
         soundVolume: state.soundVolume,
         animationsEnabled: state.animationsEnabled,
         animationDuration: state.animationDuration,
+        themeVariantLight: state.themeVariantLight,
+        themeVariantDark: state.themeVariantDark,
         searchGlobalEnabled: state.searchGlobalEnabled,
         homeSections: state.homeSections,
       }),

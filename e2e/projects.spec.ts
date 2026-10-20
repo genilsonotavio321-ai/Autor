@@ -38,7 +38,7 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   );
 
   // Dashboard resume button points back to this chapter.
-  await page.goto("/");
+  await page.goto("/dashboard");
   const resume = page.getByRole("link", { name: /Continuar escrevendo/ });
   await expect(resume).toBeVisible();
   await resume.click();

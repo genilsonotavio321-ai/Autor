@@ -1,11 +1,15 @@
 "use client";
 
+import { useTheme } from "next-themes";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
 import { MobileNav, Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
 import { SearchDialog } from "@/features/search/ui/search-dialog";
+import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
+import { SprintTicker } from "@/features/productivity/ui/sprint-ticker";
 import { playSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
@@ -29,18 +33,37 @@ function MotionStyle() {
   const enabled = useUiStore((state) => state.animationsEnabled);
   const duration = useUiStore((state) => state.animationDuration);
   const css = enabled
-    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}`
+    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}[data-radix-popper-content-wrapper]{transition:none!important}`
     : `*,::before,::after{transition:none!important;animation:none!important}`;
   return <style dangerouslySetInnerHTML={{ __html: css }} />;
+}
+
+// Variante de tema (Sépia, Meia-noite...): next-themes só escreve light/dark,
+// então a variante vira atributo no <html> consumido pelo globals.css.
+function useThemeVariantAttribute() {
+  const themeVariantLight = useUiStore((state) => state.themeVariantLight);
+  const themeVariantDark = useUiStore((state) => state.themeVariantDark);
+  const { resolvedTheme } = useTheme();
+
+  useEffect(() => {
+    const variant =
+      resolvedTheme === "dark" ? themeVariantDark : themeVariantLight;
+    const root = document.documentElement;
+    if (variant === "padrao") root.removeAttribute("data-theme-variant");
+    else root.setAttribute("data-theme-variant", variant);
+  }, [resolvedTheme, themeVariantLight, themeVariantDark]);
 }
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const focusMode = useUiStore((state) => state.focusMode);
+  const sprintRunning = useUiStore((state) => state.sprintRunning);
+  const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useClickSound();
+  useThemeVariantAttribute();
 
   const handleMenuClick = () => {
     const isMobile = window.matchMedia("(max-width: 767px)").matches;
@@ -62,6 +85,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const motionStyle = <MotionStyle />;
   const searchDialog = <SearchDialog />;
+  const sprintTicker = <SprintTicker />;
 
   // Focus mode: hide sidebar/topbar/palette so only the writing surface shows.
   if (focusMode) {
@@ -69,7 +93,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
       <div className="min-h-svh w-full">
         {motionStyle}
         {searchDialog}
+        {sprintTicker}
         {skipLink}
+        {/* Fora da página de escrita (que já tem o timer completo), o focus
+            mode esconde o Topbar — sem este flutuante não haveria como pausar. */}
+        {sprintRunning && !pathname.startsWith("/write") ? (
+          <div
+            data-slot="app-shell-focus-timer"
+            className="fixed right-4 bottom-4 z-40 rounded-lg border bg-card px-2 py-1 shadow"
+          >
+            <SprintTimer compact />
+          </div>
+        ) : null}
         <main id="main-content" className="min-h-svh">
           {children}
         </main>
@@ -81,6 +116,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex min-h-svh w-full">
       {motionStyle}
       {searchDialog}
+      {sprintTicker}
       {skipLink}
       <Sidebar collapsed={sidebarCollapsed} />
       <MobileNav open={mobileNavOpen} onOpenChange={setMobileNavOpen} />

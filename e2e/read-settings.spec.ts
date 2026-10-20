@@ -59,7 +59,8 @@ test("preferências persistem e o card Continuar expira", async ({ page }) => {
   );
 
   // A2: o card "Continuar de onde parou" some após o tempo configurado.
-  await page.goto("/");
+  // O card mora no Painel (/dashboard); a home virou um hub de seções.
+  await page.goto("/dashboard");
   const section = page.getByRole("region", { name: "Continuar de onde parou" });
   await expect(section).toBeVisible({ timeout: 5_000 });
   await expect(section).toHaveCount(0, { timeout: 10_000 });

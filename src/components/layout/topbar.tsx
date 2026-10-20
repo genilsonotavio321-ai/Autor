@@ -5,6 +5,7 @@ import { useTheme } from "next-themes";
 import { Menu, Moon, Search, Sun } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { useUiStore } from "@/shared/store/ui-store";
 
 interface TopbarProps {
@@ -34,6 +35,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       <span className="font-heading text-sm font-semibold md:hidden">Autor</span>
 
       <div className="ml-auto flex items-center gap-1.5">
+        <SprintTimer compact />
         <Button
           variant="outline"
           size="sm"
