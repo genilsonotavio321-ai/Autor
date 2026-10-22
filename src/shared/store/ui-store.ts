@@ -278,6 +278,18 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "autor-ui",
+      // Quem já usava o app (estado salvo sem o campo) fica na toolbar
+      // clássica; o Editor Simplificado é o padrão de quem nunca configurou.
+      merge: (persisted, current) => {
+        const saved = persisted as Partial<UiState> | undefined;
+        return {
+          ...current,
+          ...saved,
+          editorSimplified:
+            saved?.editorSimplified ??
+            (saved ? false : current.editorSimplified),
+        } as UiState;
+      },
       // Transient state (palette, focus mode) must not persist across sessions.
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,

@@ -1,6 +1,8 @@
 import { extractDocText } from "@/shared/lib/text";
 import type { Chapter, Json, Project, Scene } from "@/shared/types/database";
 
+import { headingLevel } from "./heading-level";
+
 function renderInlineFromJson(node: Json): string {
   if (Array.isArray(node)) {
     return node.map(renderInlineFromJson).join("");
@@ -37,7 +39,7 @@ function renderBlockChildren(
     case "paragraph":
       return `${inlineContent(record)}\n\n`;
     case "heading": {
-      const level = Math.min(Math.max(Number(record.level ?? 1), 1), 6);
+      const level = headingLevel(record);
       return `${"#".repeat(level)} ${inlineContent(record)}\n\n`;
     }
     case "hardBreak":
@@ -183,7 +185,7 @@ export function markdownToDoc(markdown: string): Json {
     if (heading) {
       blocks.push({
         type: "heading",
-        level: Math.min(heading[1]?.length ?? 1, 3),
+        attrs: { level: Math.min(heading[1]?.length ?? 1, 3) },
         content: parseInline(heading[2] ?? ""),
       });
       index += 1;

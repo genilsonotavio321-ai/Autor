@@ -109,10 +109,14 @@ test("alinhamento do capítulo inteiro aplica a todos os parágrafos", async ({
   await expect(editor.locator("p")).toHaveCount(2);
 
   // F5: com "Capítulo inteiro" ligado, centralizar atinge os parágrafos.
+  // No Editor Simplificado a formatação vive no menu da seleção.
+  await page.keyboard.press("Home");
+  await page.keyboard.press("Shift+End");
+  await page.getByRole("button", { name: "Alinhamento" }).click();
   await page
     .getByRole("switch", { name: "Aplicar alinhamento ao capítulo inteiro" })
     .click();
-  await page.getByRole("button", { name: "Centralizar" }).click();
+  await page.getByRole("menuitem", { name: "Centro" }).click();
   await expect(editor.locator('p[style*="text-align: center"]')).toHaveCount(2);
 });
 

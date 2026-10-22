@@ -2,6 +2,8 @@ import { jsPDF } from "jspdf";
 
 import type { Json, Project } from "@/shared/types/database";
 
+import { headingLevel } from "../domain/heading-level";
+
 export interface PdfChapterInput {
   title: string;
   content: Json;
@@ -418,11 +420,7 @@ function writeDoc(writer: PdfWriter, doc: Json, depth = 0): void {
       case "heading":
         writer.heading(
           inlineRuns(record),
-          // O Tiptap guarda o nível em attrs.level; record.level era sempre
-          // undefined e todos os títulos saíam no corpo de H1.
-          Number(
-            (isNode(record.attrs) ? record.attrs.level : record.level) ?? 1,
-          ),
+          headingLevel(record),
           blockAlign(record),
         );
         break;

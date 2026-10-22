@@ -11,6 +11,8 @@ import {
 import { extractDocText } from "@/shared/lib/text";
 import type { Json, Project } from "@/shared/types/database";
 
+import { headingLevel } from "../domain/heading-level";
+
 export interface DocxChapterInput {
   title: string;
   content: Json;
@@ -48,7 +50,7 @@ function paragraphsFromDoc(doc: Json): Paragraph[] {
 
     switch (record.type) {
       case "heading": {
-        const level = Math.min(Math.max(Number(record.level ?? 1), 1), 3);
+        const level = Math.min(headingLevel(record), 3);
         out.push(
           new Paragraph({
             heading: [HeadingLevel.HEADING_1, HeadingLevel.HEADING_2, HeadingLevel.HEADING_3][

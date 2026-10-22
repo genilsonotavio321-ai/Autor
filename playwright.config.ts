@@ -30,6 +30,8 @@ export default defineConfig({
     command: "npm run dev",
     url: `http://localhost:${PORT}`,
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    // O boot do Next + Leva passa de 120s em máquina fria: sem folga, o CI
+    // falha por timeout de servidor, não por teste.
+    timeout: 180_000,
   },
 });

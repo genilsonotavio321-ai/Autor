@@ -114,7 +114,7 @@ test.describe("Grifar", () => {
     await page.keyboard.press("Home");
     await page.keyboard.press("Shift+End");
     await page
-      .getByRole("button", { name: "Grifar", exact: true })
+      .getByRole("button", { name: "Grifar seleção" })
       .click();
     await expect(editor.locator("span.grifar")).toHaveCount(1);
     await expect(page.getByTestId("save-status")).toContainText("Salvo", {

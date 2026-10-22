@@ -20,7 +20,7 @@ describe("docToMarkdown", () => {
   it("serializes headings, paragraphs and inline marks", () => {
     const output = docToMarkdown(
       doc(
-        { type: "heading", level: 1, content: [{ type: "text", text: "Título" }] },
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Título" }] },
         {
           type: "paragraph",
           content: [
@@ -34,6 +34,16 @@ describe("docToMarkdown", () => {
       ),
     );
     expect(output).toBe("# Título\n\nUm **forte** e *ênfase*.");
+  });
+
+  it("serializes the heading level from attrs", () => {
+    const output = docToMarkdown(
+      doc(
+        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Cena" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Depois." }] },
+      ),
+    );
+    expect(output).toBe("## Cena\n\nDepois.");
   });
 
   it("serializes bullet and ordered lists", () => {
@@ -78,13 +88,13 @@ describe("markdownToDoc", () => {
       "Título Um forte e ênfase . um dois",
     );
     const blocks = (parsed as Record<string, Json>).content as Json[];
-    expect(blocks[0]).toMatchObject({ type: "heading", level: 1 });
+    expect(blocks[0]).toMatchObject({ type: "heading", attrs: { level: 1 } });
     expect(blocks[2]).toMatchObject({ type: "bulletList" });
   });
 
   it("round-trips doc → markdown → doc preserving text", () => {
     const original = doc(
-      { type: "heading", level: 2, content: [{ type: "text", text: "Cena da caverna" }] },
+      { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Cena da caverna" }] },
       {
         type: "paragraph",
         content: [

@@ -97,10 +97,14 @@ test.describe("Fase 9 — celular e PDF", () => {
     await expect(editor.locator("em")).toHaveText("Italico");
 
     // Centraliza o capítulo inteiro: o PDF precisa sair deslocado da margem.
+    // No Editor Simplificado a formatação vive no menu da seleção.
+    await page.keyboard.press("Home");
+    await page.keyboard.press("Shift+End");
+    await page.getByRole("button", { name: "Alinhamento" }).click();
     await page
       .getByRole("switch", { name: "Aplicar alinhamento ao capítulo inteiro" })
       .click();
-    await page.getByRole("button", { name: "Centralizar" }).click();
+    await page.getByRole("menuitem", { name: "Centro" }).click();
     await expect(editor.locator('p[style*="text-align: center"]')).toHaveCount(1);
     await expect(page.getByTestId("save-status")).toContainText("Salvo", {
       timeout: 5_000,
