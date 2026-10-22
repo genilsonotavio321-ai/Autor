@@ -35,6 +35,8 @@ import {
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -84,6 +86,7 @@ import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
 import { noteRepository } from "../infra/dexie-note-repository";
 import { importNotesFile } from "../infra/notes-import";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { NoteViewDialog } from "./note-view-dialog";
 
 const SORT_STORAGE_KEY = "autor.notes.sort";
@@ -316,10 +319,15 @@ export function NotesPage() {
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl">Notas</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <ProjectPicker />
+      <PageHeader
+        title="Notas"
+        count={
+          notes.length > 0
+            ? `${notes.length} ${notes.length === 1 ? "nota" : "notas"}`
+            : undefined
+        }
+      >
+        <ProjectPicker />
           <Select value={sort} onValueChange={(value) => setSort(value as NotesSort)}>
             <SelectTrigger className="w-52" aria-label="Ordenar notas">
               <ArrowUpDown aria-hidden className="size-4" />
@@ -402,20 +410,17 @@ export function NotesPage() {
             <Plus aria-hidden />
             Nova nota
           </Button>
-        </div>
-      </header>
+      </PageHeader>
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crie um projeto para anotar ideias e lembretes.
-          </p>
-        </div>
+        <EmptyState className="p-10">
+          <p>Crie um projeto para anotar ideias e lembretes.</p>
+        </EmptyState>
       ) : notes.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <EmptyState>
           Nenhuma nota ainda. Use notas para ideias soltas, pesquisas e
           lembretes.
-        </div>
+        </EmptyState>
       ) : (
         <DndContext
           sensors={sensors}
@@ -485,6 +490,13 @@ export function NotesPage() {
         onOpenChange={(open) => {
           if (!open) setViewNote(null);
         }}
+        gallery={
+          <ImageAttachments
+            readOnly
+            entityType="note"
+            entityId={viewNote?.id}
+          />
+        }
       />
 
       <NoteDialog
@@ -688,6 +700,11 @@ function NoteDialog({ open, onOpenChange, note, projectId }: NoteDialogProps) {
               placeholder="Escreva sua nota..."
             />
           </div>
+          <ImageAttachments
+            entityType="note"
+            entityId={note?.id}
+            projectId={projectId}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

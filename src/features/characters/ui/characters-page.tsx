@@ -27,6 +27,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import {
   Select,
   SelectContent,
@@ -38,6 +40,7 @@ import { formatRelativeTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { resolveTagColor } from "@/features/tags/domain/repository";
 import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
@@ -185,16 +188,20 @@ export function CharactersPage() {
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl">Personagens</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <ProjectPicker />
-          <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
-            <Plus aria-hidden />
-            Novo personagem
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Personagens"
+        count={
+          characters.length > 0
+            ? `${characters.length} ${characters.length === 1 ? "personagem" : "personagens"}`
+            : undefined
+        }
+      >
+        <ProjectPicker />
+        <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
+          <Plus aria-hidden />
+          Novo personagem
+        </Button>
+      </PageHeader>
 
       {projectId !== null && characters.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -238,20 +245,18 @@ export function CharactersPage() {
       ) : null}
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crie um projeto para cadastrar seus personagens.
-          </p>
-        </div>
+        <EmptyState className="p-10">
+          <p>Crie um projeto para cadastrar seus personagens.</p>
+        </EmptyState>
       ) : characters.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <EmptyState>
           Nenhum personagem ainda. Registre protagonistas, antagonistas e
           personagens de apoio com seus objetivos e relações.
-        </div>
+        </EmptyState>
       ) : visible.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+        <EmptyState>
           Nenhum personagem corresponde aos filtros.
-        </div>
+        </EmptyState>
       ) : (
         <DndContext
           sensors={sensors}
@@ -300,6 +305,13 @@ export function CharactersPage() {
         onOpenChange={(open) => {
           if (!open) setViewCharacter(null);
         }}
+        gallery={
+          <ImageAttachments
+            readOnly
+            entityType="character"
+            entityId={viewCharacter?.id}
+          />
+        }
       />
 
       <CharacterDialog

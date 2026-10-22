@@ -2,8 +2,11 @@
 
 import type { Content } from "@tiptap/core";
 import CharacterCount from "@tiptap/extension-character-count";
+import Image from "@tiptap/extension-image";
 import Placeholder from "@tiptap/extension-placeholder";
 import TextAlign from "@tiptap/extension-text-align";
+import { TextSelection } from "@tiptap/pm/state";
+import type { EditorView } from "@tiptap/pm/view";
 import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
@@ -19,6 +22,7 @@ import {
   Heading1,
   Heading2,
   Heading3,
+  ImagePlus,
   Italic,
   List,
   ListOrdered,
@@ -28,6 +32,7 @@ import {
   Undo,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,6 +50,7 @@ import {
   type TextAlignValue,
 } from "@/features/editor/domain/alignment";
 import { GrifarMark } from "@/features/editor/domain/grifar-mark";
+import { readImageAsDataUrl } from "@/features/editor/domain/image-file";
 import { ReviewButton, ReviewDialog } from "@/features/editor/ui/review-dialog";
 import { SearchHighlight } from "@/features/editor/ui/search-highlight";
 import {
@@ -88,6 +94,39 @@ function grifarBubbleShouldShow({ editor }: { editor: Editor }): boolean {
   return !editor.state.selection.empty;
 }
 
+/** Arquivos de imagem de um DataTransfer (ignora todo o resto). */
+function imageFilesOf(list: FileList | null | undefined): File[] {
+  return Array.from(list ?? []).filter((file) =>
+    file.type.startsWith("image/"),
+  );
+}
+
+/**
+ * Insere cada arquivo no ponto da seleção atual como node `image` (bloco).
+ * A leitura/compactação é assíncrona, mas o dispatch monta a transação a
+ * partir do estado vivo do editor, então inserções sequenciais funcionam.
+ */
+async function insertImageFiles(
+  view: EditorView,
+  files: File[],
+): Promise<void> {
+  for (const file of files) {
+    try {
+      const src = await readImageAsDataUrl(file);
+      const imageType = view.state.schema.nodes.image;
+      if (!imageType) return;
+      view.dispatch(
+        view.state.tr.replaceSelectionWith(imageType.create({ src })),
+      );
+    } catch {
+      toast.error("Não foi possível inserir a imagem", {
+        description: "Use um arquivo de imagem menor (limite ~2MB).",
+      });
+    }
+  }
+  view.focus();
+}
+
 export function TiptapEditor({
   content,
   placeholder = "Comece a escrever…",
@@ -108,6 +147,7 @@ export function TiptapEditor({
     (state) => state.mentionColorLocation,
   );
   const [reviewOpen, setReviewOpen] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
   // Destaque dos trechos grifados ("Revelar grifados" → classe grifar-reveal).
   const [grifarReveal, setGrifarReveal] = useState(false);
   // Item 20: com o switch "Capítulo inteiro" ligado, o alinhamento vale para
@@ -143,6 +183,13 @@ export function TiptapEditor({
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
       CharacterCount,
+      // allowBase64: o conteúdo persiste como dataURL no JSON do capítulo —
+      // sem isso o parser descarta a imagem ao recarregar.
+      Image.configure({
+        allowBase64: true,
+        inline: false,
+        HTMLAttributes: { class: "max-w-full rounded-lg" },
+      }),
       EntityHighlight.configure({
         getSettings: () => mentionSettingsRef.current,
       }),
@@ -151,6 +198,35 @@ export function TiptapEditor({
     ],
     content: content as Content,
     editorProps: {
+      // Colar/arrastar arquivos de imagem insere no texto; texto colado
+      // segue o fluxo padrão (retorna false quando não há imagem).
+      handlePaste: (view, event) => {
+        const files = imageFilesOf(event.clipboardData?.files);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        void insertImageFiles(view, files);
+        return true;
+      },
+      handleDrop: (view, event, _slice, moved) => {
+        if (moved) return false;
+        const files = imageFilesOf(event.dataTransfer?.files);
+        if (files.length === 0) return false;
+        event.preventDefault();
+        // A seleção vira o ponto do drop antes da leitura assíncrona.
+        const coords = view.posAtCoords({
+          left: event.clientX,
+          top: event.clientY,
+        });
+        if (coords) {
+          view.dispatch(
+            view.state.tr.setSelection(
+              TextSelection.near(view.state.doc.resolve(coords.pos)),
+            ),
+          );
+        }
+        void insertImageFiles(view, files);
+        return true;
+      },
       attributes: {
         // Sem font-family/tamanho aqui: o wrapper em editor-page.tsx injeta
         // fontSize/fontFamily do store via estilo inline no container, e
@@ -402,6 +478,29 @@ export function TiptapEditor({
             <Eye aria-hidden className="size-4" />,
           )}
         <ReviewButton onClick={() => setReviewOpen(true)} />
+        <input
+          ref={imageInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={(event) => {
+            const files = imageFilesOf(event.target.files);
+            if (files.length > 0 && editor) {
+              void insertImageFiles(editor.view, files);
+            }
+            event.target.value = "";
+          }}
+        />
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className="size-8"
+          aria-label="Inserir imagem"
+          onClick={() => imageInputRef.current?.click()}
+        >
+          <ImagePlus aria-hidden className="size-4" />
+        </Button>
         <Separator orientation="vertical" className="mx-1 h-5" />
         {toolbar &&
           toolButton(

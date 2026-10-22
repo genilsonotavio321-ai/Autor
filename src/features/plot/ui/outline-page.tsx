@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 
-import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
@@ -25,25 +26,26 @@ export function OutlinePage() {
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <h1 className="font-serif text-3xl">Estrutura</h1>
-          {projectId ? (
-            <Badge variant="outline">{chapters.length} capítulos</Badge>
-          ) : null}
-        </div>
+      <PageHeader
+        title="Estrutura"
+        count={
+          projectId && chapters.length > 0
+            ? `${chapters.length} ${chapters.length === 1 ? "capítulo" : "capítulos"}`
+            : undefined
+        }
+      >
         <ProjectPicker />
-      </header>
+      </PageHeader>
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="mb-4 text-sm text-muted-foreground">
+        <EmptyState>
+          <p className="mb-4">
             Crie um projeto para começar a planejar a estrutura.
           </p>
           <Button asChild>
             <Link href="/projects">Ir para Projetos</Link>
           </Button>
-        </div>
+        </EmptyState>
       ) : (
         <Tabs defaultValue="outline">
           <TabsList>

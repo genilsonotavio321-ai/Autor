@@ -26,6 +26,7 @@ import type { EntityId, Location } from "@/shared/types/database";
 
 import { LOCATION_TYPE_SUGGESTIONS, MAX_LOCATION_DEPTH, locationDepth, locationParentCandidates } from "../domain/repository";
 import { renameMentionsInProject } from "@/features/mentions/application/rename-mentions-service";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { locationRepository } from "../infra/dexie-location-repository";
 
 interface LocationDialogProps {
@@ -188,6 +189,11 @@ export function LocationDialog({
               placeholder="Como é esse lugar?"
             />
           </div>
+          <ImageAttachments
+            entityType="location"
+            entityId={location?.id}
+            projectId={location?.projectId ?? projectId}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

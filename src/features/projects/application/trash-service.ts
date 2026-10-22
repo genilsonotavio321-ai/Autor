@@ -1,4 +1,5 @@
 import { versionRepository } from "@/features/editor/infra/dexie-version-repository";
+import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import { plotBeatRepository } from "@/features/plot/infra/dexie-plot-beat-repository";
@@ -38,9 +39,9 @@ interface ProjectOwned extends HardDeletable, ListDeleted<{ id: EntityId; projec
 }
 
 /**
- * Permanently deletes an entity plus its derived version snapshots.
- * Versions are stored per entityId (UUIDs are global), so no entityType
- * filter is needed to find them.
+ * Permanently deletes an entity plus its derived data: version snapshots and
+ * image attachments. Both are stored per entityId (UUIDs are global), so no
+ * entityType filter is needed to find them.
  */
 async function purgeEntity(
   repo: HardDeletable,
@@ -50,6 +51,7 @@ async function purgeEntity(
   for (const version of versions) {
     await versionRepository.delete(version.id);
   }
+  await attachmentRepository.removeByEntityId(id);
   await repo.hardDelete(id);
 }
 
@@ -121,6 +123,9 @@ async function purgeProject(projectId: EntityId): Promise<void> {
     tagRepository.deleteByProject(projectId),
     snippetRepository.deleteByProject(projectId),
   ]);
+
+  // Rede de segurança: anexos órfãos (entidade já apagada) também caem aqui.
+  await attachmentRepository.removeByProject(projectId);
 
   await purgeEntity(projectRepository, projectId);
 }

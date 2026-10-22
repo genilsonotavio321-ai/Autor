@@ -1,6 +1,7 @@
 "use client";
 
 import type { Content } from "@tiptap/core";
+import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import { Highlighter } from "lucide-react";
 import { EditorContent, useEditor } from "@tiptap/react";
@@ -73,6 +74,13 @@ export function ReadingDocument({
       // Same alignment attribute as the editor, so centered/right/justified
       // paragraphs keep their `text-align` style in read mode.
       TextAlign.configure({ types: ["heading", "paragraph"] }),
+      // Mesma configuração do editor: capítulo com imagem precisa do node
+      // registrado aqui, senão o setContent descarta a imagem.
+      Image.configure({
+        allowBase64: true,
+        inline: false,
+        HTMLAttributes: { class: "max-w-full rounded-lg" },
+      }),
       EntityHighlight.configure({
         getSettings: () => mentionSettingsRef.current,
       }),

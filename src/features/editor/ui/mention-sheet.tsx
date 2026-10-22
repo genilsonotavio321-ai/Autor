@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { buildCharacterSections } from "@/features/characters/ui/character-sections";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import type { MentionType } from "@/features/mentions/domain/entity-index";
 import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
@@ -119,6 +120,15 @@ export function MentionSheet({
         if (target) onEdit(target);
       }}
       onOpenChange={onOpenChange}
+      gallery={
+        target ? (
+          <ImageAttachments
+            readOnly
+            entityType={target.type === "character" ? "character" : "location"}
+            entityId={target.id}
+          />
+        ) : null
+      }
       floatingAction={
         showBack ? (
           <div className="absolute -top-12 left-1/2 z-10 -translate-x-1/2">

@@ -27,11 +27,14 @@ function useClickSound() {
 }
 
 // Estilo global de animações (item 9): duração ajustável ou desativar tudo.
+// Fonte de verdade é o toggle "Desativar animações" do app — não seguimos
+// prefers-reduced-motion do SO porque o usuário já tem controle explícito aqui
+// (e o reduce silencioso anulava toggles ligados, confundindo).
 function MotionStyle() {
   const enabled = useUiStore((state) => state.animationsEnabled);
   const duration = useUiStore((state) => state.animationDuration);
   const css = enabled
-    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}[data-radix-popper-content-wrapper]{transition:none!important}`
+    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}[data-radix-popper-content-wrapper]{transition:none!important}#main-content{animation-duration:${Math.max(duration, 280)}ms!important}`
     : `*,::before,::after{transition:none!important;animation:none!important}`;
   return <style dangerouslySetInnerHTML={{ __html: css }} />;
 }
@@ -88,9 +91,10 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const searchDialog = <SearchDialog />;
   const sprintTicker = <SprintTicker />;
   // key={pathname} remonta o <main> a cada navegação, disparando a animação
-  // de entrada. Duração já segue o slider global via MotionStyle.
+  // de entrada. Piso de 280ms no MotionStyle porque o slider global pode
+  // descer a 50ms — velocidade imperceptível para esta transição.
   const pageMotionClass = pageTransitionEnabled
-    ? "animate-in fade-in-0 slide-in-from-bottom-1"
+    ? "animate-in fade-in-0 slide-in-from-bottom-4 zoom-in-95"
     : "";
 
   // Focus mode: hide sidebar/topbar/palette so only the writing surface shows.

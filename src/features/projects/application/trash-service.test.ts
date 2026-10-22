@@ -3,6 +3,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getDatabase } from "@/infra/db";
+import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { versionRepository } from "@/features/editor/infra/dexie-version-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
@@ -32,6 +33,7 @@ beforeEach(async () => {
       db.tags,
       db.snippets,
       db.versions,
+      db.attachments,
     ],
     async () => {
       await Promise.all(
@@ -48,6 +50,7 @@ beforeEach(async () => {
           db.tags,
           db.snippets,
           db.versions,
+          db.attachments,
         ].map((table) => table.clear()),
       );
     },
@@ -124,6 +127,12 @@ describe("purgeTrashItem", () => {
       createdAt: "2026-01-01T00:00:00.000Z",
       updatedAt: "2026-01-01T00:00:00.000Z",
     });
+    await attachmentRepository.add({
+      projectId,
+      entityType: "character",
+      entityId: character.id,
+      dataUrl: "data:image/jpeg;base64,ccc",
+    });
 
     await purgeTrashItem("project", projectId);
 
@@ -142,6 +151,8 @@ describe("purgeTrashItem", () => {
     expect(
       await getDatabase().snippets.where("projectId").equals(projectId).count(),
     ).toBe(0);
+    // Attachments cascade with the project (per-entity and safety-net purge).
+    expect(await attachmentRepository.listByProject(projectId)).toHaveLength(0);
   });
 
   it("purges a single note without touching the rest of the project", async () => {
@@ -149,12 +160,31 @@ describe("purgeTrashItem", () => {
     const kept = await noteRepository.create({ projectId, title: "Manter" });
     const trashed = await noteRepository.create({ projectId, title: "Apagar" });
     await noteRepository.softDelete(trashed.id);
+    await attachmentRepository.add({
+      projectId,
+      entityType: "note",
+      entityId: trashed.id,
+      dataUrl: "data:image/jpeg;base64,aaa",
+    });
+    await attachmentRepository.add({
+      projectId,
+      entityType: "note",
+      entityId: kept.id,
+      dataUrl: "data:image/jpeg;base64,bbb",
+    });
 
     await purgeTrashItem("note", trashed.id);
 
     expect(await noteRepository.getById(trashed.id)).toBeUndefined();
     expect(await noteRepository.getById(kept.id)).toBeDefined();
     expect(await projectRepository.getById(projectId)).toBeDefined();
+    // Purging removes the entity's attachments but keeps the sibling's.
+    expect(
+      await attachmentRepository.listByEntity("note", trashed.id),
+    ).toHaveLength(0);
+    expect(
+      await attachmentRepository.listByEntity("note", kept.id),
+    ).toHaveLength(1);
   });
 });
 

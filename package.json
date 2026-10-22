@@ -24,6 +24,7 @@
     "@serwist/next": "^9.5.13",
     "@tanstack/react-query": "^5.104.4",
     "@tiptap/extension-character-count": "^3.32.0",
+    "@tiptap/extension-image": "^3.32.0",
     "@tiptap/extension-placeholder": "^3.32.0",
     "@tiptap/extension-text-align": "^3.32.0",
     "@tiptap/pm": "^3.32.0",

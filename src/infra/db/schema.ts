@@ -1,6 +1,7 @@
 import Dexie, { type EntityTable } from "dexie";
 
 import type {
+  Attachment,
   Chapter,
   Character,
   Location,
@@ -37,6 +38,7 @@ export class AutorDatabase extends Dexie {
   templates!: EntityTable<Template, "id">;
   versions!: EntityTable<Version, "id">;
   settings!: EntityTable<Setting, "key">;
+  attachments!: EntityTable<Attachment, "id">;
 
   constructor() {
     super("autor");
@@ -56,6 +58,26 @@ export class AutorDatabase extends Dexie {
       templates: "id, name, scope, builtin",
       versions: "id, [entityType+entityId], createdAt",
       settings: "key",
+    });
+
+    // v2: imagens anexadas a notas/fichas/eventos (Fase 2B).
+    // Copia TODAS as tabelas do v1 — a Dexie apaga tabelas omitidas entre versões.
+    this.version(2).stores({
+      projects: "id, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, structure, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
     });
   }
 }

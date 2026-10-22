@@ -34,6 +34,7 @@ export const TABLE_NAMES = [
   "templates",
   "versions",
   "settings",
+  "attachments",
 ] as const;
 
 /** Full JSON dump of every table — stored before any migration runs. */

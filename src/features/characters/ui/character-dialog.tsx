@@ -39,6 +39,7 @@ import {
 } from "../domain/repository";
 import { renameMentionsInProject } from "@/features/mentions/application/rename-mentions-service";
 import { resolveTagColor } from "@/features/tags/domain/repository";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 
 export function parseTraits(text: string): string[] {
   return text
@@ -420,6 +421,11 @@ export function CharacterDialog({
               </div>
             ) : null}
           </section>
+          <ImageAttachments
+            entityType="character"
+            entityId={character?.id}
+            projectId={character?.projectId ?? projectId}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

@@ -28,6 +28,8 @@ interface EntityViewDialogProps {
   onOpenChange: (open: boolean) => void;
   /** Optional element floating over the sheet (e.g. "Voltar ao texto"). */
   floatingAction?: ReactNode;
+  /** Optional read-only content below the sections (e.g. image thumbnails). */
+  gallery?: ReactNode;
 }
 
 /**
@@ -43,6 +45,7 @@ export function EntityViewDialog({
   onTrash,
   onOpenChange,
   floatingAction,
+  gallery,
 }: EntityViewDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -103,6 +106,7 @@ export function EntityViewDialog({
             ))
           )}
         </div>
+        {gallery}
         {floatingAction}
       </DialogContent>
     </Dialog>

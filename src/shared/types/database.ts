@@ -198,6 +198,25 @@ export interface Snippet extends BaseEntity {
   content: string;
 }
 
+/** Entities that accept image attachments (Fase 2B). */
+export type AttachmentEntityType =
+  | "note"
+  | "character"
+  | "location"
+  | "lore"
+  | "event";
+
+export interface Attachment {
+  id: EntityId;
+  projectId: EntityId;
+  entityType: AttachmentEntityType;
+  entityId: EntityId;
+  name?: string;
+  /** Image dataURL (JPEG, downscaled at insert — see image-file.ts). */
+  dataUrl: string;
+  createdAt: string;
+}
+
 export interface Template {
   id: EntityId;
   name: string;

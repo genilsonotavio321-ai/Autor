@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import type { Character, EntityId, Location, LoreEntry } from "@/shared/types/database";
 
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
 
 interface LoreDialogProps {
@@ -175,6 +176,11 @@ export function LoreDialog({
               </div>
             </fieldset>
           ) : null}
+          <ImageAttachments
+            entityType="lore"
+            entityId={entry?.id}
+            projectId={entry?.projectId ?? projectId}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

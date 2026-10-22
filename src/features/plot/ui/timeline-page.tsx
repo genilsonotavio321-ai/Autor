@@ -1,11 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { CalendarRange, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -27,6 +29,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
+import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
@@ -54,6 +58,25 @@ export function TimelinePage() {
     event?: TimelineEvent | null;
   }>({ open: false });
 
+  const liveAttachments = useLiveQuery(
+    () =>
+      projectId ? attachmentRepository.listByProject(projectId) : [],
+    [projectId],
+  );
+  // First image of each event, for the inline card thumbnail.
+  const firstEventImage = useMemo(() => {
+    const map = new Map<EntityId, string>();
+    for (const attachment of liveAttachments ?? []) {
+      if (
+        attachment.entityType === "event" &&
+        !map.has(attachment.entityId)
+      ) {
+        map.set(attachment.entityId, attachment.dataUrl);
+      }
+    }
+    return map;
+  }, [liveAttachments]);
+
   const chapterById = new Map(
     chapters.map((chapter) => [chapter.id, chapter] as const),
   );
@@ -77,26 +100,26 @@ export function TimelinePage() {
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl">Linha do tempo</h1>
-        <div className="flex flex-wrap items-center gap-2">
-          <ProjectPicker />
-          <Button
-            onClick={() => setDialog({ open: true })}
-            disabled={!projectId}
-          >
-            <Plus aria-hidden />
-            Novo evento
-          </Button>
-        </div>
-      </header>
+      <PageHeader
+        title="Linha do tempo"
+        count={
+          events.length > 0
+            ? `${events.length} ${events.length === 1 ? "evento" : "eventos"}`
+            : undefined
+        }
+      >
+        <ProjectPicker />
+        <Button
+          onClick={() => setDialog({ open: true })}
+          disabled={!projectId}
+        >
+          <Plus aria-hidden />
+          Novo evento
+        </Button>
+      </PageHeader>
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crie um projeto para montar a linha do tempo.
-          </p>
-        </div>
+        <EmptyState>Crie um projeto para montar a linha do tempo.</EmptyState>
       ) : (
         <>
           {chapters.length > 0 ? (
@@ -121,10 +144,10 @@ export function TimelinePage() {
           ) : null}
 
           {visible.length === 0 ? (
-            <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+            <EmptyState>
               Nenhum evento ainda. Registre marcos da história em ordem
               cronológica.
-            </div>
+            </EmptyState>
           ) : (
             <ol className="relative grid gap-3 border-l pl-6">
               {visible.map((event) => (
@@ -161,6 +184,14 @@ export function TimelinePage() {
                       <p className="mt-1 text-sm text-muted-foreground">
                         {event.description}
                       </p>
+                    ) : null}
+                    {firstEventImage.get(event.id) ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- dataURL local; next/image não se aplica
+                      <img
+                        src={firstEventImage.get(event.id)}
+                        alt=""
+                        className="mt-2 max-h-40 rounded-md border object-cover"
+                      />
                     ) : null}
                     {event.linkedChapterId ? (
                       <Link
@@ -266,21 +297,21 @@ function EventDialog({
         </DialogHeader>
         <div className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor="event-date">Data</Label>
-            <Input
-              id="event-date"
-              value={date}
-              onChange={(event) => setDate(event.target.value)}
-              placeholder="1889, 1889-05 ou 1889-05-12"
-            />
-          </div>
-          <div className="grid gap-2">
             <Label htmlFor="event-title">Título</Label>
             <Input
               id="event-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
               placeholder="O que acontece?"
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="event-date">Data</Label>
+            <Input
+              id="event-date"
+              value={date}
+              onChange={(event) => setDate(event.target.value)}
+              placeholder="1889, 1889-05 ou 1889-05-12"
             />
           </div>
           <div className="grid gap-2">
@@ -308,6 +339,11 @@ function EventDialog({
               </SelectContent>
             </Select>
           </div>
+          <ImageAttachments
+            entityType="event"
+            entityId={event?.id}
+            projectId={projectId}
+          />
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>

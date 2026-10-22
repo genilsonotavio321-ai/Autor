@@ -27,6 +27,8 @@ import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
@@ -41,6 +43,7 @@ import { locationRepository } from "../infra/dexie-location-repository";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
 import { MAX_LOCATION_DEPTH } from "../domain/repository";
 
+import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { LocationDialog } from "./location-dialog";
 import { LoreDialog } from "./lore-dialog";
 
@@ -235,46 +238,47 @@ export function WorldPage() {
 
   return (
     <div className="grid gap-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="font-serif text-3xl">Mundo</h1>
+      <PageHeader
+        title="Mundo"
+        count={
+          locations.length + loreEntries.length > 0
+            ? `${locations.length} ${locations.length === 1 ? "local" : "locais"} · ${loreEntries.length} ${loreEntries.length === 1 ? "entrada" : "entradas"}`
+            : undefined
+        }
+      >
         <ProjectPicker />
-      </header>
+        {projectId !== null ? (
+          worldTab === "locations" ? (
+            <Button onClick={() => setLocationDialog({ open: true })}>
+              <Plus aria-hidden />
+              Novo local
+            </Button>
+          ) : (
+            <Button onClick={() => setLoreDialog({ open: true })}>
+              <Plus aria-hidden />
+              Nova entrada
+            </Button>
+          )
+        ) : null}
+      </PageHeader>
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center">
-          <p className="text-sm text-muted-foreground">
-            Crie um projeto para mapear locais e o lore da sua história.
-          </p>
-        </div>
+        <EmptyState className="p-10">
+          <p>Crie um projeto para mapear locais e o lore da sua história.</p>
+        </EmptyState>
       ) : (
         <Tabs value={worldTab} onValueChange={setWorldTab}>
           <TabsList>
-            <TabsTrigger value="locations">
-              Locais{" "}
-              <Badge variant="secondary" className="ml-2">
-                {locations.length}
-              </Badge>
-            </TabsTrigger>
-            <TabsTrigger value="lore">
-              Lore{" "}
-              <Badge variant="secondary" className="ml-2">
-                {loreEntries.length}
-              </Badge>
-            </TabsTrigger>
+            <TabsTrigger value="locations">Locais</TabsTrigger>
+            <TabsTrigger value="lore">Lore</TabsTrigger>
           </TabsList>
 
           <TabsContent value="locations" className="mt-4 grid gap-4">
-            <div className="flex justify-end">
-              <Button onClick={() => setLocationDialog({ open: true })}>
-                <Plus aria-hidden />
-                Novo local
-              </Button>
-            </div>
             {locations.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              <EmptyState>
                 Nenhum local ainda. Registre cidades, castelos e paisagens do
                 seu universo.
-              </div>
+              </EmptyState>
             ) : (
               <DndContext
                 sensors={sensors}
@@ -312,17 +316,11 @@ export function WorldPage() {
           </TabsContent>
 
           <TabsContent value="lore" className="mt-4 grid gap-4">
-            <div className="flex justify-end">
-              <Button onClick={() => setLoreDialog({ open: true })}>
-                <Plus aria-hidden />
-                Nova entrada
-              </Button>
-            </div>
             {loreEntries.length === 0 ? (
-              <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
+              <EmptyState>
                 Nenhuma entrada de lore. Documente história, mitologia e regras
                 do seu mundo.
-              </div>
+              </EmptyState>
             ) : (
               <DndContext
                 sensors={sensors}
@@ -411,6 +409,13 @@ export function WorldPage() {
         onOpenChange={(open) => {
           if (!open) setViewLocation(null);
         }}
+        gallery={
+          <ImageAttachments
+            readOnly
+            entityType="location"
+            entityId={viewLocation?.id}
+          />
+        }
       />
 
       <EntityViewDialog
@@ -440,6 +445,13 @@ export function WorldPage() {
         onOpenChange={(open) => {
           if (!open) setViewLore(null);
         }}
+        gallery={
+          <ImageAttachments
+            readOnly
+            entityType="lore"
+            entityId={viewLore?.id}
+          />
+        }
       />
     </div>
   );

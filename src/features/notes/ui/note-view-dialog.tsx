@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Pencil, Share2, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -18,13 +19,15 @@ interface NoteViewDialogProps {
   onEdit: (note: Note) => void;
   onShare: (note: Note) => void;
   onOpenChange: (open: boolean) => void;
+  /** Optional read-only content below the text (image thumbnails). */
+  gallery?: ReactNode;
 }
 
 /**
  * Read-only view for a note (E3 of the review feedback): cards open here
  * instead of jumping straight into the editor.
  */
-export function NoteViewDialog({ note, onEdit, onShare, onOpenChange }: NoteViewDialogProps) {
+export function NoteViewDialog({ note, onEdit, onShare, onOpenChange, gallery }: NoteViewDialogProps) {
   return (
     <Dialog open={note !== null} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg" showCloseButton={false}>
@@ -75,6 +78,7 @@ export function NoteViewDialog({ note, onEdit, onShare, onOpenChange }: NoteView
             {note?.content || "Esta nota está vazia."}
           </p>
         </div>
+        {gallery}
       </DialogContent>
     </Dialog>
   );
