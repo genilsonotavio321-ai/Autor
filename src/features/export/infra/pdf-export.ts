@@ -418,7 +418,11 @@ function writeDoc(writer: PdfWriter, doc: Json, depth = 0): void {
       case "heading":
         writer.heading(
           inlineRuns(record),
-          Number(record.level ?? 1),
+          // O Tiptap guarda o nível em attrs.level; record.level era sempre
+          // undefined e todos os títulos saíam no corpo de H1.
+          Number(
+            (isNode(record.attrs) ? record.attrs.level : record.level) ?? 1,
+          ),
           blockAlign(record),
         );
         break;

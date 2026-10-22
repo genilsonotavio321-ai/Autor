@@ -172,3 +172,56 @@ describe("buildPdf — justificado", () => {
     expect(justify).not.toBe(left);
   });
 });
+
+describe("buildPdf — documento misto (fixture do layout simplificado)", () => {
+  it("renderiza títulos, estilos, citação, listas e alinhamentos juntos", async () => {
+    const pdf = await stream(
+      doc([
+        {
+          type: "heading",
+          attrs: { level: 1 },
+          content: [{ type: "text", text: "TituloUm" }],
+        },
+        {
+          type: "heading",
+          attrs: { level: 2 },
+          content: [{ type: "text", text: "TituloDois" }],
+        },
+        {
+          type: "heading",
+          attrs: { level: 3 },
+          content: [{ type: "text", text: "TituloTres" }],
+        },
+        paragraph("ParagrafoCentro", "center"),
+        paragraph("ParagrafoDireita", "right"),
+        styledParagraph(),
+        { type: "blockquote", content: [paragraph("CitacaoMista")] },
+        {
+          type: "bulletList",
+          content: [{ type: "listItem", content: [paragraph("ItemMarcado")] }],
+        },
+        {
+          type: "orderedList",
+          content: [{ type: "listItem", content: [paragraph("ItemNumerado")] }],
+        },
+      ]),
+    );
+
+    // H1–H3 saem nos corpos 20/16/14 (o corpo do texto é 12).
+    expect(pdf).toMatch(/\b20 Tf\b/);
+    expect(pdf).toMatch(/\b16 Tf\b/);
+    expect(pdf).toMatch(/\b14 Tf\b/);
+    expect(pdf).toContain("(TituloUm) Tj");
+    expect(pdf).toContain("(TituloDois) Tj");
+    expect(pdf).toContain("(TituloTres) Tj");
+    // Estilos inline e blocos especiais.
+    expect(pdf).toContain("(Negrito) Tj");
+    expect(pdf).toContain("(Italico) Tj");
+    expect(pdf).toContain("(CitacaoMista) Tj");
+    expect(pdf).toContain("(- ItemMarcado) Tj");
+    expect(pdf).toContain("(1. ItemNumerado) Tj");
+    // Alinhamentos diferentes convivem no mesmo documento.
+    expect(pdf).toContain("(ParagrafoCentro) Tj");
+    expect(pdf).toContain("(ParagrafoDireita) Tj");
+  });
+});

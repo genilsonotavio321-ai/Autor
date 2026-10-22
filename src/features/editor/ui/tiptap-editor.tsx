@@ -15,13 +15,14 @@ import {
   AlignRight,
   Bold,
   Eye,
+  Heading,
   Heading1,
   Heading2,
   Heading3,
-  Highlighter,
   Italic,
   List,
   ListOrdered,
+  PenLine,
   Quote,
   Redo,
   Undo,
@@ -29,6 +30,13 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { Switch } from "@/components/ui/switch";
@@ -67,6 +75,8 @@ interface TiptapEditorProps {
   onReady?: (editor: Editor) => void;
   /** Called on every document change. */
   onUpdate?: (editor: Editor) => void;
+  /** Barra de ações renderizada dentro do container do editor (layout simplificado). */
+  actions?: React.ReactNode;
 }
 
 // Identidades estáveis: o efeito interno do BubbleMenu (@tiptap/react/menus)
@@ -85,7 +95,9 @@ export function TiptapEditor({
   onOpenMention,
   onReady,
   onUpdate,
+  actions,
 }: TiptapEditorProps) {
+  const editorSimplified = useUiStore((state) => state.editorSimplified);
   const mentionHighlightEnabled = useUiStore(
     (state) => state.mentionHighlightEnabled,
   );
@@ -253,130 +265,134 @@ export function TiptapEditor({
         aria-label="Formatação"
         className="flex flex-wrap items-center gap-0.5 border-b p-1.5"
       >
-        {toolbar &&
-          toolButton(
-            "Negrito",
-            toolbar.bold,
-            false,
-            () => editor.chain().focus().toggleBold().run(),
-            <Bold aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Itálico",
-            toolbar.italic,
-            false,
-            () => editor.chain().focus().toggleItalic().run(),
-            <Italic aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Grifar seleção",
-            toolbar.grifar,
-            false,
-            toggleGrifar,
-            <Highlighter aria-hidden className="size-4" />,
-          )}
-        <Separator orientation="vertical" className="mx-1 h-5" />
-        {toolbar &&
-          toolButton(
-            "Título 1",
-            toolbar.heading1,
-            false,
-            () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
-            <Heading1 aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Título 2",
-            toolbar.heading2,
-            false,
-            () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
-            <Heading2 aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Título 3",
-            toolbar.heading3,
-            false,
-            () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
-            <Heading3 aria-hidden className="size-4" />,
-          )}
-        <Separator orientation="vertical" className="mx-1 h-5" />
-        {toolbar &&
-          toolButton(
-            "Lista com marcadores",
-            toolbar.bulletList,
-            false,
-            () => editor.chain().focus().toggleBulletList().run(),
-            <List aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Lista numerada",
-            toolbar.orderedList,
-            false,
-            () => editor.chain().focus().toggleOrderedList().run(),
-            <ListOrdered aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Citação",
-            toolbar.blockquote,
-            false,
-            () => editor.chain().focus().toggleBlockquote().run(),
-            <Quote aria-hidden className="size-4" />,
-          )}
-        <Separator orientation="vertical" className="mx-1 h-5" />
-        {toolbar &&
-          toolButton(
-            "Alinhar à esquerda",
-            toolbar.textAlign === "left",
-            false,
-            () => applyAlignment("left"),
-            <AlignLeft aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Centralizar",
-            toolbar.textAlign === "center",
-            false,
-            () => applyAlignment("center"),
-            <AlignCenter aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Alinhar à direita",
-            toolbar.textAlign === "right",
-            false,
-            () => applyAlignment("right"),
-            <AlignRight aria-hidden className="size-4" />,
-          )}
-        {toolbar &&
-          toolButton(
-            "Justificar",
-            toolbar.textAlign === "justify",
-            false,
-            () => applyAlignment("justify"),
-            <AlignJustify aria-hidden className="size-4" />,
-          )}
-        <div className="ml-1 flex items-center gap-1.5">
-          <Switch
-            id="alignment-chapter"
-            aria-label="Aplicar alinhamento ao capítulo inteiro"
-            checked={alignmentScope === "chapter"}
-            onCheckedChange={(checked) =>
-              setAlignmentScope(checked ? "chapter" : "selection")
-            }
-          />
-          <Label
-            htmlFor="alignment-chapter"
-            className="text-xs text-muted-foreground"
-          >
-            Capítulo inteiro
-          </Label>
-        </div>
-        <Separator orientation="vertical" className="mx-1 h-5" />
+        {!editorSimplified ? (
+          <>
+            {toolbar &&
+              toolButton(
+                "Negrito",
+                toolbar.bold,
+                false,
+                () => editor.chain().focus().toggleBold().run(),
+                <Bold aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Itálico",
+                toolbar.italic,
+                false,
+                () => editor.chain().focus().toggleItalic().run(),
+                <Italic aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Grifar seleção",
+                toolbar.grifar,
+                false,
+                toggleGrifar,
+                <PenLine aria-hidden className="size-4" />,
+              )}
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            {toolbar &&
+              toolButton(
+                "Título 1",
+                toolbar.heading1,
+                false,
+                () => editor.chain().focus().toggleHeading({ level: 1 }).run(),
+                <Heading1 aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Título 2",
+                toolbar.heading2,
+                false,
+                () => editor.chain().focus().toggleHeading({ level: 2 }).run(),
+                <Heading2 aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Título 3",
+                toolbar.heading3,
+                false,
+                () => editor.chain().focus().toggleHeading({ level: 3 }).run(),
+                <Heading3 aria-hidden className="size-4" />,
+              )}
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            {toolbar &&
+              toolButton(
+                "Lista com marcadores",
+                toolbar.bulletList,
+                false,
+                () => editor.chain().focus().toggleBulletList().run(),
+                <List aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Lista numerada",
+                toolbar.orderedList,
+                false,
+                () => editor.chain().focus().toggleOrderedList().run(),
+                <ListOrdered aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Citação",
+                toolbar.blockquote,
+                false,
+                () => editor.chain().focus().toggleBlockquote().run(),
+                <Quote aria-hidden className="size-4" />,
+              )}
+            <Separator orientation="vertical" className="mx-1 h-5" />
+            {toolbar &&
+              toolButton(
+                "Alinhar à esquerda",
+                toolbar.textAlign === "left",
+                false,
+                () => applyAlignment("left"),
+                <AlignLeft aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Centralizar",
+                toolbar.textAlign === "center",
+                false,
+                () => applyAlignment("center"),
+                <AlignCenter aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Alinhar à direita",
+                toolbar.textAlign === "right",
+                false,
+                () => applyAlignment("right"),
+                <AlignRight aria-hidden className="size-4" />,
+              )}
+            {toolbar &&
+              toolButton(
+                "Justificar",
+                toolbar.textAlign === "justify",
+                false,
+                () => applyAlignment("justify"),
+                <AlignJustify aria-hidden className="size-4" />,
+              )}
+            <div className="ml-1 flex items-center gap-1.5">
+              <Switch
+                id="alignment-chapter"
+                aria-label="Aplicar alinhamento ao capítulo inteiro"
+                checked={alignmentScope === "chapter"}
+                onCheckedChange={(checked) =>
+                  setAlignmentScope(checked ? "chapter" : "selection")
+                }
+              />
+              <Label
+                htmlFor="alignment-chapter"
+                className="text-xs text-muted-foreground"
+              >
+                Capítulo inteiro
+              </Label>
+            </div>
+            <Separator orientation="vertical" className="mx-1 h-5" />
+          </>
+        ) : null}
         {toolbar &&
           toolButton(
             "Revelar grifados",
@@ -410,21 +426,176 @@ export function TiptapEditor({
         options={GRIFAR_BUBBLE_OPTIONS}
         className="rounded-lg border bg-popover p-1 shadow-md"
       >
-        <Button
-          type="button"
-          variant={editor.isActive("grifar") ? "secondary" : "ghost"}
-          size="sm"
-          className="h-8 gap-1.5"
-          aria-pressed={editor.isActive("grifar")}
-          onClick={toggleGrifar}
-        >
-          <Highlighter aria-hidden className="size-3.5" />
-          Grifar
-        </Button>
+        <div className="flex items-center gap-0.5">
+          {editorSimplified && toolbar ? (
+            <>
+              {toolButton(
+                "Negrito",
+                toolbar.bold,
+                false,
+                () => editor.chain().focus().toggleBold().run(),
+                <Bold aria-hidden className="size-4" />,
+              )}
+              {toolButton(
+                "Itálico",
+                toolbar.italic,
+                false,
+                () => editor.chain().focus().toggleItalic().run(),
+                <Italic aria-hidden className="size-4" />,
+              )}
+            </>
+          ) : null}
+          {toolButton(
+            "Grifar seleção",
+            toolbar?.grifar ?? false,
+            false,
+            toggleGrifar,
+            <PenLine aria-hidden className="size-4" />,
+          )}
+          {editorSimplified && toolbar ? (
+            <>
+              <Separator orientation="vertical" className="mx-0.5 h-5" />
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Título"
+                  >
+                    {toolbar.heading1 ? (
+                      <Heading1 aria-hidden className="size-4" />
+                    ) : toolbar.heading2 ? (
+                      <Heading2 aria-hidden className="size-4" />
+                    ) : toolbar.heading3 ? (
+                      <Heading3 aria-hidden className="size-4" />
+                    ) : (
+                      <Heading aria-hidden className="size-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-36"
+                  portal={false}
+                >
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      editor.chain().focus().toggleHeading({ level: 1 }).run()
+                    }
+                  >
+                    Título 1
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      editor.chain().focus().toggleHeading({ level: 2 }).run()
+                    }
+                  >
+                    Título 2
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onSelect={() =>
+                      editor.chain().focus().toggleHeading({ level: 3 }).run()
+                    }
+                  >
+                    Título 3
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              {toolButton(
+                "Citação",
+                toolbar.blockquote,
+                false,
+                () => editor.chain().focus().toggleBlockquote().run(),
+                <Quote aria-hidden className="size-4" />,
+              )}
+              {toolButton(
+                "Lista com marcadores",
+                toolbar.bulletList,
+                false,
+                () => editor.chain().focus().toggleBulletList().run(),
+                <List aria-hidden className="size-4" />,
+              )}
+              {toolButton(
+                "Lista numerada",
+                toolbar.orderedList,
+                false,
+                () => editor.chain().focus().toggleOrderedList().run(),
+                <ListOrdered aria-hidden className="size-4" />,
+              )}
+              <Separator orientation="vertical" className="mx-0.5 h-5" />
+              <DropdownMenu modal={false}>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="size-8"
+                    aria-label="Alinhamento"
+                  >
+                    {toolbar.textAlign === "center" ? (
+                      <AlignCenter aria-hidden className="size-4" />
+                    ) : toolbar.textAlign === "right" ? (
+                      <AlignRight aria-hidden className="size-4" />
+                    ) : toolbar.textAlign === "justify" ? (
+                      <AlignJustify aria-hidden className="size-4" />
+                    ) : (
+                      <AlignLeft aria-hidden className="size-4" />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="start"
+                  className="w-44"
+                  portal={false}
+                >
+                  <DropdownMenuItem onSelect={() => applyAlignment("left")}>
+                    Esquerda
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => applyAlignment("center")}>
+                    Centro
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => applyAlignment("right")}>
+                    Direita
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onSelect={() => applyAlignment("justify")}>
+                    Justificar
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <div
+                    className="flex items-center justify-between gap-2 px-1.5 py-1"
+                    onPointerDown={(event) => event.preventDefault()}
+                  >
+                    <Label
+                      htmlFor="bubble-alignment-chapter"
+                      className="text-xs text-muted-foreground"
+                    >
+                      Capítulo inteiro
+                    </Label>
+                    <Switch
+                      id="bubble-alignment-chapter"
+                      aria-label="Aplicar alinhamento ao capítulo inteiro"
+                      checked={alignmentScope === "chapter"}
+                      onCheckedChange={(checked) =>
+                        setAlignmentScope(checked ? "chapter" : "selection")
+                      }
+                    />
+                  </div>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </>
+          ) : null}
+        </div>
       </BubbleMenu>
       <div className={grifarReveal ? "grifar-reveal" : undefined}>
         <EditorContent editor={editor} className="tiptap px-3" />
       </div>
+      {actions ? (
+        <div className="flex items-center justify-end gap-1.5 border-t px-2 py-1.5">
+          {actions}
+        </div>
+      ) : null}
       <ReviewDialog
         editor={editor}
         open={reviewOpen}

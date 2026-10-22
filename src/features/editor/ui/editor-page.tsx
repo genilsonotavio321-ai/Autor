@@ -111,6 +111,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
 
   const focusMode = useUiStore((state) => state.focusMode);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
+  const editorSimplified = useUiStore((state) => state.editorSimplified);
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
   const editorFontSize = useUiStore((state) => state.editorFontSize);
   const mentionConfirmOpen = useUiStore((state) => state.mentionConfirmOpen);
@@ -408,17 +409,22 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   async function handleShare(format: ExportFormat) {
     if (!chapter) return;
     try {
+      // O autosave é debounced (800 ms): força o flush e lê o documento vivo
+      // do editor, senão a exportação sai com o conteúdo do mount.
+      await save.flush();
+      const content = (editorRef.current?.getJSON() as Json) ?? chapter.content;
+      const fresh = { ...chapter, content };
       const filename = safeFilename(chapter.title, format);
       if (format === "txt") {
         downloadBlob(
-          new Blob([chapterToTxt(chapter)], {
+          new Blob([chapterToTxt(fresh)], {
             type: "text/plain;charset=utf-8",
           }),
           filename,
         );
       } else if (format === "md") {
         downloadBlob(
-          new Blob([chapterToMd(chapter)], {
+          new Blob([chapterToMd(fresh)], {
             type: "text/markdown;charset=utf-8",
           }),
           filename,
@@ -431,7 +437,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         downloadBlob(
           buildPdf({
             title: chapter.title,
-            chapters: [{ title: chapter.title, content: chapter.content }],
+            chapters: [{ title: chapter.title, content }],
             cover: false,
           }),
           filename,
@@ -470,6 +476,76 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     );
   }
 
+  // No layout simplificado os botões de ação ficam dentro do próprio editor.
+  const editorActions = editorSimplified ? (
+    <>
+      <Select
+        value={status ?? chapter.status}
+        onValueChange={(value) => changeStatus(value as ChapterStatus)}
+      >
+        <SelectTrigger
+          className={`h-8 w-32 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
+          aria-label="Status do capítulo"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
+            <SelectItem key={value} value={value}>
+              <span
+                aria-hidden
+                className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
+              />
+              {label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        aria-label="Ler capítulo"
+        onClick={() => router.push(`/read?chapter=${chapterId}`)}
+      >
+        <BookOpen aria-hidden className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        aria-label="Versões"
+        onClick={() => void saveManualVersion()}
+      >
+        <History aria-hidden className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        aria-label="Compartilhar"
+        onClick={() => setShareOpen(true)}
+      >
+        <Share2 aria-hidden className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
+        onClick={toggleFocusMode}
+        aria-label={
+          focusMode ? "Sair do modo foco" : "Ativar modo foco (Esc para sair)"
+        }
+      >
+        {focusMode ? (
+          <Minimize2 aria-hidden className="size-4" />
+        ) : (
+          <Maximize2 aria-hidden className="size-4" />
+        )}
+      </Button>
+    </>
+  ) : null;
+
   return (
     <div
       className={
@@ -496,72 +572,76 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           aria-label="Título do capítulo"
         />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        <Select
-          value={status ?? chapter.status}
-          onValueChange={(value) => changeStatus(value as ChapterStatus)}
-        >
-          <SelectTrigger
-            className={`h-9 w-36 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
-            aria-label="Status do capítulo"
+      {!editorSimplified ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={status ?? chapter.status}
+            onValueChange={(value) => changeStatus(value as ChapterStatus)}
           >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
-              <SelectItem key={value} value={value}>
-                <span
-                  aria-hidden
-                  className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
-                />
-                {label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={() => router.push(`/read?chapter=${chapterId}`)}
-        >
-          <BookOpen aria-hidden />
-          Ler
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={() => void saveManualVersion()}
-        >
-          <History aria-hidden />
-          Versões
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={() => setShareOpen(true)}
-        >
-          <Share2 aria-hidden />
-          Compartilhar
-        </Button>
-        <Button
-          variant="outline"
-          size="icon"
-          className="size-9"
-          onClick={toggleFocusMode}
-          aria-label={
-            focusMode ? "Sair do modo foco" : "Ativar modo foco (Esc para sair)"
-          }
-        >
-          {focusMode ? (
-            <Minimize2 aria-hidden className="size-4" />
-          ) : (
-            <Maximize2 aria-hidden className="size-4" />
-          )}
-        </Button>
-      </div>
+            <SelectTrigger
+              className={`h-9 w-36 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
+              aria-label="Status do capítulo"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  <span
+                    aria-hidden
+                    className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
+                  />
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => router.push(`/read?chapter=${chapterId}`)}
+          >
+            <BookOpen aria-hidden />
+            Ler
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => void saveManualVersion()}
+          >
+            <History aria-hidden />
+            Versões
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => setShareOpen(true)}
+          >
+            <Share2 aria-hidden />
+            Compartilhar
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-9"
+            onClick={toggleFocusMode}
+            aria-label={
+              focusMode
+                ? "Sair do modo foco"
+                : "Ativar modo foco (Esc para sair)"
+            }
+          >
+            {focusMode ? (
+              <Minimize2 aria-hidden className="size-4" />
+            ) : (
+              <Maximize2 aria-hidden className="size-4" />
+            )}
+          </Button>
+        </div>
+      ) : null}
 
       <div
         style={{
@@ -578,6 +658,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           onOpenMention={openMention}
           onReady={handleEditorReady}
           onUpdate={() => scheduleSave()}
+          actions={editorActions}
         />
       </div>
 

@@ -158,6 +158,10 @@ export function SettingsPage() {
   const setPageTransitionEnabled = useUiStore(
     (state) => state.setPageTransitionEnabled,
   );
+  const editorSimplified = useUiStore((state) => state.editorSimplified);
+  const setEditorSimplified = useUiStore(
+    (state) => state.setEditorSimplified,
+  );
   const searchGlobalEnabled = useUiStore(
     (state) => state.searchGlobalEnabled,
   );
@@ -367,6 +371,19 @@ export function SettingsPage() {
             step={1}
             onValueChange={setEditorFontSize}
           />
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="editor-simplified">
+              Editor Simplificado
+              <span className="block text-xs font-normal text-muted-foreground">
+                Formatação na seleção; botões de ação dentro do editor.
+              </span>
+            </Label>
+            <Switch
+              id="editor-simplified"
+              checked={editorSimplified}
+              onCheckedChange={withToggle(setEditorSimplified)}
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -100,6 +100,8 @@ interface UiState {
   animationDuration: number;
   /** Transição de entrada ao trocar de seção/página. */
   pageTransitionEnabled: boolean;
+  /** Layout do editor enxuto: formatação só na seleção, botões dentro do editor. */
+  editorSimplified: boolean;
   /** Busca inclui seções/opções do app (item 3). */
   searchGlobalEnabled: boolean;
   /** Seções da página inicial (item 4). */
@@ -139,6 +141,7 @@ interface UiState {
   setThemeVariantDark: (variant: ThemeVariantDark) => void;
   setAnimationDuration: (duration: number) => void;
   setPageTransitionEnabled: (enabled: boolean) => void;
+  setEditorSimplified: (enabled: boolean) => void;
   setSearchGlobalEnabled: (enabled: boolean) => void;
   setHomeSections: (sections: HomeSection[]) => void;
 }
@@ -176,6 +179,7 @@ export const useUiStore = create<UiState>()(
       animationsEnabled: true,
       animationDuration: 150,
       pageTransitionEnabled: true,
+      editorSimplified: true,
       themeVariantLight: "padrao",
       themeVariantDark: "padrao",
       searchGlobalEnabled: true,
@@ -267,6 +271,7 @@ export const useUiStore = create<UiState>()(
         set({ animationDuration: clamp(duration, 50, 1000) }),
       setPageTransitionEnabled: (enabled) =>
         set({ pageTransitionEnabled: enabled }),
+      setEditorSimplified: (enabled) => set({ editorSimplified: enabled }),
       setSearchGlobalEnabled: (enabled) =>
         set({ searchGlobalEnabled: enabled }),
       setHomeSections: (sections) => set({ homeSections: sections }),
@@ -297,6 +302,7 @@ export const useUiStore = create<UiState>()(
         animationsEnabled: state.animationsEnabled,
         animationDuration: state.animationDuration,
         pageTransitionEnabled: state.pageTransitionEnabled,
+        editorSimplified: state.editorSimplified,
         themeVariantLight: state.themeVariantLight,
         themeVariantDark: state.themeVariantDark,
         searchGlobalEnabled: state.searchGlobalEnabled,
