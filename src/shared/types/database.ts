@@ -26,6 +26,9 @@ export type CharacterRole =
   | "supporting"
   | "minor";
 
+/** Gênero da ficha — concorda os prompts do gerador (ex.: "obrigad@"). */
+export type CharacterGender = "masculino" | "feminino" | "outro";
+
 export type RelationshipType =
   | "family"
   | "friend"
@@ -116,6 +119,8 @@ export interface Character extends BaseEntity {
   /** Manual (drag-and-drop) position within the project. */
   order?: number;
   role: CharacterRole;
+  /** Concordância de gênero nos prompts do gerador; opcional. */
+  gender?: CharacterGender;
   description?: string;
   backstory?: string;
   goals?: string;
@@ -196,6 +201,22 @@ export interface Snippet extends BaseEntity {
   projectId: EntityId;
   title: string;
   content: string;
+}
+
+/** Card de ideia no canvas de Criatividade (posição livre). */
+export interface IdeaCard extends BaseEntity {
+  projectId: EntityId;
+  title: string;
+  content: string;
+  /** Chave da paleta de cores do canvas (ver idea-canvas.tsx). */
+  color?: string;
+  /** Posição livre no canvas, em pixels. */
+  x: number;
+  y: number;
+  /** Cena criada a partir deste card ("transformar em cena"). */
+  sentSceneId?: EntityId;
+  /** Ids dos cards conectados (linhas do canvas, gravado dos dois lados). */
+  links?: EntityId[];
 }
 
 /** Entities that accept image attachments (Fase 2B). */

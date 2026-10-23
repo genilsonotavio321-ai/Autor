@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { getDatabase } from "@/infra/db";
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { ideaCardRepository } from "@/features/creativity/infra/dexie-idea-card-repository";
 import { versionRepository } from "@/features/editor/infra/dexie-version-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import { plotBeatRepository } from "@/features/plot/infra/dexie-plot-beat-repository";
@@ -34,6 +35,7 @@ beforeEach(async () => {
       db.snippets,
       db.versions,
       db.attachments,
+      db.ideaCards,
     ],
     async () => {
       await Promise.all(
@@ -51,6 +53,7 @@ beforeEach(async () => {
           db.snippets,
           db.versions,
           db.attachments,
+          db.ideaCards,
         ].map((table) => table.clear()),
       );
     },
@@ -119,6 +122,15 @@ describe("purgeTrashItem", () => {
     });
     await plotBeatRepository.softDelete(trashedBeat.id);
     const tag = await tagRepository.create({ projectId, name: "arco" });
+    const activeIdeaCard = await ideaCardRepository.create({
+      projectId,
+      title: "Ideia ativa",
+    });
+    const trashedIdeaCard = await ideaCardRepository.create({
+      projectId,
+      title: "Ideia na lixeira",
+    });
+    await ideaCardRepository.softDelete(trashedIdeaCard.id);
     await getDatabase().snippets.add({
       id: "snippet-1",
       projectId,
@@ -153,6 +165,12 @@ describe("purgeTrashItem", () => {
     ).toBe(0);
     // Attachments cascade with the project (per-entity and safety-net purge).
     expect(await attachmentRepository.listByProject(projectId)).toHaveLength(0);
+    // Idea cards are project-owned and cascade with the project purge.
+    expect(
+      await ideaCardRepository.getById(activeIdeaCard.id),
+    ).toBeUndefined();
+    expect(await ideaCardRepository.getById(trashedIdeaCard.id)).toBeUndefined();
+    expect(await ideaCardRepository.listDeleted()).toHaveLength(0);
   });
 
   it("purges a single note without touching the rest of the project", async () => {
@@ -221,6 +239,11 @@ describe("emptyTrash", () => {
       title: "Beat na lixeira",
     });
     await plotBeatRepository.softDelete(trashedBeat.id);
+    const trashedIdeaCard = await ideaCardRepository.create({
+      projectId: healthyProject.id,
+      title: "Ideia na lixeira",
+    });
+    await ideaCardRepository.softDelete(trashedIdeaCard.id);
 
     await emptyTrash();
 
@@ -228,6 +251,7 @@ describe("emptyTrash", () => {
     expect(await chapterRepository.listDeleted()).toHaveLength(0);
     expect(await noteRepository.listDeleted()).toHaveLength(0);
     expect(await plotBeatRepository.listDeleted()).toHaveLength(0);
+    expect(await ideaCardRepository.listDeleted()).toHaveLength(0);
     // Cascade removed the active chapter inside the trashed project.
     expect(await chapterRepository.getById(activeChapter.id)).toBeUndefined();
     // Healthy project and its chapter remain.

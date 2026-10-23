@@ -1,5 +1,6 @@
 import type {
   Character,
+  CharacterGender,
   CharacterRole,
   EntityId,
   Relationship,
@@ -11,6 +12,12 @@ export const CHARACTER_ROLE_LABELS: Record<CharacterRole, string> = {
   antagonist: "Antagonista",
   supporting: "Secundário",
   minor: "Menor",
+};
+
+export const CHARACTER_GENDER_LABELS: Record<CharacterGender, string> = {
+  masculino: "Masculino",
+  feminino: "Feminino",
+  outro: "Outro",
 };
 
 export const RELATIONSHIP_TYPE_LABELS: Record<RelationshipType, string> = {
@@ -28,6 +35,7 @@ export interface CharacterCreateInput {
   projectId: EntityId;
   name: string;
   role?: CharacterRole;
+  gender?: CharacterGender;
   description?: string;
   backstory?: string;
   goals?: string;
@@ -39,6 +47,7 @@ export interface CharacterCreateInput {
 export interface CharacterUpdateInput {
   name?: string;
   role?: CharacterRole;
+  gender?: CharacterGender;
   description?: string;
   backstory?: string;
   goals?: string;

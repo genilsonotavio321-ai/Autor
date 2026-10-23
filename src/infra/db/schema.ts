@@ -4,6 +4,7 @@ import type {
   Attachment,
   Chapter,
   Character,
+  IdeaCard,
   Location,
   LoreEntry,
   Note,
@@ -39,6 +40,7 @@ export class AutorDatabase extends Dexie {
   versions!: EntityTable<Version, "id">;
   settings!: EntityTable<Setting, "key">;
   attachments!: EntityTable<Attachment, "id">;
+  ideaCards!: EntityTable<IdeaCard, "id">;
 
   constructor() {
     super("autor");
@@ -78,6 +80,26 @@ export class AutorDatabase extends Dexie {
       versions: "id, [entityType+entityId], createdAt",
       settings: "key",
       attachments: "id, projectId, entityId, [entityType+entityId]",
+    });
+
+    // v3: canvas de ideias (seção Criatividade). Copia TODAS as tabelas do v2.
+    this.version(3).stores({
+      projects: "id, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, structure, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
     });
   }
 }

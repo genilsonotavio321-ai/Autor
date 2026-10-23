@@ -41,6 +41,8 @@ export interface SceneCreateInput {
   title?: string;
   summary?: string;
   status?: SceneStatus;
+  povCharacterId?: EntityId;
+  locationId?: EntityId;
 }
 
 export interface SceneUpdateInput {

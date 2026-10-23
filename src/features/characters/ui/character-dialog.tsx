@@ -25,6 +25,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import type {
   Character,
+  CharacterGender,
   CharacterRole,
   EntityId,
   Relationship,
@@ -34,6 +35,7 @@ import type {
 
 import { characterRepository } from "../infra/dexie-character-repository";
 import {
+  CHARACTER_GENDER_LABELS,
   CHARACTER_ROLE_LABELS,
   RELATIONSHIP_TYPE_LABELS,
 } from "../domain/repository";
@@ -69,6 +71,7 @@ export function CharacterDialog({
 }: CharacterDialogProps) {
   const [name, setName] = useState("");
   const [role, setRole] = useState<CharacterRole>("protagonist");
+  const [gender, setGender] = useState<CharacterGender | "">("");
   const [description, setDescription] = useState("");
   const [backstory, setBackstory] = useState("");
   const [goals, setGoals] = useState("");
@@ -85,6 +88,7 @@ export function CharacterDialog({
     if (!open) return;
     setName(character?.name ?? "");
     setRole(character?.role ?? "protagonist");
+    setGender(character?.gender ?? "");
     setDescription(character?.description ?? "");
     setBackstory(character?.backstory ?? "");
     setGoals(character?.goals ?? "");
@@ -147,6 +151,7 @@ export function CharacterDialog({
         await characterRepository.update(character.id, {
           name: nextName,
           role,
+          gender: gender || undefined,
           description: description.trim() || undefined,
           backstory: backstory.trim() || undefined,
           goals: goals.trim() || undefined,
@@ -178,6 +183,7 @@ export function CharacterDialog({
           projectId,
           name: name.trim(),
           role,
+          gender: gender || undefined,
           description: description.trim() || undefined,
           backstory: backstory.trim() || undefined,
           goals: goals.trim() || undefined,
@@ -227,6 +233,24 @@ export function CharacterDialog({
               </SelectTrigger>
               <SelectContent>
                 {Object.entries(CHARACTER_ROLE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="char-gender">Gênero</Label>
+            <Select
+              value={gender}
+              onValueChange={(value) => setGender(value as CharacterGender)}
+            >
+              <SelectTrigger id="char-gender" aria-label="Gênero">
+                <SelectValue placeholder="Não definido" />
+              </SelectTrigger>
+              <SelectContent>
+                {Object.entries(CHARACTER_GENDER_LABELS).map(([value, label]) => (
                   <SelectItem key={value} value={value}>
                     {label}
                   </SelectItem>

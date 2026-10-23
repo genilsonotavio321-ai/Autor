@@ -7,6 +7,7 @@ import {
   Globe,
   Home,
   LayoutDashboard,
+  Lightbulb,
   ListTree,
   Settings,
   StickyNote,
@@ -46,6 +47,7 @@ export const navGroups: NavGroup[] = [
       { title: "Mundo", href: "/world", icon: Globe },
       { title: "Linha do tempo", href: "/timeline", icon: CalendarRange },
       { title: "Notas", href: "/notes", icon: StickyNote },
+      { title: "Criatividade", href: "/creativity", icon: Lightbulb },
     ],
   },
   {

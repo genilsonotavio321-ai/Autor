@@ -29,6 +29,7 @@ export class DexieCharacterRepository implements CharacterRepository {
       name: input.name.trim() || "Sem nome",
       order: nextOrder(live),
       role: input.role ?? "supporting",
+      gender: input.gender,
       description: input.description,
       backstory: input.backstory,
       goals: input.goals,

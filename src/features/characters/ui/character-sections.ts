@@ -2,6 +2,7 @@ import type { Character, Tag } from "@/shared/types/database";
 import type { EntityViewSection } from "@/shared/ui/entity-view-dialog";
 
 import {
+  CHARACTER_GENDER_LABELS,
   CHARACTER_ROLE_LABELS,
   RELATIONSHIP_TYPE_LABELS,
 } from "../domain/repository";
@@ -15,8 +16,8 @@ export interface CharacterSectionOptions {
 
 /**
  * Monta as seções da ficha de leitura do personagem com tudo o que foi salvo
- * na ficha (papel, descrição, história, objetivos, medos, traços, relações e
- * tags). Seções sem conteúdo são omitidas.
+ * na ficha (papel, gênero, descrição, história, objetivos, medos, traços,
+ * relações e tags). Seções sem conteúdo são omitidas.
  */
 export function buildCharacterSections(
   character: Character,
@@ -43,6 +44,12 @@ export function buildCharacterSections(
 
   return [
     { label: "Papel", value: CHARACTER_ROLE_LABELS[character.role] },
+    {
+      label: "Gênero",
+      value: character.gender
+        ? CHARACTER_GENDER_LABELS[character.gender]
+        : "",
+    },
     { label: "Descrição", value: character.description ?? "" },
     { label: "História", value: character.backstory ?? "" },
     { label: "Objetivos", value: character.goals ?? "" },

@@ -33,6 +33,8 @@ export class DexieSceneRepository implements SceneRepository {
       chapterId: input.chapterId,
       title: input.title?.trim() || `Cena ${order}`,
       order,
+      povCharacterId: input.povCharacterId,
+      locationId: input.locationId,
       summary: input.summary,
       content: structuredClone(EMPTY_SCENE_DOC),
       status: input.status ?? "todo",

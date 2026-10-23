@@ -61,6 +61,16 @@ describe("buildCharacterSections", () => {
     expect(sections.map((section) => section.label)).toEqual(["Papel"]);
   });
 
+  it("mostra o gênero quando definido", () => {
+    const sections = buildCharacterSections(character({ gender: "feminino" }));
+
+    expect(sections.map((section) => section.label)).toEqual([
+      "Papel",
+      "Gênero",
+    ]);
+    expect(value(sections, "Gênero")).toBe("Feminino");
+  });
+
   it("resolve nomes das relações, tipo em português e nota", () => {
     const sections = buildCharacterSections(
       character({

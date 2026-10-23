@@ -25,6 +25,7 @@ import { timelineEventRepository } from "@/features/plot/infra/dexie-timeline-ev
 import { formatDateTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId } from "@/shared/types/database";
+import { ideaCardRepository } from "@/features/creativity/infra/dexie-idea-card-repository";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
 import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
 
@@ -156,6 +157,10 @@ export function TrashPage() {
   );
   const deletedBeats = useLiveQuery(
     () => plotBeatRepository.listDeleted(),
+    [],
+  );
+  const deletedIdeaCards = useLiveQuery(
+    () => ideaCardRepository.listDeleted(),
     [],
   );
 
@@ -320,6 +325,21 @@ export function TrashPage() {
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
+    {
+      headingId: "trash-idea-cards",
+      title: "Ideias (canvas)",
+      items: (deletedIdeaCards ?? []) as TrashItem[],
+      onRestore: async (item: TrashItem) => {
+        await ideaCardRepository.restore(item.id);
+        playUiSound("restore");
+        toast.success(`"${item.title}" restaurada`);
+      },
+      onPurge: async (item: TrashItem) => {
+        await purgeTrashItem("ideaCard", item.id);
+        playUiSound("delete");
+        toast.success(`"${item.title}" excluída permanentemente`);
+      },
+    },
   ];
 
   const loading =
@@ -331,7 +351,8 @@ export function TrashPage() {
     deletedChapters === undefined ||
     deletedScenes === undefined ||
     deletedEvents === undefined ||
-    deletedBeats === undefined;
+    deletedBeats === undefined ||
+    deletedIdeaCards === undefined;
   const empty = sections.every((section) => section.items.length === 0);
 
   async function handleEmptyTrash() {
