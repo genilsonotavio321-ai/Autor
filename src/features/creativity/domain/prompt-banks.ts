@@ -1,6 +1,7 @@
 import type {
   Character,
   CharacterGender,
+  Location,
 } from "@/shared/types/database";
 
 /**
@@ -82,6 +83,29 @@ export const CHARACTER_PROMPT_BANKS: Record<PromptCategory, string[]> = {
   ],
 };
 
+/**
+ * Perguntas com `{local}` — o placeholder é trocado pelo nome de um local
+ * sorteado do projeto; sem locais, este banco fica fora do sorteio.
+ */
+export const LOCATION_PROMPT_BANKS: Record<PromptCategory, string[]> = {
+  enredo: [
+    "Qual segredo está enterrado em {local} — e quem morreu para mantê-lo?",
+    "O que muda na história se {local} queimar amanhã?",
+  ],
+  personagem: [
+    "Quem frequenta {local} de madrugada — e por quê?",
+    "Que trauma nasceu em {local} e ainda machuca quem volta?",
+  ],
+  mundo: [
+    "O que é proibido dentro de {local} — e quem é a exceção?",
+    "Qual lenda os moradores contam sobre {local}?",
+  ],
+  conflito: [
+    "Por que dois lados não podem dividir {local}?",
+    "Qual verdade sobre {local} causaria uma guerra se fosse revelada?",
+  ],
+};
+
 /** Eixos do gerador "E se...": sujeito × obstáculo × cenário. O sufixo `@`
  * marca concordância de gênero (obrigad@ → obrigado/obrigada). */
 export const WHAT_IF_SUBJECTS = [
@@ -134,36 +158,55 @@ function agree(text: string, gender?: CharacterGender): string {
 }
 
 /** Sorteia uma pergunta provocativa da categoria; com fichas de personagem
- * no projeto, o banco ganha perguntas sobre uma ficha sorteada. */
+ * ou locais no projeto, o banco ganha perguntas sobre um deles. Variantes
+ * customizadas entram no sorteio se não dependerem de um placeholder vazio. */
 export function drawPrompt(
   category: PromptCategory,
   seed: number,
   last?: string,
   characters?: Character[],
+  locations?: Location[],
+  custom?: string[],
 ): string {
-  const pool = characters?.length
-    ? [...PROMPT_BANKS[category], ...CHARACTER_PROMPT_BANKS[category]]
-    : PROMPT_BANKS[category];
-  const question = drawFrom(pool, seed);
-  if (!characters?.length) {
-    return question === last ? drawPrompt(category, seed + 7) : question;
-  }
-  const character = drawFrom(characters, seed + 3);
-  const text = agree(
-    question.replaceAll("{personagem}", character.name),
-    character.gender,
+  const customPool = (custom ?? []).filter(
+    (item) =>
+      ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
+      ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
   );
+  const pool = [
+    ...PROMPT_BANKS[category],
+    ...(characters?.length ? CHARACTER_PROMPT_BANKS[category] : []),
+    ...(locations?.length ? LOCATION_PROMPT_BANKS[category] : []),
+    ...customPool,
+  ];
+  const question = drawFrom(pool, seed);
+  const character =
+    characters && characters.length > 0
+      ? drawFrom(characters, seed + 3)
+      : undefined;
+  const location =
+    locations && locations.length > 0
+      ? drawFrom(locations, seed + 11)
+      : undefined;
+  let text = question;
+  if (character) text = text.replaceAll("{personagem}", character.name);
+  if (location) text = text.replaceAll("{local}", location.name);
+  text = agree(text, character?.gender);
   return text === last
-    ? drawPrompt(category, seed + 7, undefined, characters)
+    ? drawPrompt(category, seed + 7, undefined, characters, locations, customPool)
     : text;
 }
 
 /** Sorteia uma combinação "E se..." dos três eixos; com fichas, uma delas
- * entra como sujeito e os templates concordam com seu gênero. */
+ * entra como sujeito e os templates concordam com seu gênero. Variantes
+ * customizadas entram como obstáculos: `{personagem}` sorteia outra ficha
+ * (o sujeito já é o personagem do seed) e `{local}` um local do projeto. */
 export function drawWhatIf(
   seed: number,
   last?: string,
   characters?: Character[],
+  custom?: string[],
+  locations?: Location[],
 ): string {
   const character =
     characters && characters.length > 0
@@ -171,15 +214,42 @@ export function drawWhatIf(
       : undefined;
   const agrees =
     character?.gender === "masculino" || character?.gender === "feminino";
-  const obstacles =
-    character && !agrees
+  // Ficha sem gênero m/f nunca recebe templates com `@`.
+  const dropGendered = character !== undefined && !agrees;
+  // Variante que depende de um placeholder vazio fica fora do sorteio.
+  const customPool = (custom ?? []).filter(
+    (item) =>
+      ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
+      ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
+  );
+  const obstacles = [
+    ...(dropGendered
       ? WHAT_IF_OBSTACLES.filter((item) => !item.includes("@"))
-      : WHAT_IF_OBSTACLES;
+      : WHAT_IF_OBSTACLES),
+    ...(dropGendered
+      ? customPool.filter((item) => !item.includes("@"))
+      : customPool),
+  ];
   const subject = character
     ? character.name
     : drawFrom(WHAT_IF_SUBJECTS, seed);
-  const obstacle = agree(drawFrom(obstacles, seed + 1), character?.gender);
+  let obstacleText = drawFrom(obstacles, seed + 1);
+  if (characters && characters.length > 0) {
+    obstacleText = obstacleText.replaceAll(
+      "{personagem}",
+      drawFrom(characters, seed + 5).name,
+    );
+  }
+  if (locations && locations.length > 0) {
+    obstacleText = obstacleText.replaceAll(
+      "{local}",
+      drawFrom(locations, seed + 13).name,
+    );
+  }
+  const obstacle = agree(obstacleText, character?.gender);
   const setting = drawFrom(WHAT_IF_SETTINGS, seed + 2);
   const text = `E se ${subject} ${obstacle}, ${setting}?`;
-  return text === last ? drawWhatIf(seed + 7, undefined, characters) : text;
+  return text === last
+    ? drawWhatIf(seed + 7, undefined, characters, custom, locations)
+    : text;
 }

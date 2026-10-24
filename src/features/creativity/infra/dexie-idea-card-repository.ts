@@ -25,6 +25,7 @@ export class DexieIdeaCardRepository implements IdeaCardRepository {
       color: input.color,
       x: input.x ?? 16,
       y: input.y ?? 16,
+      links: input.links,
       createdAt: now,
       updatedAt: now,
     };
@@ -50,12 +51,17 @@ export class DexieIdeaCardRepository implements IdeaCardRepository {
   async update(id: EntityId, patch: IdeaCardUpdateInput): Promise<IdeaCard> {
     await ensureDbReady();
     const db = getDatabase();
-    // `null` em sentSceneId limpa o vínculo: `modify` com undefined remove a
-    // propriedade (Table.update gravaria undefined).
+    // `null` limpa vínculo: `modify` com undefined remove a propriedade
+    // (Table.update gravaria undefined). Chaves AUSENTES do patch não entram
+    // — senão salvar título apagaria sentSceneId/groupId.
+    const { sentSceneId, groupId, ...rest } = patch;
     const changes = {
-      ...patch,
-      sentSceneId: patch.sentSceneId ?? undefined,
+      ...rest,
       updatedAt: nowIso(),
+      ...("sentSceneId" in patch
+        ? { sentSceneId: sentSceneId ?? undefined }
+        : {}),
+      ...("groupId" in patch ? { groupId: groupId ?? undefined } : {}),
     };
     await db.ideaCards.where("id").equals(id).modify(changes);
     const updated = await db.ideaCards.get(id);

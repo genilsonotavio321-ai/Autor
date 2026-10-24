@@ -2,7 +2,7 @@
 
 import type { Content } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
-import { ArrowLeft, BookOpen, History, Maximize2, Minimize2, Share2 } from "lucide-react";
+import { ArrowLeft, BookOpen, Cloud, History, ListTree, Maximize2, Minimize2, Share2 } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,6 +53,7 @@ import type {
 } from "@/shared/types/database";
 
 import { createAutosave } from "../application/autosave";
+import { ScenesDialog } from "./scenes-dialog";
 import {
   createManualVersion,
   maybeCreateAutoVersion,
@@ -94,9 +95,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const [title, setTitle] = useState("");
   const [status, setStatus] = useState<ChapterStatus | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [dirty, setDirty] = useState(false);
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  const [scenesOpen, setScenesOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [pendingMention, setPendingMention] = useState<{
     type: MentionType;
@@ -196,6 +199,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           }
           lastWordCountRef.current = payload.wordCount;
           setSaveStatus("saved");
+          setDirty(false);
           setSavedAt(new Date().toISOString());
         } catch (error) {
           setSaveStatus("error");
@@ -221,6 +225,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       if (!chapter || !editor) return;
       const words = editor.storage.characterCount.words() as number;
       setWordCount(words);
+      setDirty(true);
       save.schedule({
         chapterId,
         projectId: chapter.projectId,
@@ -514,6 +519,15 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         variant="outline"
         size="icon"
         className="size-8"
+        aria-label="Ver cenas"
+        onClick={() => setScenesOpen(true)}
+      >
+        <ListTree aria-hidden className="size-4" />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="size-8"
         aria-label="Versões"
         onClick={() => void saveManualVersion()}
       >
@@ -609,6 +623,15 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             variant="outline"
             size="sm"
             className="h-9"
+            onClick={() => setScenesOpen(true)}
+          >
+            <ListTree aria-hidden />
+            Cenas
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
             onClick={() => void saveManualVersion()}
           >
             <History aria-hidden />
@@ -644,6 +667,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       ) : null}
 
       <div
+        className="relative"
         style={{
           fontSize: `${editorFontSize}px`,
           fontFamily:
@@ -660,20 +684,38 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           onUpdate={() => scheduleSave()}
           actions={editorActions}
         />
+        <span
+          data-testid="save-status"
+          aria-live="polite"
+          className="pointer-events-none absolute bottom-2 left-2 z-10 inline-flex items-center rounded-full bg-card/80 px-2 py-1 backdrop-blur-sm"
+        >
+          <Cloud
+            aria-hidden
+            className={`size-3.5 ${
+              saveStatus === "saving"
+                ? "animate-pulse text-foreground"
+                : saveStatus === "error"
+                  ? "text-destructive"
+                  : dirty || !savedAt
+                    ? "text-muted-foreground/50"
+                    : "text-foreground"
+            }`}
+          />
+          <span className="sr-only">
+            {saveStatus === "saving"
+              ? "Salvando…"
+              : saveStatus === "error"
+                ? "Erro ao salvar"
+                : savedAt
+                  ? `Salvo ${formatRelativeTime(savedAt)}`
+                  : "Nenhuma alteração ainda"}
+          </span>
+        </span>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
         <span>{wordCount.toLocaleString("pt-BR")} palavras</span>
         <SprintTimer />
-        <span data-testid="save-status" aria-live="polite">
-          {saveStatus === "saving"
-            ? "Salvando…"
-            : saveStatus === "error"
-              ? "Erro ao salvar"
-              : savedAt
-                ? `Salvo ${formatRelativeTime(savedAt)}`
-                : "Nenhuma alteração ainda"}
-        </span>
       </div>
 
       <VersionsDialog
@@ -690,6 +732,13 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         open={shareOpen}
         onOpenChange={setShareOpen}
         onExport={(format) => void handleShare(format)}
+      />
+
+      <ScenesDialog
+        open={scenesOpen}
+        onOpenChange={setScenesOpen}
+        chapterId={chapterId}
+        mentions={mentionEntities}
       />
 
       <MentionSheet

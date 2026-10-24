@@ -36,6 +36,9 @@ export const TABLE_NAMES = [
   "settings",
   "attachments",
   "ideaCards",
+  "ideaGroups",
+  "ideaBoards",
+  "promptItems",
 ] as const;
 
 /** Full JSON dump of every table — stored before any migration runs. */

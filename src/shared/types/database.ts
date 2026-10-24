@@ -217,6 +217,33 @@ export interface IdeaCard extends BaseEntity {
   sentSceneId?: EntityId;
   /** Ids dos cards conectados (linhas do canvas, gravado dos dois lados). */
   links?: EntityId[];
+  /** Grupo persistente: arrastar um membro move todos os do grupo. */
+  groupId?: EntityId;
+}
+
+/** Grupo nomeado de cards do canvas (mover junto é persistente). */
+export interface IdeaGroup extends BaseEntity {
+  projectId: EntityId;
+  name: string;
+}
+
+/** Card dentro de um quadro salvo; `key` remapeia os links ao carregar. */
+export interface IdeaBoardItem {
+  key: string;
+  title: string;
+  content: string;
+  color?: string;
+  x: number;
+  y: number;
+  /** Chaves dos itens conectados (remapeadas para ids no load). */
+  links?: string[];
+}
+
+/** Snapshot do canvas salvo pelo autor. */
+export interface IdeaBoard extends BaseEntity {
+  projectId: EntityId;
+  name: string;
+  items: IdeaBoardItem[];
 }
 
 /** Entities that accept image attachments (Fase 2B). */
@@ -226,6 +253,24 @@ export type AttachmentEntityType =
   | "location"
   | "lore"
   | "event";
+
+/** Tipo de prompt customizado do gerador de Criatividade. */
+export type CustomPromptKind = "question" | "whatIf";
+
+/** Categoria de pergunta — espelha PromptCategory do gerador. */
+export type CustomPromptCategory = "enredo" | "personagem" | "mundo" | "conflito";
+
+/** Perguntas e combinações "E se...?" criadas pelo autor (globais). */
+export interface CustomPrompt extends BaseEntity {
+  kind: CustomPromptKind;
+  /** Obrigatório para kind "question"; ignorado em "whatIf". */
+  category?: CustomPromptCategory;
+  /** Redações alternativas; apoia {personagem} e {local}. */
+  variants: string[];
+  enabled: boolean;
+  order: number;
+}
+
 
 export interface Attachment {
   id: EntityId;

@@ -1,11 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { ExportPage } from "@/features/export/ui/export-page";
-
-export const metadata: Metadata = {
-  title: "Dados",
-};
-
+// A seção de dados virou a aba "Dados" de Configurações.
 export default function ExportRoute() {
-  return <ExportPage />;
+  redirect("/settings?tab=dados");
 }

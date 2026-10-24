@@ -17,6 +17,8 @@ import {
 import type { EntityId } from "@/shared/types/database";
 
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { locationRepository } from "@/features/world/infra/dexie-location-repository";
+import { useUiStore } from "@/shared/store/ui-store";
 
 import {
   PROMPT_CATEGORIES,
@@ -25,6 +27,7 @@ import {
   drawWhatIf,
   type PromptCategory,
 } from "../domain/prompt-banks";
+import { customPromptRepository } from "../infra/dexie-custom-prompt-repository";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 
 interface UnblockPanelProps {
@@ -40,9 +43,30 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
     useLiveQuery(() => characterRepository.listByProject(projectId), [
       projectId,
     ]) ?? [];
+  const allLocations =
+    useLiveQuery(() => locationRepository.listByProject(projectId), [
+      projectId,
+    ]) ?? [];
+  const customPrompts = useLiveQuery(() => customPromptRepository.list(), []) ?? [];
+  const promptCiteCharacters = useUiStore(
+    (state) => state.promptCiteCharacters,
+  );
+  const promptCiteLocations = useUiStore(
+    (state) => state.promptCiteLocations,
+  );
   const [category, setCategory] = useState<PromptCategory>("enredo");
   const [question, setQuestion] = useState<string | null>(null);
   const [whatIf, setWhatIf] = useState<string | null>(null);
+
+  // Flags de Settings decidem se fichas/loais entram no sorteio.
+  const drawnCharacters = promptCiteCharacters ? characters : [];
+  const drawnLocations = promptCiteLocations ? allLocations : [];
+  const customQuestions = customPrompts
+    .filter((item) => item.kind === "question" && item.enabled && item.category === category)
+    .flatMap((item) => item.variants);
+  const customWhatIfs = customPrompts
+    .filter((item) => item.kind === "whatIf" && item.enabled)
+    .flatMap((item) => item.variants);
 
   // Novos cards entram em cascata no canto do canvas — reposicione à vontade.
   function cascade() {
@@ -96,7 +120,9 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
                   category,
                   Date.now(),
                   question ?? undefined,
-                  characters,
+                  drawnCharacters,
+                  drawnLocations,
+                  customQuestions,
                 ),
               )
             }
@@ -135,7 +161,15 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
           <Button
             variant="outline"
             onClick={() =>
-              setWhatIf(drawWhatIf(Date.now(), whatIf ?? undefined, characters))
+              setWhatIf(
+                drawWhatIf(
+                  Date.now(),
+                  whatIf ?? undefined,
+                  drawnCharacters,
+                  customWhatIfs,
+                  drawnLocations,
+                ),
+              )
             }
           >
             <Shuffle aria-hidden />

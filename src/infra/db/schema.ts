@@ -4,7 +4,10 @@ import type {
   Attachment,
   Chapter,
   Character,
+  CustomPrompt,
+  IdeaBoard,
   IdeaCard,
+  IdeaGroup,
   Location,
   LoreEntry,
   Note,
@@ -41,6 +44,9 @@ export class AutorDatabase extends Dexie {
   settings!: EntityTable<Setting, "key">;
   attachments!: EntityTable<Attachment, "id">;
   ideaCards!: EntityTable<IdeaCard, "id">;
+  ideaGroups!: EntityTable<IdeaGroup, "id">;
+  ideaBoards!: EntityTable<IdeaBoard, "id">;
+  promptItems!: EntityTable<CustomPrompt, "id">;
 
   constructor() {
     super("autor");
@@ -100,6 +106,50 @@ export class AutorDatabase extends Dexie {
       settings: "key",
       attachments: "id, projectId, entityId, [entityType+entityId]",
       ideaCards: "id, projectId, deletedAt",
+    });
+
+    // v4: prompts customizados do gerador. Copia TODAS as tabelas do v3.
+    this.version(4).stores({
+      projects: "id, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, structure, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
+      promptItems: "id, kind",
+    });
+
+    // v5: grupos e quadros salvos do canvas. Copia TODAS as tabelas do v4.
+    this.version(5).stores({
+      projects: "id, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, structure, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
+      ideaGroups: "id, projectId",
+      ideaBoards: "id, projectId, createdAt",
+      promptItems: "id, kind",
     });
   }
 }

@@ -1,8 +1,7 @@
 "use client";
 
-import { Download, Keyboard, Monitor, Moon, Sun } from "lucide-react";
+import { Keyboard, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
-import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,8 +15,11 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { DataSection } from "@/features/export/ui/export-page";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
+import { PromptManager } from "@/features/creativity/ui/prompt-manager";
 import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
 import { playUiSound } from "@/shared/lib/sound";
@@ -81,6 +83,8 @@ export function SettingsPage() {
   const { projectId } = useSelectedProject();
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
+  // /settings?tab=dados abre direto a aba de dados (redirect de /export).
+  const [tab, setTab] = useState("geral");
 
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
   const editorFontSize = useUiStore((state) => state.editorFontSize);
@@ -170,6 +174,18 @@ export function SettingsPage() {
   );
   const homeSections = useUiStore((state) => state.homeSections);
   const setHomeSections = useUiStore((state) => state.setHomeSections);
+  const promptCiteCharacters = useUiStore(
+    (state) => state.promptCiteCharacters,
+  );
+  const promptCiteLocations = useUiStore(
+    (state) => state.promptCiteLocations,
+  );
+  const setPromptCiteCharacters = useUiStore(
+    (state) => state.setPromptCiteCharacters,
+  );
+  const setPromptCiteLocations = useUiStore(
+    (state) => state.setPromptCiteLocations,
+  );
   const themeVariantLight = useUiStore((state) => state.themeVariantLight);
   const themeVariantDark = useUiStore((state) => state.themeVariantDark);
   const setThemeVariantLight = useUiStore(
@@ -194,6 +210,10 @@ export function SettingsPage() {
   };
 
   useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("tab") === "dados") setTab("dados");
+  }, []);
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
@@ -204,6 +224,15 @@ export function SettingsPage() {
         </p>
       </div>
 
+      <Tabs value={tab} onValueChange={setTab}>
+        <TabsList>
+          <TabsTrigger value="geral">Geral</TabsTrigger>
+          <TabsTrigger value="dados">Dados</TabsTrigger>
+        </TabsList>
+        <TabsContent
+          value="geral"
+          className="mt-4 flex flex-col gap-6"
+        >
       <Card id="aparencia">
         <CardHeader>
           <CardTitle>Aparência</CardTitle>
@@ -564,6 +593,33 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
+      <Card id="gerador">
+        <CardHeader>
+          <CardTitle>Perguntas e e se...</CardTitle>
+          <CardDescription>
+            O que os sorteios de Criatividade podem citar das suas fichas.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="prompt-cite-characters">Citar personagens</Label>
+            <Switch
+              id="prompt-cite-characters"
+              checked={promptCiteCharacters}
+              onCheckedChange={withToggle(setPromptCiteCharacters)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="prompt-cite-locations">Citar locais</Label>
+            <Switch
+              id="prompt-cite-locations"
+              checked={promptCiteLocations}
+              onCheckedChange={withToggle(setPromptCiteLocations)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <Card id="pagina-inicial">
         <CardHeader>
           <CardTitle>Página inicial</CardTitle>
@@ -633,23 +689,26 @@ export function SettingsPage() {
         </CardContent>
       </Card>
 
-      <Card id="dados">
-        <CardHeader>
-          <CardTitle>Dados</CardTitle>
-          <CardDescription>
-            Seus dados ficam apenas neste navegador (IndexedDB). Faça backups
-            regularmente.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/export">
-              <Download aria-hidden />
-              Exportar, importar e fazer backup
-            </Link>
-          </Button>
-        </CardContent>
-      </Card>
+        </TabsContent>
+        <TabsContent
+          value="dados"
+          className="mt-4 flex flex-col gap-6"
+        >
+          <DataSection />
+          <Card id="dados">
+            <CardHeader>
+              <CardTitle>Prompts personalizados</CardTitle>
+              <CardDescription>
+                Perguntas e combinações “E se...?” criadas por você, com
+                exportação e importação em JSON.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <PromptManager />
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

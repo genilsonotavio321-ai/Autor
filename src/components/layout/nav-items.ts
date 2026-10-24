@@ -1,7 +1,6 @@
 import {
   BookOpen,
   CalendarRange,
-  Download,
   Feather,
   FolderKanban,
   Globe,
@@ -53,7 +52,6 @@ export const navGroups: NavGroup[] = [
   {
     label: "Sistema",
     items: [
-      { title: "Dados", href: "/export", icon: Download },
       { title: "Lixeira", href: "/trash", icon: Trash2 },
       { title: "Configurações", href: "/settings", icon: Settings },
     ],

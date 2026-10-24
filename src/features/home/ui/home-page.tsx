@@ -33,7 +33,7 @@ const SECTION_CARDS: Record<
   data: {
     title: "Dados",
     description: "Exportar, importar e fazer backup.",
-    href: "/export",
+    href: "/settings?tab=dados",
     icon: Database,
   },
 };

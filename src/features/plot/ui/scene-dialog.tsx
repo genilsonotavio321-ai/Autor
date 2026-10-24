@@ -30,6 +30,7 @@ import { SCENE_STATUS_LABELS } from "../domain/repository";
 import { sceneRepository } from "../infra/dexie-scene-repository";
 
 import { moveSceneToChapterEnd } from "../application/plot-service";
+import { docToSceneBody, sceneBodyToDoc } from "../domain/scene-body";
 
 interface SceneDialogProps {
   open: boolean;
@@ -56,6 +57,7 @@ export function SceneDialog({
 }: SceneDialogProps) {
   const [title, setTitle] = useState("");
   const [summary, setSummary] = useState("");
+  const [body, setBody] = useState("");
   const [status, setStatus] = useState<SceneStatus>("todo");
   const [chapterId, setChapterId] = useState<EntityId>("");
   const [saving, setSaving] = useState(false);
@@ -72,6 +74,7 @@ export function SceneDialog({
     if (!open) return;
     setTitle(scene?.title ?? "");
     setSummary(scene?.summary ?? "");
+    setBody(scene ? docToSceneBody(scene.content) : "");
     setStatus(scene?.status ?? "todo");
     setChapterId(scene?.chapterId ?? defaultChapterId ?? chapters[0]?.id ?? "");
   }, [open, scene, defaultChapterId, chapters]);
@@ -85,6 +88,8 @@ export function SceneDialog({
           title: title.trim() || scene.title,
           summary,
           status,
+          // Diálogo é o único editor do corpo — salvar sempre grava o texto.
+          content: sceneBodyToDoc(body),
         });
         if (chapterId !== scene.chapterId) {
           await moveSceneToChapterEnd(scene.id, chapterId);
@@ -97,6 +102,7 @@ export function SceneDialog({
           title: title.trim() || undefined,
           summary: summary || undefined,
           status,
+          ...(body.trim() ? { content: sceneBodyToDoc(body) } : {}),
         });
         toast.success("Cena criada");
         onSaved?.(created);
@@ -152,6 +158,16 @@ export function SceneDialog({
               onChange={(event) => setSummary(event.target.value)}
               placeholder="O que acontece nesta cena?"
               rows={3}
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="scene-body">Corpo da cena</Label>
+            <Textarea
+              id="scene-body"
+              value={body}
+              onChange={(event) => setBody(event.target.value)}
+              placeholder="Texto completo da cena — aparece no modo leitura. Uma linha equivale a um parágrafo."
+              rows={8}
             />
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

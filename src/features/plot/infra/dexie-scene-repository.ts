@@ -36,7 +36,7 @@ export class DexieSceneRepository implements SceneRepository {
       povCharacterId: input.povCharacterId,
       locationId: input.locationId,
       summary: input.summary,
-      content: structuredClone(EMPTY_SCENE_DOC),
+      content: structuredClone(input.content ?? EMPTY_SCENE_DOC),
       status: input.status ?? "todo",
       createdAt: now,
       updatedAt: now,

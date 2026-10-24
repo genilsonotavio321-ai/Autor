@@ -2,10 +2,9 @@
 
 import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Download, FileDown, HardDriveDownload } from "lucide-react";
+import { Download, FileDown, FileUp, HardDriveDownload } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -18,7 +17,6 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { Label } from "@/components/ui/label";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
@@ -44,7 +42,8 @@ type BusyAction =
   | "import-backup"
   | null;
 
-export function ExportPage() {
+/** Export/import/backup compactos — aba "Dados" das Configurações (fase 5). */
+export function DataSection() {
   const router = useRouter();
   const { projects, projectId } = useSelectedProject();
   const [busy, setBusy] = useState<BusyAction>(null);
@@ -223,53 +222,42 @@ export function ExportPage() {
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="flex flex-col gap-1">
-          <h1 className="font-heading text-2xl font-semibold">Dados</h1>
-          <p className="text-sm text-muted-foreground">
-            Exporte o projeto, importe capítulos e cuide do backup dos dados.
-          </p>
+    <div className="grid gap-4">
+      <div className="divide-y rounded-lg border">
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <FileDown aria-hidden className="size-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm font-medium">
+                Memória {project ? `— ${project.title}` : ""}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Baixe o projeto inteiro em Markdown, Word ou PDF.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setExportDialogOpen(true)}
+            disabled={!project || busy !== null}
+            aria-busy={exporting}
+          >
+            {exporting ? "Exportando..." : "Exportar projeto"}
+          </Button>
         </div>
-        <ProjectPicker />
-      </header>
 
-      <section aria-labelledby="memory-heading" className="flex flex-col gap-3">
-        <div className="flex items-center gap-2">
-          <h2 id="memory-heading" className="font-heading text-lg font-semibold">
-            Memória
-          </h2>
-          {project && <Badge variant="outline">{project.title}</Badge>}
-        </div>
-        <p className="text-sm text-muted-foreground">
-          Baixe o projeto inteiro em Markdown, Word ou PDF.
-        </p>
-        <Button
-          variant="outline"
-          className="w-fit"
-          onClick={() => setExportDialogOpen(true)}
-          disabled={!project || busy !== null}
-          aria-busy={exporting}
-        >
-          <FileDown aria-hidden="true" />
-          {exporting ? "Exportando..." : "Exportar projeto"}
-        </Button>
-        {!project && (
-          <p className="text-sm text-muted-foreground">
-            Crie um projeto para exportar capítulos.
-          </p>
-        )}
-      </section>
-
-      <section aria-labelledby="import-project-heading" className="flex flex-col gap-3">
-        <h2 id="import-project-heading" className="font-heading text-lg font-semibold">
-          Importar projeto
-        </h2>
-        <p className="text-sm text-muted-foreground">
-          Cria capítulos no projeto selecionado a partir de um arquivo.
-        </p>
-        <div className="rounded-lg border p-4">
-          <Label htmlFor="import-md-input">Importar capítulos (.md)</Label>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <FileUp aria-hidden className="size-5 text-muted-foreground" />
+            <div>
+              <Label htmlFor="import-md-input">Importar capítulos (.md)</Label>
+              <p className="text-xs text-muted-foreground">
+                Um arquivo exportado pelo Autor vira um capítulo por seção “#
+                Título”.
+              </p>
+            </div>
+          </div>
           <input
             ref={mdInputRef}
             id="import-md-input"
@@ -277,14 +265,22 @@ export function ExportPage() {
             accept=".md,.markdown,text/markdown,text/plain"
             disabled={!project || busy !== null}
             onChange={handleMdFile}
-            className="mt-2 block w-full cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
           />
-          <p className="mt-2 text-sm text-muted-foreground">
-            Um arquivo exportado pelo Autor vira um capítulo por seção “# Título”.
-          </p>
         </div>
-        <div className="rounded-lg border p-4">
-          <Label htmlFor="import-docx-input">Importar capítulos (.docx)</Label>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <FileUp aria-hidden className="size-5 text-muted-foreground" />
+            <div>
+              <Label htmlFor="import-docx-input">
+                Importar capítulos (.docx)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Um Word com estilos de título vira um capítulo por seção.
+              </p>
+            </div>
+          </div>
           <input
             ref={docxInputRef}
             id="import-docx-input"
@@ -292,21 +288,48 @@ export function ExportPage() {
             accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             disabled={!project || busy !== null}
             onChange={handleDocxFile}
-            className="mt-2 block w-full cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
           />
-          <p className="mt-2 text-sm text-muted-foreground">
-            Um arquivo exportado pelo Autor (ou um Word com estilos de título) vira
-            um capítulo por seção.
-          </p>
         </div>
-      </section>
 
-      <section aria-labelledby="restore-heading" className="flex flex-col gap-3">
-        <h2 id="restore-heading" className="font-heading text-lg font-semibold">
-          Restaurar dados
-        </h2>
-        <div className="rounded-lg border p-4">
-          <Label htmlFor="import-backup-input">Restaurar backup completo (.json)</Label>
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <HardDriveDownload
+              aria-hidden
+              className="size-5 text-muted-foreground"
+            />
+            <div>
+              <p className="text-sm font-medium">Backup</p>
+              <p className="text-xs text-muted-foreground">
+                Inclui todos os projetos, capítulos, personagens, mundo, notas
+                e configurações.
+              </p>
+            </div>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportBackup}
+            disabled={busy !== null}
+            aria-busy={busy === "backup"}
+          >
+            {busy === "backup" ? "Gerando..." : "Baixar backup completo (.json)"}
+          </Button>
+        </div>
+
+        <div className="flex flex-wrap items-center justify-between gap-3 p-4">
+          <div className="flex items-center gap-3">
+            <Download aria-hidden className="size-5 text-muted-foreground" />
+            <div>
+              <Label htmlFor="import-backup-input">
+                Restaurar backup completo (.json)
+              </Label>
+              <p className="text-xs text-muted-foreground">
+                Substitui <strong>todos</strong> os dados atuais pelos do
+                arquivo.
+              </p>
+            </div>
+          </div>
           <input
             ref={backupInputRef}
             id="import-backup-input"
@@ -314,33 +337,15 @@ export function ExportPage() {
             accept=".json,application/json"
             disabled={busy !== null}
             onChange={handleBackupFile}
-            className="mt-2 block w-full cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
           />
-          <p className="mt-2 text-sm text-muted-foreground">
-            Substitui <strong>todos</strong> os dados atuais pelos do arquivo.
-          </p>
         </div>
-      </section>
-
-      <section aria-labelledby="backup-heading" className="flex flex-col gap-3">
-        <h2 id="backup-heading" className="font-heading text-lg font-semibold">
-          Backup
-        </h2>
-        <Button
-          variant="outline"
-          onClick={exportBackup}
-          disabled={busy !== null}
-          aria-busy={busy === "backup"}
-          className="w-fit"
-        >
-          <HardDriveDownload aria-hidden="true" />
-          {busy === "backup" ? "Gerando..." : "Baixar backup completo (.json)"}
-        </Button>
+      </div>
+      {!project && (
         <p className="text-sm text-muted-foreground">
-          Inclui todos os projetos, capítulos, personagens, mundo, notas e
-          configurações.
+          Crie um projeto para exportar capítulos.
         </p>
-      </section>
+      )}
 
       <ExportFormatDialog
         open={exportDialogOpen}

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { Character } from "@/shared/types/database";
+import type { Character, Location } from "@/shared/types/database";
 
 import {
   PROMPT_BANKS,
@@ -144,5 +144,40 @@ describe("gerador com personagens", () => {
     );
     const first = drawWhatIf(0, undefined, aurora);
     expect(drawWhatIf(0, first, aurora)).not.toBe(first);
+  });
+
+  it("substitui {personagem} e {local} em variantes customizadas do e se", () => {
+    const taverna: Location = {
+      id: "loc-1",
+      createdAt: "2025-01-01T00:00:00.000Z",
+      updatedAt: "2025-01-01T00:00:00.000Z",
+      projectId: "p-1",
+      name: "Taverna do Porco",
+      type: "povoado",
+      tags: [],
+    };
+    const bento = [character({ name: "Bento", gender: "masculino" })];
+    // seed 5 → obstáculo índice 6 = a variante custom (6 padrões + 1).
+    const text = drawWhatIf(
+      5,
+      undefined,
+      bento,
+      ["descobrisse que {personagem} o traía em {local}"],
+      [taverna],
+    );
+    expect(text).toBe(
+      "E se Bento descobrisse que Bento o traía em Taverna do Porco, diante de todos os aliados?",
+    );
+  });
+
+  it("variante com placeholder sem ficha/local correspondente fica fora", () => {
+    const text = drawWhatIf(
+      5,
+      undefined,
+      [],
+      ["{personagem} faria algo em {local}"],
+    );
+    expect(text).not.toContain("{personagem}");
+    expect(text).not.toContain("{local}");
   });
 });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -40,6 +40,9 @@ import { SceneDialog } from "./scene-dialog";
 interface OutlineTreeProps {
   projectId: EntityId;
   chapters: Chapter[];
+  /** Abre o SceneDialog desta cena ao montar (deep link /outline?scene=). */
+  pendingSceneId?: EntityId | null;
+  onPendingSceneConsumed?: () => void;
 }
 
 function dragHandleProps(
@@ -56,7 +59,12 @@ function dragHandleProps(
   } as const;
 }
 
-export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
+export function OutlineTree({
+  projectId,
+  chapters,
+  pendingSceneId,
+  onPendingSceneConsumed,
+}: OutlineTreeProps) {
   const liveScenes = useLiveQuery(
     () => sceneRepository.listByProject(projectId),
     [projectId],
@@ -67,6 +75,17 @@ export function OutlineTree({ projectId, chapters }: OutlineTreeProps) {
     scene?: Scene | null;
     chapterId?: EntityId;
   }>({ open: false });
+
+  // Deep link: resolve a cena antes de abrir (não depende do liveQuery).
+  useEffect(() => {
+    if (!pendingSceneId) return;
+    void sceneRepository.getById(pendingSceneId).then((scene) => {
+      if (scene) {
+        setDialog({ open: true, scene, chapterId: scene.chapterId });
+      }
+      onPendingSceneConsumed?.();
+    });
+  }, [pendingSceneId, onPendingSceneConsumed]);
 
   const scenesByChapter = useMemo(() => {
     const map = new Map<EntityId, Scene[]>();

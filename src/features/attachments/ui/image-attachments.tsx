@@ -10,6 +10,7 @@ import { readImageAsDataUrl } from "@/features/editor/domain/image-file";
 import type { AttachmentEntityType, EntityId } from "@/shared/types/database";
 
 import { attachmentRepository } from "../infra/dexie-attachment-repository";
+import { ImageLightbox } from "./image-lightbox";
 
 interface ImageAttachmentsProps {
   entityType: AttachmentEntityType;
@@ -33,6 +34,10 @@ export function ImageAttachments({
 }: ImageAttachmentsProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [uploading, setUploading] = useState(false);
+  const [lightbox, setLightbox] = useState<{
+    src: string;
+    name?: string | null;
+  } | null>(null);
 
   const attachments = useLiveQuery(
     () =>
@@ -93,12 +98,24 @@ export function ImageAttachments({
         <div className="flex flex-wrap gap-2">
           {list.map((attachment) => (
             <div key={attachment.id} className="group relative">
-              {/* eslint-disable-next-line @next/next/no-img-element -- dataURL local; next/image não se aplica */}
-              <img
-                src={attachment.dataUrl}
-                alt={attachment.name ?? "Imagem anexada"}
-                className="size-20 rounded-md border object-cover"
-              />
+              <button
+                type="button"
+                className="rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                aria-label={`Ampliar ${attachment.name ?? "imagem anexada"}`}
+                onClick={() =>
+                  setLightbox({
+                    src: attachment.dataUrl,
+                    name: attachment.name,
+                  })
+                }
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element -- dataURL local; next/image não se aplica */}
+                <img
+                  src={attachment.dataUrl}
+                  alt={attachment.name ?? "Imagem anexada"}
+                  className="size-20 rounded-md border object-cover"
+                />
+              </button>
               {readOnly ? null : (
                 <Button
                   type="button"
@@ -106,7 +123,10 @@ export function ImageAttachments({
                   size="icon-sm"
                   className="absolute top-0.5 right-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100"
                   aria-label="Remover imagem"
-                  onClick={() => void attachmentRepository.remove(attachment.id)}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    void attachmentRepository.remove(attachment.id);
+                  }}
                 >
                   <X aria-hidden />
                 </Button>
@@ -130,6 +150,14 @@ export function ImageAttachments({
           }}
         />
       )}
+      <ImageLightbox
+        open={lightbox !== null}
+        onOpenChange={(open) => {
+          if (!open) setLightbox(null);
+        }}
+        src={lightbox?.src ?? ""}
+        name={lightbox?.name}
+      />
     </div>
   );
 }

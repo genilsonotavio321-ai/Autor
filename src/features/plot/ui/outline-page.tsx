@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
+import { useEffect, useState } from "react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -23,6 +24,18 @@ export function OutlinePage() {
       () => (projectId ? chapterRepository.listByProject(projectId) : []),
       [projectId],
     ) ?? [];
+  const [tab, setTab] = useState("outline");
+  // Deep link /outline?scene=<id> abre o SceneDialog direto (padrão house).
+  const [pendingSceneId, setPendingSceneId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sceneId = params.get("scene");
+    if (!sceneId) return;
+    setTab("outline");
+    setPendingSceneId(sceneId);
+    window.history.replaceState({}, "", "/outline");
+  }, []);
 
   return (
     <div className="grid gap-6">
@@ -47,7 +60,7 @@ export function OutlinePage() {
           </Button>
         </EmptyState>
       ) : (
-        <Tabs defaultValue="outline">
+        <Tabs value={tab} onValueChange={setTab}>
           <TabsList>
             <TabsTrigger value="outline">Outline</TabsTrigger>
             <TabsTrigger value="beats">Beats</TabsTrigger>
@@ -55,7 +68,12 @@ export function OutlinePage() {
             <TabsTrigger value="kanban">Kanban</TabsTrigger>
           </TabsList>
           <TabsContent value="outline" className="pt-4">
-            <OutlineTree projectId={projectId} chapters={chapters} />
+            <OutlineTree
+              projectId={projectId}
+              chapters={chapters}
+              pendingSceneId={pendingSceneId}
+              onPendingSceneConsumed={() => setPendingSceneId(null)}
+            />
           </TabsContent>
           <TabsContent value="beats" className="pt-4">
             <BeatsPanel projectId={projectId} chapters={chapters} />

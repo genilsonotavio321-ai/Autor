@@ -43,6 +43,8 @@ export interface SceneCreateInput {
   status?: SceneStatus;
   povCharacterId?: EntityId;
   locationId?: EntityId;
+  /** Corpo em texto puro convertido em doc (1 linha = 1 parágrafo). */
+  content?: Json;
 }
 
 export interface SceneUpdateInput {

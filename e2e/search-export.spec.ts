@@ -49,7 +49,7 @@ test("exporta o projeto em markdown, docx, pdf e backup", async ({ page }) => {
   await page.getByRole("button", { name: "Novo capítulo" }).click();
 
   await page.goto("/export");
-  await expect(page.getByRole("heading", { name: "Dados", exact: true })).toBeVisible();
+  await expect(page.getByRole("tab", { name: "Dados", exact: true })).toBeVisible();
 
   const exportButton = page.getByRole("button", { name: "Exportar projeto" });
 

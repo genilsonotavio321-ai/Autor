@@ -21,7 +21,7 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, Trash2 } from "lucide-react";
+import { Dices, Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
@@ -47,6 +47,7 @@ import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
 import type { Character, CharacterRole, Tag } from "@/shared/types/database";
 
 import { CHARACTER_ROLE_LABELS } from "../domain/repository";
+import { buildRandomCharacter } from "../domain/random-character";
 import { characterRepository } from "../infra/dexie-character-repository";
 
 import { CharacterDialog } from "./character-dialog";
@@ -155,6 +156,18 @@ export function CharactersPage() {
     });
   }
 
+  async function createRandomCharacter() {
+    if (!projectId) return;
+    try {
+      const input = buildRandomCharacter(characters);
+      await characterRepository.create({ ...input, projectId });
+      playUiSound("create");
+      toast.success(`Ficha aleatória "${input.name}" criada`);
+    } catch {
+      toast.error("Falha ao criar a ficha aleatória");
+    }
+  }
+
   function handleDragStart() {
     suppressClick.current = true;
   }
@@ -197,6 +210,14 @@ export function CharactersPage() {
         }
       >
         <ProjectPicker />
+        <Button
+          variant="outline"
+          onClick={() => void createRandomCharacter()}
+          disabled={!projectId}
+        >
+          <Dices aria-hidden />
+          Ficha aleatória
+        </Button>
         <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
           <Plus aria-hidden />
           Novo personagem

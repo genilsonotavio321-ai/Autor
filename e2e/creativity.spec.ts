@@ -29,12 +29,15 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   // Canvas: card guardado aparece e é arrastável por teclado.
   await page.getByRole("tab", { name: "Canvas de ideias" }).click();
   const card = page
-    .locator("div.absolute", { hasText: "Desbloqueio · Enredo" })
+    .locator("div[data-card-id]")
+    .filter({ hasText: "Desbloqueio · Enredo" })
     .first();
   await expect(card).toBeVisible();
-  const handle = page.getByRole("button", { name: "Mover Desbloqueio · Enredo" });
+  // Sem grip: o card inteiro é o handle (segurar arrasta, clique abre).
+  const handle = page.getByRole("button", { name: "Ideia Desbloqueio · Enredo" });
   await handle.focus();
-  await page.keyboard.press("Space");
+  // Enter inicia/encerra o drag por teclado (Space fica livre para o pan).
+  await page.keyboard.press("Enter");
   await expect(handle).toHaveAttribute("aria-describedby", /DndDescribedBy/);
   // O sensor anexa o listener de keydown de forma adiada: a primeira seta
   // pode se perder logo após o pickup — repete até o transform registrar.
@@ -45,7 +48,7 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
       "matrix(1, 0, 0, 1, 25, 0)",
     );
   }).toPass({ timeout: 8_000 });
-  await page.keyboard.press("Space");
+  await page.keyboard.press("Enter");
   await expect(card).toHaveCSS("left", "41px");
 
   // Transformar em cena: escolhe o capítulo e envia para a Estrutura.

@@ -106,6 +106,10 @@ interface UiState {
   searchGlobalEnabled: boolean;
   /** Seções da página inicial (item 4). */
   homeSections: HomeSection[];
+  /** Sorteios citam personagens do projeto. */
+  promptCiteCharacters: boolean;
+  /** Sorteios citam locais do projeto. */
+  promptCiteLocations: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -144,6 +148,8 @@ interface UiState {
   setEditorSimplified: (enabled: boolean) => void;
   setSearchGlobalEnabled: (enabled: boolean) => void;
   setHomeSections: (sections: HomeSection[]) => void;
+  setPromptCiteCharacters: (enabled: boolean) => void;
+  setPromptCiteLocations: (enabled: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -184,6 +190,8 @@ export const useUiStore = create<UiState>()(
       themeVariantDark: "padrao",
       searchGlobalEnabled: true,
       homeSections: ["search", "projects", "data"],
+      promptCiteCharacters: true,
+      promptCiteLocations: false,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -275,6 +283,10 @@ export const useUiStore = create<UiState>()(
       setSearchGlobalEnabled: (enabled) =>
         set({ searchGlobalEnabled: enabled }),
       setHomeSections: (sections) => set({ homeSections: sections }),
+      setPromptCiteCharacters: (enabled) =>
+        set({ promptCiteCharacters: enabled }),
+      setPromptCiteLocations: (enabled) =>
+        set({ promptCiteLocations: enabled }),
     }),
     {
       name: "autor-ui",
@@ -319,6 +331,8 @@ export const useUiStore = create<UiState>()(
         themeVariantDark: state.themeVariantDark,
         searchGlobalEnabled: state.searchGlobalEnabled,
         homeSections: state.homeSections,
+        promptCiteCharacters: state.promptCiteCharacters,
+        promptCiteLocations: state.promptCiteLocations,
       }),
     },
   ),

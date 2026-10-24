@@ -35,7 +35,7 @@ export class DexieCharacterRepository implements CharacterRepository {
       goals: input.goals,
       fears: input.fears,
       traits: input.traits ?? [],
-      relationships: [],
+      relationships: input.relationships ?? [],
       tags: input.tags ?? [],
       createdAt: now,
       updatedAt: now,

@@ -41,6 +41,7 @@ export interface CharacterCreateInput {
   goals?: string;
   fears?: string;
   traits?: string[];
+  relationships?: Relationship[];
   tags?: EntityId[];
 }
 
