@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
+import { useUiStore } from "@/shared/store/ui-store";
 
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { IdeaCanvas } from "./idea-canvas";
@@ -17,6 +18,7 @@ import { UnblockPanel } from "./unblock-panel";
 
 export function CreativityPage({ defaultTab = "unblock" }: { defaultTab?: string }) {
   const { projectId } = useSelectedProject();
+  const focusMode = useUiStore((state) => state.focusMode);
   const cards =
     useLiveQuery(
       () => (projectId ? ideaCardRepository.listByProject(projectId) : []),
@@ -27,6 +29,11 @@ export function CreativityPage({ defaultTab = "unblock" }: { defaultTab?: string
       () => (projectId ? chapterRepository.listByProject(projectId) : []),
       [projectId],
     ) ?? [];
+
+  // Modo foco: só o canvas ocupa a tela (Esc restaura header e abas).
+  if (focusMode && projectId !== null) {
+    return <IdeaCanvas projectId={projectId} chapters={chapters} />;
+  }
 
   return (
     <div className="grid gap-6">

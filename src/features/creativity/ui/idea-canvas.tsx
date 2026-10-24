@@ -29,6 +29,8 @@ import {
   Download,
   Group,
   Link2,
+  Maximize2,
+  Minimize2,
   MousePointerSquareDashed,
   Pencil,
   Plus,
@@ -76,6 +78,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { playUiSound } from "@/shared/lib/sound";
+import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
   EntityId,
@@ -176,6 +179,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const [boardName, setBoardName] = useState("");
   /** Quadro aguardando confirmação de "Carregar" (substitui o canvas). */
   const [confirmBoard, setConfirmBoard] = useState<IdeaBoard | null>(null);
+  const focusMode = useUiStore((state) => state.focusMode);
+  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
 
   const sensors = useSensors(
     // Segurar ~250px-move arrasta; clique rápido abre o card (fase 4).
@@ -461,6 +466,18 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selection]);
+
+  // Esc sai do modo foco — último da cadeia (conexão → seleção → foco).
+  useEffect(() => {
+    if (!focusMode || linkingFrom || selection.size > 0) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (document.querySelector("[role='dialog']")) return;
+      toggleFocusMode();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [focusMode, linkingFrom, selection, toggleFocusMode]);
 
   function suppressNextClick() {
     window.setTimeout(() => {
@@ -862,8 +879,15 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const boardHeight = Math.max(480, ...cards.map((card) => card.y + 180));
   const linkingTitle = cards.find((card) => card.id === linkingFrom)?.title;
 
+  // No modo foco o board estica: altura = viewport menos o p-4/p-6 do <main>.
   return (
-    <div className="grid gap-3">
+    <div
+      className={
+        focusMode
+          ? "flex h-[calc(100dvh-2rem)] flex-col gap-3 md:h-[calc(100dvh-3rem)]"
+          : "grid gap-3"
+      }
+    >
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => void createCard()}>
           <Plus aria-hidden />
@@ -959,6 +983,21 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             onClick={() => uploadInputRef.current?.click()}
           >
             <Upload aria-hidden className="size-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="size-8"
+            onClick={toggleFocusMode}
+            aria-label={
+              focusMode ? "Sair do modo foco" : "Ativar modo foco (Esc para sair)"
+            }
+          >
+            {focusMode ? (
+              <Minimize2 aria-hidden className="size-4" />
+            ) : (
+              <Maximize2 aria-hidden className="size-4" />
+            )}
           </Button>
           <input
             ref={uploadInputRef}
@@ -1146,7 +1185,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           >
             <div
               ref={boardRef}
-              className="relative min-h-[480px] cursor-grab overflow-auto rounded-lg border bg-muted/30"
+              data-slot="canvas-board"
+              className={`relative min-h-[480px] cursor-grab overflow-auto rounded-lg border bg-muted/30 ${focusMode ? "flex-1" : ""}`}
             >
               <div
                 ref={contentRef}
