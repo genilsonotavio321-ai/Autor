@@ -20,7 +20,6 @@ import type { MentionType } from "@/features/mentions/domain/entity-index";
 import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
 import type { Chapter, Json } from "@/shared/types/database";
@@ -127,7 +126,6 @@ export function ReadPage() {
             <PenLine aria-hidden />
             Editar
           </Button>
-          <ProjectPicker />
         </div>
       </header>
 

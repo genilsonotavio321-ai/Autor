@@ -32,6 +32,7 @@ export function CommandPalette() {
   const openSearch = useUiStore((state) => state.openSearch);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
+  const panelTabVisible = useUiStore((state) => state.panelTabVisible);
 
   // Ctrl+K e botões mudam o estado direto; Radix não emite onOpenChange.
   const prevOpen = useRef(open);
@@ -81,16 +82,20 @@ export function CommandPalette() {
               <span>Buscar no acervo</span>
             </CommandItem>
             {navGroups.flatMap((group) =>
-              group.items.map((item) => (
-                <CommandItem
-                  key={item.href}
-                  value={`${item.title} ${item.href}`}
-                  onSelect={() => navigate(item.href)}
-                >
-                  <item.icon aria-hidden="true" />
-                  <span>{item.title}</span>
-                </CommandItem>
-              )),
+              group.items
+                .filter(
+                  (item) => panelTabVisible || item.optional !== true,
+                )
+                .map((item) => (
+                  <CommandItem
+                    key={item.href}
+                    value={`${item.title} ${item.href}`}
+                    onSelect={() => navigate(item.href)}
+                  >
+                    <item.icon aria-hidden="true" />
+                    <span>{item.title}</span>
+                  </CommandItem>
+                )),
             )}
           </CommandGroup>
           <CommandSeparator />

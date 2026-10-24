@@ -1,9 +1,6 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { CreativityPage } from "@/features/creativity/ui/creativity-page";
-
-export const metadata: Metadata = { title: "Criatividade" };
-
-export default function Page() {
-  return <CreativityPage />;
+// A seção virou a rota /canvas; o item "Criatividade" saiu do menu.
+export default function ExportRoute() {
+  redirect("/canvas");
 }

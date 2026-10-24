@@ -301,6 +301,7 @@ function ChapterRow({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`min-w-0 rounded-lg border bg-card ${isDragging ? "opacity-60" : ""}`}
     >
       <div className="flex min-w-0 items-center gap-2 p-3">
@@ -381,6 +382,7 @@ function SceneRow({ scene, suppressClick, onEdit }: SceneRowProps) {
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`flex min-w-0 items-center gap-2 px-3 py-2 pl-6 sm:pl-10 ${isDragging ? "opacity-60" : ""}`}
     >
       <button type="button" {...dragHandleProps(attributes, listeners, `Reordenar ${scene.title}`)}>

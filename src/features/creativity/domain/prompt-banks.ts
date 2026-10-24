@@ -158,8 +158,9 @@ function agree(text: string, gender?: CharacterGender): string {
 }
 
 /** Sorteia uma pergunta provocativa da categoria; com fichas de personagem
- * ou locais no projeto, o banco ganha perguntas sobre um deles. Variantes
- * customizadas entram no sorteio se não dependerem de um placeholder vazio. */
+ * ou locais no projeto, o banco ganha perguntas sobre um deles. `weight` é
+ * a chance de sair variante customizada (0 = nunca, 1 = sempre); sem
+ * variantes elegíveis o banco embutido responde sozinho. */
 export function drawPrompt(
   category: PromptCategory,
   seed: number,
@@ -167,18 +168,22 @@ export function drawPrompt(
   characters?: Character[],
   locations?: Location[],
   custom?: string[],
+  weight = 0.5,
 ): string {
   const customPool = (custom ?? []).filter(
     (item) =>
       ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
       ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
   );
-  const pool = [
+  const builtinPool = [
     ...PROMPT_BANKS[category],
     ...(characters?.length ? CHARACTER_PROMPT_BANKS[category] : []),
     ...(locations?.length ? LOCATION_PROMPT_BANKS[category] : []),
-    ...customPool,
   ];
+  // Roll determinístico do seed decide entre pool custom e embutido.
+  const roll = (((seed % 100) + 100) % 100) / 100;
+  const pool =
+    customPool.length > 0 && roll < weight ? customPool : builtinPool;
   const question = drawFrom(pool, seed);
   const character =
     characters && characters.length > 0
@@ -193,20 +198,30 @@ export function drawPrompt(
   if (location) text = text.replaceAll("{local}", location.name);
   text = agree(text, character?.gender);
   return text === last
-    ? drawPrompt(category, seed + 7, undefined, characters, locations, customPool)
+    ? drawPrompt(
+        category,
+        seed + 7,
+        undefined,
+        characters,
+        locations,
+        customPool,
+        weight,
+      )
     : text;
 }
 
 /** Sorteia uma combinação "E se..." dos três eixos; com fichas, uma delas
- * entra como sujeito e os templates concordam com seu gênero. Variantes
- * customizadas entram como obstáculos: `{personagem}` sorteia outra ficha
- * (o sujeito já é o personagem do seed) e `{local}` um local do projeto. */
+ * entra como sujeito e os templates concordam com seu gênero. `weight` é a
+ * chance de sair variante customizada: frase que já começa com "E se" é
+ * usada inteira (placeholders + @ aplicados); obstáculo custom compõe a
+ * frase com sujeito e cenário. Sem variantes elegíveis, só banco embutido. */
 export function drawWhatIf(
   seed: number,
   last?: string,
   characters?: Character[],
   custom?: string[],
   locations?: Location[],
+  weight = 0.5,
 ): string {
   const character =
     characters && characters.length > 0
@@ -222,34 +237,54 @@ export function drawWhatIf(
       ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
       ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
   );
-  const obstacles = [
-    ...(dropGendered
-      ? WHAT_IF_OBSTACLES.filter((item) => !item.includes("@"))
-      : WHAT_IF_OBSTACLES),
-    ...(dropGendered
-      ? customPool.filter((item) => !item.includes("@"))
-      : customPool),
-  ];
+  const eligibleCustoms = dropGendered
+    ? customPool.filter((item) => !item.includes("@"))
+    : customPool;
+  const fullSentences = eligibleCustoms.filter((item) =>
+    /^e se/i.test(item),
+  );
+  const customObstacles = eligibleCustoms.filter(
+    (item) => !/^e se/i.test(item),
+  );
+  // Roll determinístico do seed decide entre pool custom e embutido.
+  const roll = (((seed % 100) + 100) % 100) / 100;
+  const useCustom = eligibleCustoms.length > 0 && roll < weight;
+
+  /** Placeholders + concordância de gênero na variante sorteada. */
+  const fill = (text: string): string => {
+    let filled = text;
+    if (characters && characters.length > 0) {
+      filled = filled.replaceAll(
+        "{personagem}",
+        drawFrom(characters, seed + 5).name,
+      );
+    }
+    if (locations && locations.length > 0) {
+      filled = filled.replaceAll(
+        "{local}",
+        drawFrom(locations, seed + 13).name,
+      );
+    }
+    return agree(filled, character?.gender);
+  };
+
   const subject = character
     ? character.name
     : drawFrom(WHAT_IF_SUBJECTS, seed);
-  let obstacleText = drawFrom(obstacles, seed + 1);
-  if (characters && characters.length > 0) {
-    obstacleText = obstacleText.replaceAll(
-      "{personagem}",
-      drawFrom(characters, seed + 5).name,
-    );
+  let text: string;
+  if (useCustom && fullSentences.length > 0) {
+    text = fill(drawFrom(fullSentences, seed + 1));
+  } else {
+    const obstacles =
+      useCustom || dropGendered
+        ? (useCustom ? customObstacles : WHAT_IF_OBSTACLES).filter((item) =>
+            dropGendered ? !item.includes("@") : true,
+          )
+        : WHAT_IF_OBSTACLES;
+    const setting = drawFrom(WHAT_IF_SETTINGS, seed + 2);
+    text = `E se ${subject} ${fill(drawFrom(obstacles, seed + 1))}, ${setting}?`;
   }
-  if (locations && locations.length > 0) {
-    obstacleText = obstacleText.replaceAll(
-      "{local}",
-      drawFrom(locations, seed + 13).name,
-    );
-  }
-  const obstacle = agree(obstacleText, character?.gender);
-  const setting = drawFrom(WHAT_IF_SETTINGS, seed + 2);
-  const text = `E se ${subject} ${obstacle}, ${setting}?`;
   return text === last
-    ? drawWhatIf(seed + 7, undefined, characters, custom, locations)
+    ? drawWhatIf(seed + 7, undefined, characters, custom, locations, weight)
     : text;
 }

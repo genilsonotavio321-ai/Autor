@@ -33,7 +33,6 @@ import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import type { Chapter, EntityId, TimelineEvent } from "@/shared/types/database";
 
 import { timelineEventRepository } from "../infra/dexie-timeline-event-repository";
@@ -108,7 +107,6 @@ export function TimelinePage() {
             : undefined
         }
       >
-        <ProjectPicker />
         <Button
           onClick={() => setDialog({ open: true })}
           disabled={!projectId}

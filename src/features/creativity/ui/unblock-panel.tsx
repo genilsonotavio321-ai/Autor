@@ -54,6 +54,9 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
   const promptCiteLocations = useUiStore(
     (state) => state.promptCiteLocations,
   );
+  const promptCustomWeight = useUiStore(
+    (state) => state.promptCustomWeight,
+  );
   const [category, setCategory] = useState<PromptCategory>("enredo");
   const [question, setQuestion] = useState<string | null>(null);
   const [whatIf, setWhatIf] = useState<string | null>(null);
@@ -107,7 +110,7 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
         </div>
         <p
           aria-live="polite"
-          className="min-h-16 rounded-md bg-muted/60 p-3 text-sm"
+          className="max-h-48 min-h-16 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted/60 p-3 text-sm"
         >
           {question ?? "Clique em sortear para destravar a história."}
         </p>
@@ -123,6 +126,7 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
                   drawnCharacters,
                   drawnLocations,
                   customQuestions,
+                  promptCustomWeight,
                 ),
               )
             }
@@ -153,7 +157,7 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
         </p>
         <p
           aria-live="polite"
-          className="min-h-16 rounded-md bg-muted/60 p-3 text-sm"
+          className="max-h-48 min-h-16 overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-muted/60 p-3 text-sm"
         >
           {whatIf ?? "Clique em sortear para gerar uma combinação."}
         </p>
@@ -168,6 +172,7 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
                   drawnCharacters,
                   customWhatIfs,
                   drawnLocations,
+                  promptCustomWeight,
                 ),
               )
             }

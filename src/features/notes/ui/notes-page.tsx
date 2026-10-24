@@ -81,7 +81,6 @@ import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/
 import { ExportFormatDialog, type ExportFormat } from "@/features/export/ui/export-format-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 
 import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
 import { noteRepository } from "../infra/dexie-note-repository";
@@ -327,7 +326,6 @@ export function NotesPage() {
             : undefined
         }
       >
-        <ProjectPicker />
           <Select value={sort} onValueChange={(value) => setSort(value as NotesSort)}>
             <SelectTrigger className="w-52" aria-label="Ordenar notas">
               <ArrowUpDown aria-hidden className="size-4" />
@@ -551,6 +549,7 @@ function NoteCard({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       {...attributes}
       {...listeners}
       onClick={openView}

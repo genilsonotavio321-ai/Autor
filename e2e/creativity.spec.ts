@@ -14,8 +14,10 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   // Desbloqueio: sortear pergunta e guardar no canvas.
   await page.goto("/creativity");
   await expect(
-    page.getByRole("heading", { name: "Criatividade" }),
+    page.getByRole("heading", { name: "Canvas" }),
   ).toBeVisible();
+  // /creativity redireciona para /canvas — aba Desbloqueio é o gerador.
+  await page.getByRole("tab", { name: "Desbloqueio" }).click();
   await page.getByRole("button", { name: "Sortear pergunta" }).click();
   // O placeholder desaparece quando a pergunta sorteada entra na saída.
   await expect(

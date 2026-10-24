@@ -41,7 +41,6 @@ import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { resolveTagColor } from "@/features/tags/domain/repository";
 import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
 import type { Character, CharacterRole, Tag } from "@/shared/types/database";
@@ -209,7 +208,6 @@ export function CharactersPage() {
             : undefined
         }
       >
-        <ProjectPicker />
         <Button
           variant="outline"
           onClick={() => void createRandomCharacter()}
@@ -383,6 +381,7 @@ function CharacterCard({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       {...attributes}
       {...listeners}
       onClick={openView}

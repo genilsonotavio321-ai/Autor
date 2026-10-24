@@ -26,6 +26,11 @@ export class DexieIdeaCardRepository implements IdeaCardRepository {
       x: input.x ?? 16,
       y: input.y ?? 16,
       links: input.links,
+      refType: input.refType,
+      refId: input.refId,
+      w: input.w,
+      h: input.h,
+      doc: input.doc,
       createdAt: now,
       updatedAt: now,
     };

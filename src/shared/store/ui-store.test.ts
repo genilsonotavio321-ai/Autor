@@ -102,4 +102,20 @@ describe("useUiStore", () => {
     expect(useUiStore.getState().homeSections).toContain("continue");
     expect(localStorage.getItem("autor-ui")).toContain('"continue"');
   });
+
+  it("Painel some da navegação por padrão e o peso dos prompts é 50%", () => {
+    expect(useUiStore.getState().panelTabVisible).toBe(false);
+    expect(useUiStore.getState().promptCustomWeight).toBe(0.5);
+  });
+
+  it("alterna o Painel e grava o peso dos prompts com clamp", () => {
+    localStorage.clear();
+    useUiStore.getState().setPanelTabVisible(true);
+    expect(useUiStore.getState().panelTabVisible).toBe(true);
+    useUiStore.getState().setPromptCustomWeight(2);
+    expect(useUiStore.getState().promptCustomWeight).toBe(1);
+    useUiStore.getState().setPromptCustomWeight(-1);
+    expect(useUiStore.getState().promptCustomWeight).toBe(0);
+    expect(localStorage.getItem("autor-ui")).toContain("promptCustomWeight");
+  });
 });

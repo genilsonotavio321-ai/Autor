@@ -8,7 +8,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
@@ -16,7 +15,7 @@ import { IdeaCanvas } from "./idea-canvas";
 import { SceneBuilder } from "./scene-builder";
 import { UnblockPanel } from "./unblock-panel";
 
-export function CreativityPage() {
+export function CreativityPage({ defaultTab = "unblock" }: { defaultTab?: string }) {
   const { projectId } = useSelectedProject();
   const cards =
     useLiveQuery(
@@ -32,15 +31,13 @@ export function CreativityPage() {
   return (
     <div className="grid gap-6">
       <PageHeader
-        title="Criatividade"
+        title="Canvas"
         count={
           cards.length > 0
             ? `${cards.length} ${cards.length === 1 ? "ideia" : "ideias"}`
             : undefined
         }
-      >
-        <ProjectPicker />
-      </PageHeader>
+      />
 
       {projectId === null ? (
         <EmptyState>
@@ -50,7 +47,7 @@ export function CreativityPage() {
           </Button>
         </EmptyState>
       ) : (
-        <Tabs defaultValue="unblock">
+        <Tabs defaultValue={defaultTab}>
           <TabsList>
             <TabsTrigger value="unblock">Desbloqueio</TabsTrigger>
             <TabsTrigger value="builder">Construtor de cena</TabsTrigger>

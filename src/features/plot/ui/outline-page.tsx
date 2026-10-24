@@ -8,7 +8,6 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 
@@ -47,7 +46,6 @@ export function OutlinePage() {
             : undefined
         }
       >
-        <ProjectPicker />
       </PageHeader>
 
       {projectId === null ? (

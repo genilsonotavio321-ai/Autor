@@ -34,7 +34,6 @@ import { formatRelativeTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import type { EntityId, Location, LoreEntry } from "@/shared/types/database";
 
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
@@ -246,7 +245,6 @@ export function WorldPage() {
             : undefined
         }
       >
-        <ProjectPicker />
         {projectId !== null ? (
           worldTab === "locations" ? (
             <Button onClick={() => setLocationDialog({ open: true })}>
@@ -492,6 +490,7 @@ function LocationCard({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       {...attributes}
       {...listeners}
       onClick={openView}
@@ -695,6 +694,7 @@ function LoreCard({ entry, suppressClick, onView, onRemove }: LoreCardProps) {
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       {...attributes}
       {...listeners}
       onClick={openView}

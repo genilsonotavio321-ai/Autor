@@ -34,7 +34,7 @@ function MotionStyle() {
   const enabled = useUiStore((state) => state.animationsEnabled);
   const duration = useUiStore((state) => state.animationDuration);
   const css = enabled
-    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}[data-radix-popper-content-wrapper]{transition:none!important}#main-content{animation-duration:${Math.max(duration, 280)}ms!important}`
+    ? `*,::before,::after{transition-duration:${duration}ms!important;animation-duration:${duration}ms!important}[data-dragging]{transition:none!important}[data-radix-popper-content-wrapper]{transition:none!important}#main-content{animation-duration:${Math.max(duration, 280)}ms!important}`
     : `*,::before,::after{transition:none!important;animation:none!important}`;
   return <style dangerouslySetInnerHTML={{ __html: css }} />;
 }

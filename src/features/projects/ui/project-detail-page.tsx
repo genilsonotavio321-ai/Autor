@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Frame, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -18,6 +18,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
+import { useUiStore } from "@/shared/store/ui-store";
 
 import { PROJECT_STATUS_LABELS } from "../domain/repository";
 import { chapterRepository } from "../infra/dexie-chapter-repository";
@@ -31,6 +32,9 @@ interface ProjectDetailPageProps {
 
 export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
   const router = useRouter();
+  const setSelectedProjectId = useUiStore(
+    (state) => state.setSelectedProjectId,
+  );
   const [editOpen, setEditOpen] = useState(false);
   // `null` (not `undefined`) marks "not found" — useLiveQuery uses undefined
   // both for "loading" and for a query that resolved to undefined.
@@ -128,6 +132,16 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              setSelectedProjectId(project.id);
+              router.push("/canvas");
+            }}
+          >
+            <Frame aria-hidden />
+            Canvas
+          </Button>
           <Button variant="outline" onClick={() => setEditOpen(true)}>
             <Pencil aria-hidden />
             Editar

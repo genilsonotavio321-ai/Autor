@@ -38,6 +38,7 @@ export type HomeSection =
   | "projects"
   | "dashboard"
   | "data"
+  | "canvas"
   | "continue";
 
 function clamp(value: number, min: number, max: number): number {
@@ -110,6 +111,10 @@ interface UiState {
   promptCiteCharacters: boolean;
   /** Sorteios citam locais do projeto. */
   promptCiteLocations: boolean;
+  /** Mostra o item "Painel" na navegação (sidebar, paleta e busca). */
+  panelTabVisible: boolean;
+  /** Peso dos prompts personalizados nos sorteios (0–1). */
+  promptCustomWeight: number;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -150,6 +155,8 @@ interface UiState {
   setHomeSections: (sections: HomeSection[]) => void;
   setPromptCiteCharacters: (enabled: boolean) => void;
   setPromptCiteLocations: (enabled: boolean) => void;
+  setPanelTabVisible: (visible: boolean) => void;
+  setPromptCustomWeight: (weight: number) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -192,6 +199,8 @@ export const useUiStore = create<UiState>()(
       homeSections: ["search", "projects", "data"],
       promptCiteCharacters: true,
       promptCiteLocations: false,
+      panelTabVisible: false,
+      promptCustomWeight: 0.5,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -287,6 +296,9 @@ export const useUiStore = create<UiState>()(
         set({ promptCiteCharacters: enabled }),
       setPromptCiteLocations: (enabled) =>
         set({ promptCiteLocations: enabled }),
+      setPanelTabVisible: (visible) => set({ panelTabVisible: visible }),
+      setPromptCustomWeight: (weight) =>
+        set({ promptCustomWeight: clamp(weight, 0, 1) }),
     }),
     {
       name: "autor-ui",
@@ -333,6 +345,8 @@ export const useUiStore = create<UiState>()(
         homeSections: state.homeSections,
         promptCiteCharacters: state.promptCiteCharacters,
         promptCiteLocations: state.promptCiteLocations,
+        panelTabVisible: state.panelTabVisible,
+        promptCustomWeight: state.promptCustomWeight,
       }),
     },
   ),

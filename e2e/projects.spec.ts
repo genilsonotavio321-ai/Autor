@@ -63,11 +63,20 @@ test("aba Arquivados guarda os projetos arquivados", async ({ page }) => {
   await waitForToastCycle(page);
 
   // Arquivado sai da aba Ativos e fica guardado na aba Arquivados.
+  // (O rodapé da sidebar tem um seletor de projeto — mira no título do card.)
   await page.goto("/projects");
-  await expect(page.getByText("Projeto Guardado")).toHaveCount(0);
+  await expect(
+    page
+      .locator("[data-slot='card-title']")
+      .filter({ hasText: "Projeto Guardado" }),
+  ).toHaveCount(0);
 
   await page.getByRole("tab", { name: "Arquivados" }).click();
-  await expect(page.getByText("Projeto Guardado")).toBeVisible();
+  await expect(
+    page
+      .locator("[data-slot='card-title']")
+      .filter({ hasText: "Projeto Guardado" }),
+  ).toBeVisible();
   await expect(page.getByText("Nenhum projeto arquivado")).toHaveCount(0);
 });
 

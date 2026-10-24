@@ -1485,6 +1485,7 @@ function IdeaCardView({
     <div
       ref={setNodeRef}
       data-card-id={card.id}
+      data-dragging={isDragging || undefined}
       {...attributes}
       {...listeners}
       aria-label={`Ideia ${card.title}`}

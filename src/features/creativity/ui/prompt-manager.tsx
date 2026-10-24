@@ -301,7 +301,7 @@ export function PromptManager() {
         onOpenChange={(open) => (open ? null : closeDialog())}
       >
         <DialogContent
-          className="sm:max-w-lg"
+          className="max-h-[85dvh] overflow-y-auto sm:max-w-lg"
           onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
         >
           <DialogHeader>
@@ -384,13 +384,14 @@ export function PromptManager() {
               <Textarea
                 id="prompt-variants"
                 ref={variantsRef}
+                className="max-h-64 overflow-y-auto"
                 value={variantsText}
                 onChange={(event) => setVariantsText(event.target.value)}
                 rows={4}
                 placeholder={"O que {personagem} faria em {local}?\nE se falhasse?"}
               />
               {previewLine ? (
-                <p className="text-xs text-muted-foreground">
+                <p className="line-clamp-2 break-words text-xs text-muted-foreground">
                   Prévia: {previewLine}
                 </p>
               ) : null}

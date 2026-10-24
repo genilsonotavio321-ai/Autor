@@ -205,6 +205,7 @@ function KanbanCard({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`rounded-md border bg-card p-2 ${isDragging ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-1">

@@ -157,7 +157,7 @@ describe("gerador com personagens", () => {
       tags: [],
     };
     const bento = [character({ name: "Bento", gender: "masculino" })];
-    // seed 5 → obstáculo índice 6 = a variante custom (6 padrões + 1).
+    // seed 5 → roll 0,05 < peso 0,5 → pool custom (obstáculo) vira o eixo.
     const text = drawWhatIf(
       5,
       undefined,
@@ -179,5 +179,44 @@ describe("gerador com personagens", () => {
     );
     expect(text).not.toContain("{personagem}");
     expect(text).not.toContain("{local}");
+  });
+
+  it("peso 0 nunca sorteia variante custom e peso 1 sempre sorteia", () => {
+    const custom = ["descobrisse um segredo antigo"];
+    // seed 5 → roll 0,05: peso 0 vai pro embutido, peso 1 vai pro custom.
+    expect(drawWhatIf(5, undefined, undefined, custom, undefined, 0)).toBe(
+      "E se o protagonista descobrisse que a pessoa em quem mais confia mente desde o início, diante de todos os aliados?",
+    );
+    expect(drawWhatIf(5, undefined, undefined, custom, undefined, 1)).toBe(
+      "E se o protagonista descobrisse um segredo antigo, diante de todos os aliados?",
+    );
+    expect(
+      drawPrompt("enredo", 5, undefined, undefined, undefined, custom, 0),
+    ).toContain("O que aconteceria se o protagonista falhasse");
+    expect(
+      drawPrompt("enredo", 5, undefined, undefined, undefined, custom, 1),
+    ).toBe("descobrisse um segredo antigo");
+  });
+
+  it("variante custom que já começa com 'E se' vira a frase inteira", () => {
+    const text = drawWhatIf(
+      5,
+      undefined,
+      [character({ name: "Bento", gender: "masculino" })],
+      ["E se {personagem} sumisse sem deixar rastro em {local}?"],
+      [
+        {
+          id: "loc-1",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          updatedAt: "2025-01-01T00:00:00.000Z",
+          projectId: "p-1",
+          name: "Taverna do Porco",
+          type: "povoado",
+          tags: [],
+        },
+      ],
+      1,
+    );
+    expect(text).toBe("E se Bento sumisse sem deixar rastro em Taverna do Porco?");
   });
 });

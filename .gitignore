@@ -30,6 +30,7 @@ next-env.d.ts
 /coverage
 /test-results/
 /playwright-report/
+/.vitest/
 
 # grafos gerados pela ferramenta graphify
 /graphify-out/

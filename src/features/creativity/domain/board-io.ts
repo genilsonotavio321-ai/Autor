@@ -38,7 +38,13 @@ export function parseBoardExport(json: unknown): IdeaBoardItem[] {
       !Number.isFinite(item.y) ||
       (item.links !== undefined &&
         (!Array.isArray(item.links) ||
-          item.links.some((key) => typeof key !== "string")))
+          item.links.some((key) => typeof key !== "string"))) ||
+      (item.w !== undefined && !Number.isFinite(item.w)) ||
+      (item.h !== undefined && !Number.isFinite(item.h)) ||
+      (item.refType !== undefined &&
+        item.refType !== "character" &&
+        item.refType !== "location") ||
+      (item.refId !== undefined && typeof item.refId !== "string")
     ) {
       throw new Error(`Item inválido na posição ${index + 1}`);
     }

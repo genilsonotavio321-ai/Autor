@@ -258,6 +258,16 @@ export function DataSection() {
               </p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => mdInputRef.current?.click()}
+            disabled={!project || busy !== null}
+            aria-label="Importar capítulos de arquivo Markdown"
+          >
+            <FileUp aria-hidden />
+            Importar .md
+          </Button>
           <input
             ref={mdInputRef}
             id="import-md-input"
@@ -265,7 +275,7 @@ export function DataSection() {
             accept=".md,.markdown,text/markdown,text/plain"
             disabled={!project || busy !== null}
             onChange={handleMdFile}
-            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="hidden"
           />
         </div>
 
@@ -281,6 +291,16 @@ export function DataSection() {
               </p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => docxInputRef.current?.click()}
+            disabled={!project || busy !== null}
+            aria-label="Importar capítulos de arquivo Word"
+          >
+            <FileUp aria-hidden />
+            Importar .docx
+          </Button>
           <input
             ref={docxInputRef}
             id="import-docx-input"
@@ -288,7 +308,7 @@ export function DataSection() {
             accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             disabled={!project || busy !== null}
             onChange={handleDocxFile}
-            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="hidden"
           />
         </div>
 
@@ -330,6 +350,16 @@ export function DataSection() {
               </p>
             </div>
           </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => backupInputRef.current?.click()}
+            disabled={busy !== null}
+            aria-label="Restaurar backup completo de arquivo JSON"
+          >
+            <Download aria-hidden />
+            Restaurar backup
+          </Button>
           <input
             ref={backupInputRef}
             id="import-backup-input"
@@ -337,7 +367,7 @@ export function DataSection() {
             accept=".json,application/json"
             disabled={busy !== null}
             onChange={handleBackupFile}
-            className="block w-full max-w-xs cursor-pointer rounded-md border border-input bg-transparent p-2 text-sm file:mr-3 file:cursor-pointer file:rounded-md file:border-0 file:bg-primary file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-primary-foreground hover:file:bg-primary/90"
+            className="hidden"
           />
         </div>
       </div>

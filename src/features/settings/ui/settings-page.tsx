@@ -18,7 +18,6 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataSection } from "@/features/export/ui/export-page";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
-import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { PromptManager } from "@/features/creativity/ui/prompt-manager";
 import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
@@ -53,6 +52,7 @@ const HOME_SECTION_OPTIONS: { value: HomeSection; label: string }[] = [
   { value: "continue", label: "Continuar escrevendo" },
   { value: "projects", label: "Projetos" },
   { value: "dashboard", label: "Painel" },
+  { value: "canvas", label: "Canvas" },
   { value: "data", label: "Dados" },
 ];
 
@@ -174,6 +174,8 @@ export function SettingsPage() {
   );
   const homeSections = useUiStore((state) => state.homeSections);
   const setHomeSections = useUiStore((state) => state.setHomeSections);
+  const panelTabVisible = useUiStore((state) => state.panelTabVisible);
+  const setPanelTabVisible = useUiStore((state) => state.setPanelTabVisible);
   const promptCiteCharacters = useUiStore(
     (state) => state.promptCiteCharacters,
   );
@@ -185,6 +187,12 @@ export function SettingsPage() {
   );
   const setPromptCiteLocations = useUiStore(
     (state) => state.setPromptCiteLocations,
+  );
+  const promptCustomWeight = useUiStore(
+    (state) => state.promptCustomWeight,
+  );
+  const setPromptCustomWeight = useUiStore(
+    (state) => state.setPromptCustomWeight,
   );
   const themeVariantLight = useUiStore((state) => state.themeVariantLight);
   const themeVariantDark = useUiStore((state) => state.themeVariantDark);
@@ -646,6 +654,16 @@ export function SettingsPage() {
               />
             </div>
           ))}
+          <div className="flex items-center justify-between gap-4 border-t pt-3">
+            <Label htmlFor="panel-tab-visible">
+              Mostrar “Painel” na navegação
+            </Label>
+            <Switch
+              id="panel-tab-visible"
+              checked={panelTabVisible}
+              onCheckedChange={withToggle(setPanelTabVisible)}
+            />
+          </div>
         </CardContent>
       </Card>
 
@@ -657,7 +675,6 @@ export function SettingsPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          <ProjectPicker />
           <TagsManager projectId={projectId} />
         </CardContent>
       </Card>
@@ -703,7 +720,22 @@ export function SettingsPage() {
                 exportação e importação em JSON.
               </CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="grid gap-4">
+              <div className="max-w-xs">
+                <SettingSlider
+                  id="prompt-custom-weight"
+                  label="Peso dos prompts personalizados"
+                  unit="%"
+                  value={Math.round(promptCustomWeight * 100)}
+                  min={0}
+                  max={100}
+                  step={5}
+                  onValueChange={(value) => setPromptCustomWeight(value / 100)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  0% usa só os embutidos; 100% prioriza os seus.
+                </p>
+              </div>
               <PromptManager />
             </CardContent>
           </Card>

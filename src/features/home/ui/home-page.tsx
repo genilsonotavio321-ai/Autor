@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Database, FolderKanban, LayoutDashboard } from "lucide-react";
+import { Database, FolderKanban, Frame, LayoutDashboard } from "lucide-react";
 
 import {
   Card,
@@ -30,6 +30,12 @@ const SECTION_CARDS: Record<
     href: "/dashboard",
     icon: LayoutDashboard,
   },
+  canvas: {
+    title: "Canvas",
+    description: "Quadro de ideias do projeto.",
+    href: "/canvas",
+    icon: Frame,
+  },
   data: {
     title: "Dados",
     description: "Exportar, importar e fazer backup.",
@@ -41,9 +47,9 @@ const SECTION_CARDS: Record<
 export function HomePage() {
   const homeSections = useUiStore((state) => state.homeSections);
   const showSearch = homeSections.includes("search");
-  const cards = (["projects", "dashboard", "data"] as const).filter((section) =>
-    homeSections.includes(section),
-  );
+  const cards = (
+    ["projects", "dashboard", "canvas", "data"] as const
+  ).filter((section) => homeSections.includes(section));
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">

@@ -231,6 +231,7 @@ function SceneCard({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`flex flex-col rounded-lg border border-l-4 ${STATUS_BORDER[scene.status]} bg-card p-3 ${isDragging ? "opacity-60" : ""}`}
     >
       <div className="mb-2 flex items-start gap-2">

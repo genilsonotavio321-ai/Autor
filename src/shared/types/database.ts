@@ -219,6 +219,14 @@ export interface IdeaCard extends BaseEntity {
   links?: EntityId[];
   /** Grupo persistente: arrastar um membro move todos os do grupo. */
   groupId?: EntityId;
+  /** Ficha referenciada pelo node (canvas ligado às fichas — fase 4). */
+  refType?: "character" | "location";
+  refId?: EntityId;
+  /** Tamanho do node (resize); padrão do layout do canvas. */
+  w?: number;
+  h?: number;
+  /** Conteúdo rico (Tiptap); `content` espelha o texto puro p/ busca. */
+  doc?: Json;
 }
 
 /** Grupo nomeado de cards do canvas (mover junto é persistente). */
@@ -237,6 +245,12 @@ export interface IdeaBoardItem {
   y: number;
   /** Chaves dos itens conectados (remapeadas para ids no load). */
   links?: string[];
+  /** Ficha referenciada, quando o node é um node de ficha. */
+  refType?: "character" | "location";
+  refId?: EntityId;
+  /** Tamanho do node no momento do snapshot. */
+  w?: number;
+  h?: number;
 }
 
 /** Snapshot do canvas salvo pelo autor. */

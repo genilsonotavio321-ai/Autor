@@ -280,6 +280,7 @@ function BeatRow({
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`flex items-center gap-3 p-3 ${isDragging ? "opacity-60" : ""}`}
     >
       <button

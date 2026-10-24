@@ -3,10 +3,10 @@ import {
   CalendarRange,
   Feather,
   FolderKanban,
+  Frame,
   Globe,
   Home,
   LayoutDashboard,
-  Lightbulb,
   ListTree,
   Settings,
   StickyNote,
@@ -19,6 +19,8 @@ export interface NavItem {
   title: string;
   href: string;
   icon: LucideIcon;
+  /** Item mostrado só quando "Mostrar Painel" está ativo nas Configurações. */
+  optional?: boolean;
 }
 
 export interface NavGroup {
@@ -33,8 +35,9 @@ export const navGroups: NavGroup[] = [
   {
     label: "Produção",
     items: [
-      { title: "Painel", href: "/dashboard", icon: LayoutDashboard },
+      { title: "Painel", href: "/dashboard", icon: LayoutDashboard, optional: true },
       { title: "Projetos", href: "/projects", icon: FolderKanban },
+      { title: "Canvas", href: "/canvas", icon: Frame },
       { title: "Estrutura", href: "/outline", icon: ListTree },
       { title: "Ler", href: "/read", icon: BookOpen },
     ],
@@ -46,7 +49,6 @@ export const navGroups: NavGroup[] = [
       { title: "Mundo", href: "/world", icon: Globe },
       { title: "Linha do tempo", href: "/timeline", icon: CalendarRange },
       { title: "Notas", href: "/notes", icon: StickyNote },
-      { title: "Criatividade", href: "/creativity", icon: Lightbulb },
     ],
   },
   {

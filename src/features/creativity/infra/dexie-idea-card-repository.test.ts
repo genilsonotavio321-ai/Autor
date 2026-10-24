@@ -52,6 +52,32 @@ describe("DexieIdeaCardRepository", () => {
     expect(named.y).toBe(7);
   });
 
+  it("cria e atualiza node de ficha com tamanho e doc", async () => {
+    const projectId = await seedProjectId();
+    const doc = { type: "doc", content: [] };
+    const card = await repository.create({
+      projectId,
+      title: "Ficha",
+      refType: "character",
+      refId: "char-1",
+      w: 320,
+      h: 200,
+      doc,
+    });
+    expect(card.refType).toBe("character");
+    expect(card.refId).toBe("char-1");
+    expect(card.w).toBe(320);
+    expect(card.h).toBe(200);
+    expect(card.doc).toEqual(doc);
+
+    const updated = await repository.update(card.id, { w: 400 });
+    expect(updated.w).toBe(400);
+    expect(updated.refType).toBe("character");
+
+    const stored = await repository.getById(card.id);
+    expect(stored?.h).toBe(200);
+  });
+
   it("lists only active cards of the project in creation order", async () => {
     const projectId = await seedProjectId();
     const otherProjectId = await seedProjectId();

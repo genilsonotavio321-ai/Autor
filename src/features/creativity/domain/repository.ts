@@ -7,6 +7,7 @@ import type {
   IdeaBoardItem,
   IdeaCard,
   IdeaGroup,
+  Json,
 } from "@/shared/types/database";
 
 export interface IdeaCardCreateInput {
@@ -18,6 +19,14 @@ export interface IdeaCardCreateInput {
   y?: number;
   /** Conexões iniciais (carregar quadro/importação). */
   links?: EntityId[];
+  /** Ficha referenciada pelo node (canvas ↔ fichas). */
+  refType?: "character" | "location";
+  refId?: EntityId;
+  /** Tamanho do node no canvas. */
+  w?: number;
+  h?: number;
+  /** Conteúdo rico Tiptap espelhado em `content`. */
+  doc?: Json;
 }
 
 export interface IdeaCardUpdateInput {
@@ -30,6 +39,14 @@ export interface IdeaCardUpdateInput {
   groupId?: EntityId | null;
   /** Substitui as conexões do card. */
   links?: EntityId[];
+  /** Ficha referenciada pelo node (canvas ↔ fichas). */
+  refType?: "character" | "location";
+  refId?: EntityId;
+  /** Tamanho do node no canvas. */
+  w?: number;
+  h?: number;
+  /** Conteúdo rico Tiptap espelhado em `content`. */
+  doc?: Json;
 }
 
 export interface IdeaCardRepository {

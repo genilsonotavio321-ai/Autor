@@ -76,4 +76,35 @@ describe("board-io", () => {
     });
     expect(parsed).toHaveLength(1);
   });
+
+  it("exporta e lê nodes de ficha com tamanho (w/h/refType/refId)", () => {
+    const rich: IdeaBoardItem[] = [
+      {
+        key: "card-1",
+        title: "Desbloqueio · Enredo",
+        content: "E se a heroína traísse o mentor?",
+        color: "yellow",
+        x: 16,
+        y: 32,
+        w: 320,
+        h: 200,
+        refType: "character",
+        refId: "char-9",
+      },
+    ];
+    expect(parseBoardExport(buildBoardExport(rich))).toEqual(rich);
+  });
+
+  it("rejeita w/h/refType/refId inválidos nos itens", () => {
+    const exported = buildBoardExport(items);
+    expect(() =>
+      parseBoardExport({ ...exported, items: [{ ...items[0], w: "42" }] }),
+    ).toThrow("Item inválido na posição 1");
+    expect(() =>
+      parseBoardExport({ ...exported, items: [{ ...items[0], refType: "item" }] }),
+    ).toThrow("Item inválido na posição 1");
+    expect(() =>
+      parseBoardExport({ ...exported, items: [{ ...items[0], refId: 7 }] }),
+    ).toThrow("Item inválido na posição 1");
+  });
 });

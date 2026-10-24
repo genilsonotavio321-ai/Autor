@@ -169,6 +169,7 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
     <li
       ref={setNodeRef}
       style={style}
+      data-dragging={isDragging || undefined}
       className={`relative select-none rounded-lg border bg-card ${isDragging ? "opacity-60" : ""}`}
     >
       <div className="flex items-start gap-2 p-3">
