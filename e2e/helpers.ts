@@ -40,3 +40,19 @@ export async function addCharacter(page: Page, name: string) {
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 }
+
+/**
+ * Long-press (~1,3s) num ponto vazio do board abre o botão do menu do
+ * canvas e clica nele. O menu Radix fica aberto para o teste escolher
+ * itens com getByRole("menuitem", ...).
+ */
+export async function openCanvasMenu(page: Page) {
+  const board = page.locator("[data-slot='canvas-board']");
+  const box = (await board.boundingBox())!;
+  // Ponto vazio: canto inferior direito, longe dos cards em cascata.
+  await page.mouse.move(box.x + box.width - 60, box.y + box.height - 60);
+  await page.mouse.down();
+  await page.waitForTimeout(1_300);
+  await page.mouse.up();
+  await page.getByRole("button", { name: "Menu do canvas" }).click();
+}

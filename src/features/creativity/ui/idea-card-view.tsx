@@ -1,26 +1,18 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
+  useRef,
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
-import {
-  BookOpen,
-  Copy,
-  Link2,
-  MapPin,
-  Pencil,
-  Send,
-  Trash2,
-  User,
-} from "lucide-react";
+import { Link2, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Select,
@@ -67,8 +59,6 @@ export async function removeCard(card: IdeaCard) {
 
 interface IdeaCardViewProps {
   card: IdeaCard;
-  linking: boolean;
-  linkMode: boolean;
   selected: boolean;
   /** Edição inline aberta neste card (uma por vez). */
   editing: boolean;
@@ -79,14 +69,10 @@ interface IdeaCardViewProps {
   groupName?: string;
   /** pointerdown no card: o canvas decide tap/hold/arraste. */
   onGestureDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
-  /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
+  /** Teclado no card focado: Enter abre, setas movem, Delete exclui. */
   onCardKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   /** Tamanho ao vivo durante o arraste do grip (vence card.w/card.h). */
   liveSize: { w: number; h: number } | null;
-  onLink: () => void;
-  onEdit: () => void;
-  onSend: () => void;
-  onDuplicate: () => void;
   /** pointerdown na alça de conexão da borda direita. */
   onLinkHandleDown: (event: ReactPointerEvent<HTMLElement>) => void;
   /** pointerdown no grip de resize do canto inferior-direito. */
@@ -95,8 +81,6 @@ interface IdeaCardViewProps {
 
 export function IdeaCardView({
   card,
-  linking,
-  linkMode,
   selected,
   editing,
   onEditEnd,
@@ -105,10 +89,6 @@ export function IdeaCardView({
   onGestureDown,
   onCardKeyDown,
   liveSize,
-  onLink,
-  onEdit,
-  onSend,
-  onDuplicate,
   onLinkHandleDown,
   onResizeHandleDown,
 }: IdeaCardViewProps) {
@@ -144,7 +124,7 @@ export function IdeaCardView({
   }, [editing, card.id, title, color, doc, plain]);
 
   /** Sai salvando na hora: Esc/Ctrl+Enter persistem antes de fechar. */
-  function flushEdit() {
+  const flushEdit = useCallback(() => {
     void ideaCardRepository
       .update(card.id, {
         title,
@@ -153,7 +133,7 @@ export function IdeaCardView({
       })
       .catch(() => toast.error("Falha ao salvar a ideia"));
     onEditEnd();
-  }
+  }, [card.id, title, color, doc, plain, onEditEnd]);
 
   function handleEditKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const isExit =
@@ -182,8 +162,27 @@ export function IdeaCardView({
         : {}),
   };
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
+
+  // Clicar fora do node em edição salva e fecha (correção 6).
+  useEffect(() => {
+    if (!editing) return;
+    const onPointerDown = (event: PointerEvent) => {
+      if (
+        event.target instanceof Node &&
+        rootRef.current?.contains(event.target)
+      ) {
+        return;
+      }
+      flushEdit();
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    return () => window.removeEventListener("pointerdown", onPointerDown);
+  }, [editing, flushEdit]);
+
   return (
     <div
+      ref={rootRef}
       data-card-id={card.id}
       data-dragging={dragOffset ? true : undefined}
       role="button"
@@ -201,75 +200,7 @@ export function IdeaCardView({
       // sem isso o transform do drag transiciona a cada pointermove (lag).
       className={`absolute w-56 cursor-grab touch-none rounded-lg border-2 bg-card p-3 shadow-sm transition-none select-none group ${CARD_COLORS[editing ? color : (card.color ?? "yellow")] ?? ""} ${selected ? "ring-2 ring-primary" : ""} ${dragOffset ? "opacity-70" : ""}`}
     >
-      {!editing ? (
-        <div
-          role="toolbar"
-          aria-label={`Ações de ${card.title}`}
-          // Botões internos têm handler próprio; o gesto do card não engole.
-          onPointerDown={(event) => event.stopPropagation()}
-          className={`absolute -top-9 left-0 z-10 flex items-center gap-1 rounded-md border bg-card p-1 shadow-sm transition-none ${selected ? "pointer-events-auto opacity-100" : "pointer-events-none opacity-0 group-focus-within:pointer-events-auto group-focus-within:opacity-100"}`}
-        >
-          <Button
-            variant="ghost"
-            size="icon"
-            className={`size-7 ${linking ? "bg-accent text-accent-foreground" : ""}`}
-            aria-label={
-              linking
-                ? `Cancelar conexão de ${card.title}`
-                : linkMode
-                  ? `Conectar ${card.title} ao card selecionado`
-                  : `Conectar ${card.title} a outro card`
-            }
-            onClick={onLink}
-          >
-            <Link2 aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            aria-label={
-              card.refType
-                ? `Abrir ficha ${card.title}`
-                : `Editar ${card.title}`
-            }
-            onClick={onEdit}
-          >
-            {card.refType ? (
-              <BookOpen aria-hidden className="size-4" />
-            ) : (
-              <Pencil aria-hidden className="size-4" />
-            )}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            aria-label={`Transformar ${card.title} em cena`}
-            onClick={onSend}
-          >
-            <Send aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7"
-            aria-label={`Duplicar ${card.title}`}
-            onClick={onDuplicate}
-          >
-            <Copy aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-7 text-destructive"
-            aria-label={`Excluir ${card.title}`}
-            onClick={() => void removeCard(card)}
-          >
-            <Trash2 aria-hidden className="size-4" />
-          </Button>
-        </div>
-      ) : null}
+
       {!editing ? (
         <>
           {/* shortcut: alças respondem só a ponteiro; teclado fica para quando doer. */}

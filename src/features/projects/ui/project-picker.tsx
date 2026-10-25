@@ -28,7 +28,7 @@ export function ProjectPicker() {
       value={projectId ?? undefined}
       onValueChange={(value) => setSelectedProjectId(value)}
     >
-      <SelectTrigger className="w-64" aria-label="Projeto selecionado">
+      <SelectTrigger className="w-full" aria-label="Projeto selecionado">
         <SelectValue placeholder="Selecionar projeto" />
       </SelectTrigger>
       <SelectContent>

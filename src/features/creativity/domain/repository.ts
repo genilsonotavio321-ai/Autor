@@ -97,6 +97,8 @@ export interface IdeaBoardRepository {
   listByProject(projectId: EntityId): Promise<IdeaBoard[]>;
   /** Exclusão direta (quadros não passam pela lixeira). */
   hardDelete(id: EntityId): Promise<void>;
+  /** Espelha o canvas no quadro ativo (autosave). */
+  updateItems(id: EntityId, items: IdeaBoardItem[]): Promise<void>;
 }
 
 export interface CustomPromptCreateInput {

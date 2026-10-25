@@ -16,15 +16,21 @@ import {
   AlignStartHorizontal,
   AlignStartVertical,
   AlignVerticalJustifyCenter,
+  BookOpen,
+  Copy,
   Download,
+  FolderOpen,
   Group,
+  Hammer,
+  Lightbulb,
   MapPin,
-  Maximize2,
-  Minimize2,
+  Menu,
   MousePointerSquareDashed,
+  Pencil,
   Plus,
   Redo2,
   Save,
+  Send,
   Trash2,
   Undo2,
   Ungroup,
@@ -37,7 +43,17 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -67,7 +83,6 @@ import {
 } from "@/components/ui/select";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { playUiSound } from "@/shared/lib/sound";
-import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
   Character,
@@ -104,6 +119,8 @@ import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
 
 import { IdeaCardView, removeCard } from "./idea-card-view";
+import { SceneBuilder } from "./scene-builder";
+import { UnblockPanel } from "./unblock-panel";
 
 interface IdeaCanvasProps {
   projectId: EntityId;
@@ -160,7 +177,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     null,
   );
   const [sendCard, setSendCard] = useState<IdeaCard | null>(null);
-  const [linkingFrom, setLinkingFrom] = useState<EntityId | null>(null);
   const [spacePanning, setSpacePanning] = useState(false);
   const [zoom, setZoom] = useState(1);
   const [dragDelta, setDragDelta] = useState<{
@@ -182,8 +198,13 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const [boardName, setBoardName] = useState("");
   /** Quadro aguardando confirmação de "Carregar" (substitui o canvas). */
   const [confirmBoard, setConfirmBoard] = useState<IdeaBoard | null>(null);
-  const focusMode = useUiStore((state) => state.focusMode);
-  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
+  const [fab, setFab] = useState<{ x: number; y: number } | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [panel, setPanel] = useState<"unblock" | "builder" | null>(null);
+  /** Quadro ativo: o canvas salva nele até que outro seja criado/carregado. */
+  // shortcut: quadro ativo vive em memória; ao recarregar a página, o
+  // autosave retoma quando um quadro for criado ou carregado de novo.
+  const [activeBoardId, setActiveBoardId] = useState<EntityId | null>(null);
 
   // Gesto de card ativo (dedo/mouse no meio de um tap/hold/arraste): com
   // 2 dedos, o pan não age — o 1º dedo já começou um gesto no card.
@@ -446,6 +467,56 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     return () => window.removeEventListener("contextmenu", onContextMenu);
   }, []);
 
+  // Long-press 1,2s no vazio do board abre o botão do menu flutuante.
+  useEffect(() => {
+    const board = boardRef.current;
+    if (!board) return;
+    let holdTimer: number | undefined;
+    const clear = () => {
+      window.clearTimeout(holdTimer);
+      window.removeEventListener("pointermove", clear);
+      window.removeEventListener("pointerup", clear);
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      clear();
+      if (event.button !== 0 || spacePanningRef.current || selectMode) return;
+      const element = event.target instanceof Element ? event.target : null;
+      if (
+        !element ||
+        element.closest(
+          "[data-card-id], button, a, input, textarea, select, [role='button']",
+        )
+      ) {
+        return;
+      }
+      const x = event.clientX;
+      const y = event.clientY;
+      holdTimer = window.setTimeout(() => {
+        setFab({ x, y });
+      }, 1200);
+      window.addEventListener("pointermove", clear);
+      window.addEventListener("pointerup", clear);
+    };
+    board.addEventListener("pointerdown", onPointerDown);
+    return () => {
+      board.removeEventListener("pointerdown", onPointerDown);
+      clear();
+    };
+  }, [selectMode]);
+
+  // Quadro ativo = "arquivo" do canvas: debounce 800ms espelha os cards no
+  // quadro até que outro seja criado ou carregado.
+  useEffect(() => {
+    if (!activeBoardId) return;
+    const items = snapshotItems(cards);
+    const timer = window.setTimeout(() => {
+      void ideaBoardRepository
+        .updateItems(activeBoardId, items)
+        .catch(() => toast.error("Falha ao atualizar o quadro"));
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [activeBoardId, cards]);
+
   // Ctrl+roda = zoom (o pinch do trackpad chega como ctrl+wheel); roda
   // comum continua sendo scroll nativo.
   useEffect(() => {
@@ -463,16 +534,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     return () => board.removeEventListener("wheel", onWheel);
   }, [hasCards]);
 
-  // Esc cancela o modo de conexão.
-  useEffect(() => {
-    if (!linkingFrom) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setLinkingFrom(null);
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [linkingFrom]);
-
   // Esc limpa a seleção (fora de diálogos).
   useEffect(() => {
     if (selection.size === 0) return;
@@ -484,18 +545,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selection]);
-
-  // Esc sai do modo foco — último da cadeia (conexão → seleção → foco).
-  useEffect(() => {
-    if (!focusMode || linkingFrom || selection.size > 0) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key !== "Escape") return;
-      if (document.querySelector("[role='dialog']")) return;
-      toggleFocusMode();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focusMode, linkingFrom, selection, toggleFocusMode]);
 
   /** Endpoint da linha durante o drag: acompanha o card em tempo real. */
   function linePoint(cardId: EntityId, center: { x: number; y: number }) {
@@ -535,12 +584,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  /** Tap: modo conexão conecta; Ctrl/Shift (ou modo seleção) alterna; senão abre. */
+  /** Tap: Ctrl/Shift (ou modo seleção) alterna; senão abre. */
   function handleCardTap(card: IdeaCard, multi: boolean) {
-    if (linkingFrom) {
-      void toggleLink(card);
-      return;
-    }
     if (selectMode || multi) {
       toggleSelect(card.id);
       return;
@@ -557,8 +602,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     if (event.nativeEvent.isComposing) return;
     if (event.key === "Enter") {
       event.preventDefault();
-      if (linkingFrom) void toggleLink(card);
-      else if (card.refType) void openFicha(card);
+      if (card.refType) void openFicha(card);
       else setEditingId(card.id);
       return;
     }
@@ -954,24 +998,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  async function toggleLink(card: IdeaCard) {
-    if (linkingFrom === card.id) {
-      setLinkingFrom(null);
-      return;
-    }
-    if (!linkingFrom) {
-      setLinkingFrom(card.id);
-      return;
-    }
-    try {
-      await ideaCardRepository.link(linkingFrom, card.id);
-      toast.success("Conexão criada");
-    } catch {
-      toast.error("Falha ao criar a conexão");
-    }
-    setLinkingFrom(null);
-  }
-
   async function removeLink(a: IdeaCard, b: IdeaCard) {
     try {
       await ideaCardRepository.unlink(a.id, b.id);
@@ -1074,24 +1100,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  /** Snapshot dos cards atuais; `key` = id atual (remapeia links ao carregar). */
-  function snapshotItems(): IdeaBoardItem[] {
-    return cards.map((card) => ({
-      key: card.id,
-      title: card.title,
-      content: card.content,
-      color: card.color,
-      x: card.x,
-      y: card.y,
-      links: card.links,
-      refType: card.refType,
-      refId: card.refId,
-      w: card.w,
-      h: card.h,
-      doc: card.doc,
-    }));
-  }
-
   async function saveBoard() {
     const name = boardName.trim();
     if (!name) {
@@ -1099,24 +1107,27 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       return;
     }
     try {
-      await ideaBoardRepository.create({
+      const board = await ideaBoardRepository.create({
         projectId,
         name,
-        items: snapshotItems(),
+        items: snapshotItems(cards),
       });
+      // Quadro novo vira o "arquivo" ativo: o canvas passa a salvar nele
+      // até que outro quadro seja criado ou carregado.
+      setActiveBoardId(board.id);
       playUiSound("save");
-      toast.success(`Quadro "${name}" salvo`);
+      toast.success(`Quadro "${name}" criado — salvando automaticamente`);
       setSaveDialogOpen(false);
       setBoardName("");
     } catch {
-      toast.error("Falha ao salvar o quadro");
+      toast.error("Falha ao criar o quadro");
     }
   }
 
   function exportBoard() {
     if (cards.length === 0) return;
     downloadBlob(
-      new Blob([JSON.stringify(buildBoardExport(snapshotItems()), null, 2)], {
+      new Blob([JSON.stringify(buildBoardExport(snapshotItems(cards)), null, 2)], {
         type: "application/json",
       }),
       "quadro-autor.json",
@@ -1174,6 +1185,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   }
 
   async function loadBoard(board: IdeaBoard) {
+    // Congela o quadro ativo atual antes da troca: o autosave não pode
+    // espelhar o canvas em carga no quadro antigo (nem pela metade).
+    setActiveBoardId(null);
     try {
       // Substitui: os cards atuais vão para a lixeira (recuperáveis lá).
       await Promise.all(
@@ -1181,6 +1195,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       );
       const count = await createFromItems(board.items);
       setSelection(new Set());
+      // O quadro carregado assume o autosave; a primeira gravação dele é
+      // idêntica ao conteúdo carregado (inofensiva).
+      setActiveBoardId(board.id);
       toast.success(
         `Quadro "${board.name}" carregado (${count} ideia${count === 1 ? "" : "s"})`,
       );
@@ -1192,6 +1209,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   async function deleteBoard(board: IdeaBoard) {
     try {
       await ideaBoardRepository.hardDelete(board.id);
+      if (activeBoardId === board.id) setActiveBoardId(null);
       playUiSound("delete");
       toast(`Quadro "${board.name}" excluído`, {
         action: {
@@ -1220,280 +1238,24 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     480,
     ...cards.map((card) => card.y + (card.h ?? 180)),
   );
-  const linkingTitle = cards.find((card) => card.id === linkingFrom)?.title;
 
-  // No modo foco o board estica: altura = viewport menos o p-4/p-6 do <main>.
+
   return (
-    <div
-      className={
-        focusMode
-          ? "flex h-[calc(100dvh-2rem)] flex-col gap-3 md:h-[calc(100dvh-3rem)]"
-          : "grid gap-3"
-      }
-    >
-      <div className="flex flex-wrap items-center gap-3">
-        <Button onClick={() => void createCard()}>
-          <Plus aria-hidden />
-          Nova ideia
-        </Button>
-        <Button variant="outline" onClick={() => setFichaDialogOpen(true)}>
-          <Users aria-hidden />
-          Adicionar ficha
-        </Button>
-        <p className="text-xs text-muted-foreground">
-          Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom
-        </p>
-        <span className="flex-1" />
-        <Button
-          variant={selectMode ? "default" : "outline"}
-          size="icon"
-          className="size-8"
-          aria-label="Selecionar múltiplos"
-          aria-pressed={selectMode}
-          onClick={() => {
-            setSelectMode((mode) => !mode);
-            setSelection(new Set());
-          }}
-        >
-          <MousePointerSquareDashed aria-hidden className="size-4" />
-        </Button>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Diminuir zoom"
-            onClick={() => setZoom((z) => clampZoom(z / 1.25))}
-          >
-            <ZoomOut aria-hidden className="size-4" />
-          </Button>
-          <span className="w-10 text-center text-xs text-muted-foreground">
-            {Math.round(zoom * 100)}%
-          </span>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Aumentar zoom"
-            onClick={() => setZoom((z) => clampZoom(z * 1.25))}
-          >
-            <ZoomIn aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Desfazer movimento"
-            disabled={undoStack.length === 0}
-            onClick={() => void undoMove()}
-          >
-            <Undo2 aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Refazer movimento"
-            disabled={redoStack.length === 0}
-            onClick={() => void redoMove()}
-          >
-            <Redo2 aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Salvar quadro"
-            disabled={cards.length === 0}
-            onClick={() => {
-              setBoardName("");
-              setSaveDialogOpen(true);
-            }}
-          >
-            <Save aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Exportar quadro"
-            disabled={cards.length === 0}
-            onClick={() => exportBoard()}
-          >
-            <Download aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            aria-label="Importar quadro"
-            onClick={() => uploadInputRef.current?.click()}
-          >
-            <Upload aria-hidden className="size-4" />
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-8"
-            onClick={toggleFocusMode}
-            aria-label={
-              focusMode ? "Sair do modo foco" : "Ativar modo foco (Esc para sair)"
-            }
-          >
-            {focusMode ? (
-              <Minimize2 aria-hidden className="size-4" />
-            ) : (
-              <Maximize2 aria-hidden className="size-4" />
-            )}
-          </Button>
-          <input
-            ref={uploadInputRef}
-            type="file"
-            accept="application/json"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              // Reset permite importar o mesmo arquivo duas vezes.
-              event.target.value = "";
-              if (file) void importBoardFile(file);
-            }}
-          />
-        </div>
-      </div>
-      {boards.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>Quadros salvos:</span>
-          {boards.map((board) => (
-            <span key={board.id} className="flex items-center gap-1">
-              <Badge variant="outline">{board.name}</Badge>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setConfirmBoard(board)}
-              >
-                Carregar
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive"
-                aria-label={`Excluir quadro ${board.name}`}
-                onClick={() => void deleteBoard(board)}
-              >
-                <Trash2 aria-hidden className="size-3.5" />
-              </Button>
-            </span>
-          ))}
-        </div>
-      ) : null}
-      {cards.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhuma ideia no canvas ainda. Use o desbloqueio ou crie um card.
-        </div>
-      ) : (
-        <>
-          {linkingTitle ? (
-            <p className="text-xs text-muted-foreground">
-              Conectando “{linkingTitle}” — clique no ícone de link do card
-              destino (Esc cancela)
-            </p>
-          ) : null}
-          {selection.size > 0 ? (
-            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-              <span>
-                {selection.size} selecionado{selection.size === 1 ? "" : "s"}
-              </span>
-              {selection.size >= 2 ? (
-                <>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Alinhar pelo topo"
-                    onClick={() => void applyLayout(alignTop(selectedCards))}
-                  >
-                    <AlignStartVertical aria-hidden className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Alinhar pela esquerda"
-                    onClick={() => void applyLayout(alignLeft(selectedCards))}
-                  >
-                    <AlignStartHorizontal aria-hidden className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Espaçar verticalmente"
-                    disabled={selection.size < 3}
-                    onClick={() =>
-                      void applyLayout(distributeVertically(selectedCards))
-                    }
-                  >
-                    <AlignVerticalJustifyCenter aria-hidden className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    className="size-8"
-                    aria-label="Espaçar horizontalmente"
-                    disabled={selection.size < 3}
-                    onClick={() =>
-                      void applyLayout(distributeHorizontally(selectedCards))
-                    }
-                  >
-                    <AlignHorizontalJustifyCenter aria-hidden className="size-4" />
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setGroupName("");
-                      setGroupDialogOpen(true);
-                    }}
-                  >
-                    <Group aria-hidden />
-                    Agrupar
-                  </Button>
-                </>
-              ) : null}
-              {selectedCards.some((card) => card.groupId) ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => void ungroupSelection()}
-                >
-                  <Ungroup aria-hidden />
-                  Desagrupar
-                </Button>
-              ) : null}
-              <Button
-                variant="outline"
-                size="sm"
-                className="text-destructive"
-                onClick={() => void deleteSelection()}
-              >
-                <Trash2 aria-hidden />
-                Excluir ({selection.size})
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setSelection(new Set())}
-              >
-                <X aria-hidden />
-                Limpar seleção
-              </Button>
-            </div>
-          ) : null}
-            <div
-              ref={boardRef}
-              data-slot="canvas-board"
-              className={`relative min-h-[480px] cursor-grab overflow-auto rounded-lg border bg-muted/30 ${focusMode ? "flex-1" : ""}`}
-            >
+    <div className="flex h-full flex-col">
+      <div
+        ref={boardRef}
+        data-slot="canvas-board"
+        className="relative flex-1 cursor-grab overflow-auto rounded-lg border bg-muted/30"
+      >
+        {cards.length === 0 ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">
+            Nenhuma ideia ainda. Segure 1,2s num espaço vazio para abrir o
+            menu.
+          </div>
+        ) : null}
+
+
+
               <div
                 ref={contentRef}
                 className="relative transition-none"
@@ -1580,8 +1342,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                   <IdeaCardView
                     key={card.id}
                     card={card}
-                    linking={linkingFrom === card.id}
-                    linkMode={linkingFrom !== null}
                     selected={selection.has(card.id)}
                     editing={editingId === card.id}
                     onEditEnd={() => setEditingId(null)}
@@ -1606,21 +1366,252 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     }
                     onGestureDown={(event) => beginCardGesture(event, card)}
                     onCardKeyDown={(event) => handleCardKeyDown(event, card)}
-                    onLink={() => void toggleLink(card)}
-                    onEdit={() => {
-                      if (card.refType) void openFicha(card);
-                      else setEditingId(card.id);
-                    }}
-                    onSend={() => setSendCard(card)}
-                    onDuplicate={() => void duplicateCard(card)}
                   />
                 ))}
                 </div>
               </div>
             </div>
-        </>
-      )}
 
+      <input
+        ref={uploadInputRef}
+        type="file"
+        accept="application/json"
+        className="hidden"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          // Reset permite importar o mesmo arquivo duas vezes.
+          event.target.value = "";
+          if (file) void importBoardFile(file);
+        }}
+      />
+      {fab ? (
+        <DropdownMenu
+          open={menuOpen}
+          onOpenChange={(open) => {
+            setMenuOpen(open);
+            if (!open) setFab(null);
+          }}
+        >
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="Menu do canvas"
+              title="Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom"
+              className="fixed z-40 flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
+              style={{ left: fab.x - 20, top: fab.y - 20 }}
+            >
+              <Menu aria-hidden className="size-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="start"
+            className="max-h-[70vh] overflow-y-auto"
+          >
+            <DropdownMenuLabel>Canvas</DropdownMenuLabel>
+            <DropdownMenuItem onClick={() => void createCard()}>
+              <Plus aria-hidden className="size-4" /> Nova ideia
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setFichaDialogOpen(true)}>
+              <Users aria-hidden className="size-4" /> Adicionar ficha
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPanel("unblock")}>
+              <Lightbulb aria-hidden className="size-4" /> Desbloqueio
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setPanel("builder")}>
+              <Hammer aria-hidden className="size-4" /> Construtor de cena
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                setSelectMode((mode) => !mode);
+                setSelection(new Set());
+              }}
+            >
+              <MousePointerSquareDashed aria-hidden className="size-4" />
+              {selectMode ? "Sair do modo seleção" : "Modo seleção"}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setZoom((z) => clampZoom(z / 1.25))}
+            >
+              <ZoomOut aria-hidden className="size-4" /> Afastar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setZoom((z) => clampZoom(z * 1.25))}
+            >
+              <ZoomIn aria-hidden className="size-4" /> Aproximar
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={undoStack.length === 0}
+              onClick={() => void undoMove()}
+            >
+              <Undo2 aria-hidden className="size-4" /> Desfazer movimento
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              disabled={redoStack.length === 0}
+              onClick={() => void redoMove()}
+            >
+              <Redo2 aria-hidden className="size-4" /> Refazer movimento
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={cards.length === 0}
+              onClick={() => {
+                setBoardName("");
+                setSaveDialogOpen(true);
+              }}
+            >
+              <Save aria-hidden className="size-4" /> Criar quadro
+            </DropdownMenuItem>
+            <DropdownMenuSub>
+              <DropdownMenuSubTrigger>
+                <FolderOpen aria-hidden className="size-4" /> Quadros
+              </DropdownMenuSubTrigger>
+              <DropdownMenuSubContent>
+                <DropdownMenuItem
+                  disabled={cards.length === 0}
+                  onClick={() => exportBoard()}
+                >
+                  <Download aria-hidden className="size-4" /> Exportar quadro
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => uploadInputRef.current?.click()}
+                >
+                  <Upload aria-hidden className="size-4" /> Importar quadro
+                </DropdownMenuItem>
+                {boards.length > 0 ? <DropdownMenuSeparator /> : null}
+                {boards.map((board) => (
+                  <DropdownMenuItem
+                    key={`${board.id}-load`}
+                    onClick={() => setConfirmBoard(board)}
+                  >
+                    <Download aria-hidden className="size-4" /> Carregar “
+                    {board.name}”
+                  </DropdownMenuItem>
+                ))}
+                {boards.map((board) => (
+                  <DropdownMenuItem
+                    key={`${board.id}-delete`}
+                    className="text-destructive"
+                    onClick={() => void deleteBoard(board)}
+                  >
+                    <Trash2 aria-hidden className="size-4" /> Excluir quadro “
+                    {board.name}”
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuSubContent>
+            </DropdownMenuSub>
+            {selection.size > 0 ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  {selection.size} selecionado{selection.size === 1 ? "" : "s"}
+                </DropdownMenuLabel>
+                {selection.size >= 2 ? (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        void applyLayout(alignTop(selectedCards))
+                      }
+                    >
+                      <AlignStartVertical aria-hidden className="size-4" />
+                      Alinhar pelo topo
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() =>
+                        void applyLayout(alignLeft(selectedCards))
+                      }
+                    >
+                      <AlignStartHorizontal aria-hidden className="size-4" />
+                      Alinhar pela esquerda
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={selection.size < 3}
+                      onClick={() =>
+                        void applyLayout(distributeVertically(selectedCards))
+                      }
+                    >
+                      <AlignVerticalJustifyCenter
+                        aria-hidden
+                        className="size-4"
+                      />{" "}
+                      Espaçar verticalmente
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      disabled={selection.size < 3}
+                      onClick={() =>
+                        void applyLayout(distributeHorizontally(selectedCards))
+                      }
+                    >
+                      <AlignHorizontalJustifyCenter
+                        aria-hidden
+                        className="size-4"
+                      />{" "}
+                      Espaçar horizontalmente
+                    </DropdownMenuItem>
+                    <DropdownMenuItem
+                      onClick={() => {
+                        setGroupName("");
+                        setGroupDialogOpen(true);
+                      }}
+                    >
+                      <Group aria-hidden className="size-4" /> Agrupar
+                    </DropdownMenuItem>
+                  </>
+                ) : null}
+                {selectedCards.some((card) => card.groupId) ? (
+                  <DropdownMenuItem
+                    onClick={() => void ungroupSelection()}
+                  >
+                    <Ungroup aria-hidden className="size-4" /> Desagrupar
+                  </DropdownMenuItem>
+                ) : null}
+                <DropdownMenuItem
+                  className="text-destructive"
+                  onClick={() => void deleteSelection()}
+                >
+                  <Trash2 aria-hidden className="size-4" /> Excluir (
+                  {selection.size})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelection(new Set())}>
+                  <X aria-hidden className="size-4" /> Limpar seleção
+                </DropdownMenuItem>
+              </>
+            ) : null}
+            {selectedCards.length === 1 ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuLabel>
+                  {selectedCards[0]!.title}
+                </DropdownMenuLabel>
+                {selectedCards[0]!.refType ? (
+                  <DropdownMenuItem
+                    onClick={() => void openFicha(selectedCards[0]!)}
+                  >
+                    <BookOpen aria-hidden className="size-4" /> Abrir ficha
+                  </DropdownMenuItem>
+                ) : (
+                  <DropdownMenuItem
+                    onClick={() => setEditingId(selectedCards[0]!.id)}
+                  >
+                    <Pencil aria-hidden className="size-4" /> Editar
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem
+                  onClick={() => setSendCard(selectedCards[0]!)}
+                >
+                  <Send aria-hidden className="size-4" /> Transformar “
+                  {selectedCards[0]!.title}” em cena
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => void duplicateCard(selectedCards[0]!)}
+                >
+                  <Copy aria-hidden className="size-4" /> Duplicar
+                </DropdownMenuItem>
+              </>
+            ) : null}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
       <SendCardDialog
         card={sendCard}
         chapters={chapters}
@@ -1676,7 +1667,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           onKeyDown={(event) => handleDialogEnter(event, () => void saveBoard())}
         >
           <DialogHeader>
-            <DialogTitle>Salvar quadro</DialogTitle>
+            <DialogTitle>Criar quadro</DialogTitle>
           </DialogHeader>
           <div className="grid gap-2">
             <Label htmlFor="board-name">Nome do quadro</Label>
@@ -1688,16 +1679,16 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               placeholder="Ex.: Ato 1"
             />
             <p className="text-xs text-muted-foreground">
-              Guarda um snapshot das {cards.length} ideia(s) atual(is).
-              Carregar um quadro substitui o canvas — as ideias atuais vão para
-              a lixeira.
+              O quadro criado espelha o canvas automaticamente até que outro
+              quadro seja criado ou carregado. Carregar substitui o canvas —
+              as ideias atuais vão para a lixeira.
             </p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => void saveBoard()}>Salvar quadro</Button>
+            <Button onClick={() => void saveBoard()}>Criar quadro</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1731,6 +1722,25 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog
+        open={panel !== null}
+        onOpenChange={(open) => {
+          if (!open) setPanel(null);
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {panel === "unblock" ? "Desbloqueio" : "Construtor de cena"}
+            </DialogTitle>
+          </DialogHeader>
+          {panel === "unblock" ? (
+            <UnblockPanel projectId={projectId} />
+          ) : (
+            <SceneBuilder projectId={projectId} chapters={chapters} />
+          )}
+        </DialogContent>
+      </Dialog>
       <Dialog open={fichaDialogOpen} onOpenChange={setFichaDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -1801,6 +1811,24 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       />
     </div>
   );
+}
+
+/** Snapshot dos cards atuais; `key` = id atual (remapeia links ao carregar). */
+function snapshotItems(cards: IdeaCard[]): IdeaBoardItem[] {
+  return cards.map((card) => ({
+    key: card.id,
+    title: card.title,
+    content: card.content,
+    color: card.color,
+    x: card.x,
+    y: card.y,
+    links: card.links,
+    refType: card.refType,
+    refId: card.refId,
+    w: card.w,
+    h: card.h,
+    doc: card.doc,
+  }));
 }
 
 function sameRects(

@@ -1,7 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
-import type { EntityId, IdeaBoard } from "@/shared/types/database";
+import type { EntityId, IdeaBoard, IdeaBoardItem } from "@/shared/types/database";
 
 import type {
   IdeaBoardCreateInput,
@@ -42,6 +42,16 @@ export class DexieIdeaBoardRepository implements IdeaBoardRepository {
   async hardDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
     await getDatabase().ideaBoards.delete(id);
+  }
+
+  /** Espelha o canvas no quadro ativo (autosave); no-op se o quadro sumiu. */
+  async updateItems(id: EntityId, items: IdeaBoardItem[]): Promise<void> {
+    await ensureDbReady();
+    await getDatabase().ideaBoards.update(id, {
+      // Clone: o snapshot não compartilha arrays com quem o passou.
+      items: structuredClone(items),
+      updatedAt: nowIso(),
+    });
   }
 }
 

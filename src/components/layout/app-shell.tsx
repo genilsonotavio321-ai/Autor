@@ -139,7 +139,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           key={pathname}
-          className={`flex-1 overflow-y-auto p-4 md:p-6 ${pageMotionClass}`}
+          className={`flex-1 overflow-y-auto ${
+            pathname === "/canvas" ? "p-0" : "p-4 md:p-6"
+          } ${pageMotionClass}`}
         >
           {children}
         </main>
