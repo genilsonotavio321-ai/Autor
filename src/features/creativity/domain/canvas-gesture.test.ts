@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { IdeaCard } from "@/shared/types/database";
 
 import {
+  cardAtPoint,
   createGestureTracker,
   dragIdsFor,
   HOLD_MS,
@@ -157,5 +158,28 @@ describe("dragIdsFor", () => {
   it("sem grupo e sem seleção: só o card", () => {
     const cards = [card("a")];
     expect(dragIdsFor(cards[0]!, cards, new Set())).toEqual(["a"]);
+  });
+});
+
+describe("cardAtPoint", () => {
+  const rects = {
+    a: { x: 16, y: 16, width: 224, height: 120 },
+    b: { x: 40, y: 56, width: 224, height: 120 },
+  };
+
+  it("ponto dentro do retângulo acha o card", () => {
+    expect(cardAtPoint(rects, { x: 100, y: 50 })).toBe("a");
+  });
+
+  it("ponto fora não acha nada", () => {
+    expect(cardAtPoint(rects, { x: 500, y: 500 })).toBeNull();
+  });
+
+  it("borda conta como dentro (inclusivo)", () => {
+    expect(cardAtPoint(rects, { x: 240, y: 136 })).toBe("a");
+  });
+
+  it("primeiro retângulo que contém vence", () => {
+    expect(cardAtPoint(rects, { x: 60, y: 80 })).toBe("a");
   });
 });

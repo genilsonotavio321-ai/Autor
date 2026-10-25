@@ -123,3 +123,36 @@ test("canvas: edição inline salva e toolbar flutuante aparece", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByLabel("Título da ideia")).toBeHidden();
 });
+
+test("canvas: alça de conexão cria link e grip redimensiona", async ({
+  page,
+}) => {
+  await setupCanvas(page, 2);
+  const first = page.locator("div[data-card-id]").first();
+  const second = page.locator("div[data-card-id]").nth(1);
+
+  // Alça de conexão (borda direita-centro do 1º card): arrasta até o
+  // centro do 2º e solta → a fat line de conexão aparece.
+  const box = (await first.boundingBox())!;
+  const target = (await second.boundingBox())!;
+  await page.mouse.move(box.x + box.width, box.y + box.height / 2);
+  await page.mouse.down();
+  await page.mouse.move(
+    target.x + target.width / 2,
+    target.y + target.height / 2,
+    { steps: 8 },
+  );
+  await page.mouse.up();
+  await expect(
+    page.getByRole("button", { name: /Remover conexão entre/ }),
+  ).toBeVisible();
+
+  // Grip de resize (canto inferior-direito): +120/+60 → largura 344.
+  await page.mouse.move(box.x + box.width, box.y + box.height);
+  await page.mouse.down();
+  await page.mouse.move(box.x + box.width + 120, box.y + box.height + 60, {
+    steps: 6,
+  });
+  await page.mouse.up();
+  await expect(first).toHaveCSS("width", "344px");
+});

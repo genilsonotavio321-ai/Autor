@@ -72,10 +72,16 @@ interface IdeaCardViewProps {
   onGestureDown: (event: ReactPointerEvent<HTMLDivElement>) => void;
   /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
   onCardKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
+  /** Tamanho ao vivo durante o arraste do grip (vence card.w/card.h). */
+  liveSize: { w: number; h: number } | null;
   onLink: () => void;
   onEdit: () => void;
   onSend: () => void;
   onDuplicate: () => void;
+  /** pointerdown na alça de conexão da borda direita. */
+  onLinkHandleDown: (event: ReactPointerEvent<HTMLElement>) => void;
+  /** pointerdown no grip de resize do canto inferior-direito. */
+  onResizeHandleDown: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
 export function IdeaCardView({
@@ -89,10 +95,13 @@ export function IdeaCardView({
   groupName,
   onGestureDown,
   onCardKeyDown,
+  liveSize,
   onLink,
   onEdit,
   onSend,
   onDuplicate,
+  onLinkHandleDown,
+  onResizeHandleDown,
 }: IdeaCardViewProps) {
   const [title, setTitle] = useState(card.title);
   const [color, setColor] = useState(card.color ?? "yellow");
@@ -156,6 +165,12 @@ export function IdeaCardView({
       ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)`
       : undefined,
     ...(dragOffset ? { zIndex: 10 } : {}),
+    // Resize persistido (ou ao vivo no meio do grip) vence o w-56 padrão.
+    ...(liveSize
+      ? { width: liveSize.w, height: liveSize.h }
+      : card.w !== undefined || card.h !== undefined
+        ? { width: card.w ?? 224, height: card.h }
+        : {}),
   };
 
   return (
@@ -237,6 +252,25 @@ export function IdeaCardView({
             <Trash2 aria-hidden className="size-4" />
           </Button>
         </div>
+      ) : null}
+      {!editing ? (
+        <>
+          {/* shortcut: alças respondem só a ponteiro; teclado fica para quando doer. */}
+          <button
+            type="button"
+            aria-label={`Conectar a partir de ${card.title}`}
+            onPointerDown={onLinkHandleDown}
+            className={`absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 cursor-crosshair touch-none items-center justify-center rounded-full border bg-card shadow-sm transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
+          >
+            <Link2 aria-hidden className="size-3" />
+          </button>
+          <button
+            type="button"
+            aria-label={`Redimensionar ${card.title}`}
+            onPointerDown={onResizeHandleDown}
+            className={`absolute -right-1.5 -bottom-1.5 z-10 size-4 cursor-nwse-resize touch-none rounded-bl-md border-r-2 border-b-2 border-muted-foreground/50 bg-card transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
+          />
+        </>
       ) : null}
       {editing ? (
         <div

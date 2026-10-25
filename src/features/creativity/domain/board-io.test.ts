@@ -90,12 +90,13 @@ describe("board-io", () => {
         h: 200,
         refType: "character",
         refId: "char-9",
+        doc: { type: "doc", content: [] },
       },
     ];
     expect(parseBoardExport(buildBoardExport(rich))).toEqual(rich);
   });
 
-  it("rejeita w/h/refType/refId inválidos nos itens", () => {
+  it("rejeita w/h/refType/refId/doc inválidos nos itens", () => {
     const exported = buildBoardExport(items);
     expect(() =>
       parseBoardExport({ ...exported, items: [{ ...items[0], w: "42" }] }),
@@ -105,6 +106,9 @@ describe("board-io", () => {
     ).toThrow("Item inválido na posição 1");
     expect(() =>
       parseBoardExport({ ...exported, items: [{ ...items[0], refId: 7 }] }),
+    ).toThrow("Item inválido na posição 1");
+    expect(() =>
+      parseBoardExport({ ...exported, items: [{ ...items[0], doc: 7 }] }),
     ).toThrow("Item inválido na posição 1");
   });
 });

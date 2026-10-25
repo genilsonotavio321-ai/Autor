@@ -138,3 +138,27 @@ export function dragIdsFor(
   }
   return [card.id];
 }
+
+/**
+ * Id do card cujo retângulo contém o ponto (coords do conteúdo), ou null.
+ * O primeiro retângulo que contém vence; bordas contam como dentro.
+ */
+export function cardAtPoint(
+  rects: Record<
+    EntityId,
+    { x: number; y: number; width: number; height: number }
+  >,
+  point: GesturePoint,
+): EntityId | null {
+  for (const [id, rect] of Object.entries(rects)) {
+    if (
+      point.x >= rect.x &&
+      point.x <= rect.x + rect.width &&
+      point.y >= rect.y &&
+      point.y <= rect.y + rect.height
+    ) {
+      return id as EntityId;
+    }
+  }
+  return null;
+}

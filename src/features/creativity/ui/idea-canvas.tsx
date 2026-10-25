@@ -76,7 +76,13 @@ import type {
 
 import { sendSceneToOutline } from "../application/send-to-outline";
 import { buildBoardExport, parseBoardExport } from "../domain/board-io";
-import { createGestureTracker, dragIdsFor } from "../domain/canvas-gesture";
+import {
+  cardAtPoint,
+  createGestureTracker,
+  dragIdsFor,
+  type GesturePoint,
+  type GestureTracker,
+} from "../domain/canvas-gesture";
 import {
   alignLeft,
   alignTop,
@@ -161,6 +167,18 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const gestureActiveRef = useRef(false);
   // Encerra o gesto em andamento (remove os listeners do window).
   const gestureEndRef = useRef<(() => void) | null>(null);
+  // Alça de conexão em arraste: origem + ponta em coords de conteúdo.
+  const [linkDrag, setLinkDrag] = useState<{
+    fromId: EntityId;
+    x: number;
+    y: number;
+  } | null>(null);
+  // Resize ao vivo durante o arraste do grip (persiste no pointerup).
+  const [resize, setResize] = useState<{
+    id: EntityId;
+    w: number;
+    h: number;
+  } | null>(null);
   // Ids que arrastam juntos (grupo persistente ou seleção múltipla).
   const dragIdsRef = useRef<EntityId[]>([]);
   const boardRef = useRef<HTMLDivElement | null>(null);
@@ -632,6 +650,17 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         setDragDelta(null);
       },
     });
+    trackGesture(event, tracker);
+  }
+
+  /**
+   * Anexa o tracker ao window: move/end/cancel fluem enquanto o gesto
+   * durar (o 2º dedo não rouba o primeiro) e desmonta sozinho no fim.
+   */
+  function trackGesture(
+    event: ReactPointerEvent<HTMLElement>,
+    tracker: GestureTracker,
+  ) {
     gestureActiveRef.current = true;
     const onMove = (move: PointerEvent) =>
       tracker.move({
@@ -666,7 +695,93 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       dragIdsRef.current = [];
       setDragDelta(null);
     };
-    tracker.start({ pointerId: event.pointerId, x: startX, y: startY });
+    tracker.start({
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+    });
+  }
+
+  /** Converte um ponto da tela para coords do conteúdo (pré-zoom). */
+  function toContent(point: GesturePoint) {
+    const base = contentRef.current?.getBoundingClientRect();
+    if (!base) return point;
+    return {
+      x: (point.x - base.left) / zoom,
+      y: (point.y - base.top) / zoom,
+    };
+  }
+
+  /** Alça da borda: arrasta uma linha até outro card para conectar. */
+  function beginLinkGesture(
+    event: ReactPointerEvent<HTMLElement>,
+    card: IdeaCard,
+  ) {
+    if (event.button !== 0) return;
+    if (editingId !== null) return;
+    if (gestureEndRef.current) return;
+    const update = (point: GesturePoint) =>
+      setLinkDrag({ fromId: card.id, ...toContent(point) });
+    const tracker = createGestureTracker({
+      holdMs: 0,
+      lockAfterHold: false,
+      onDragStart: update,
+      onDragMove: update,
+      onDragEnd: (point) => void finishLinkDrop(card.id, point),
+      onDragCancel: () => setLinkDrag(null),
+    });
+    trackGesture(event, tracker);
+  }
+
+  /** Soltou a linha: conecta se caiu sobre outro card; senão cancela mudo. */
+  async function finishLinkDrop(fromId: EntityId, point: GesturePoint) {
+    setLinkDrag(null);
+    const targetId = cardAtPoint(rects, toContent(point));
+    if (!targetId || targetId === fromId) return;
+    try {
+      await ideaCardRepository.link(fromId, targetId);
+      toast.success("Conexão criada");
+    } catch {
+      toast.error("Falha ao criar a conexão");
+    }
+  }
+
+  /** Grip do canto: redimensiona ao vivo e persiste no soltar. */
+  function beginResizeGesture(
+    event: ReactPointerEvent<HTMLElement>,
+    card: IdeaCard,
+  ) {
+    if (event.button !== 0) return;
+    if (editingId !== null) return;
+    if (gestureEndRef.current) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const startW = card.w ?? 224;
+    const startH = card.h ?? rects[card.id]?.height ?? 120;
+    let latest: { w: number; h: number } | null = null;
+    const update = (point: GesturePoint) => {
+      latest = {
+        w: Math.max(200, Math.round(startW + (point.x - startX) / zoom)),
+        h: Math.max(120, Math.round(startH + (point.y - startY) / zoom)),
+      };
+      setResize({ id: card.id, ...latest });
+    };
+    const tracker = createGestureTracker({
+      holdMs: 0,
+      lockAfterHold: false,
+      onDragStart: update,
+      onDragMove: update,
+      onDragEnd: () => {
+        setResize(null);
+        if (latest && (latest.w !== startW || latest.h !== startH)) {
+          void ideaCardRepository
+            .update(card.id, { w: latest.w, h: latest.h })
+            .catch(() => toast.error("Falha ao redimensionar a ideia"));
+        }
+      },
+      onDragCancel: () => setResize(null),
+    });
+    trackGesture(event, tracker);
   }
 
   async function undoMove() {
@@ -762,6 +877,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         color: card.color,
         x: card.x + 24,
         y: card.y + 24,
+        w: card.w,
+        h: card.h,
+        doc: card.doc,
       });
       toast.success("Ideia duplicada");
     } catch {
@@ -899,6 +1017,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       x: card.x,
       y: card.y,
       links: card.links,
+      refType: card.refType,
+      refId: card.refId,
+      w: card.w,
+      h: card.h,
+      doc: card.doc,
     }));
   }
 
@@ -945,6 +1068,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         color: item.color,
         x: item.x,
         y: item.y,
+        w: item.w,
+        h: item.h,
+        refType: item.refType,
+        refId: item.refId,
+        doc: item.doc,
       });
       idByKey.set(item.key, card.id);
     }
@@ -1017,9 +1145,14 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   }
 
   // Conteúdo com tamanho explícito: o SVG cobre todo o espaço scrollável
-  // até o último card (largura do card = 224px + folga).
-  const boardWidth = Math.max(...cards.map((card) => card.x + 280));
-  const boardHeight = Math.max(480, ...cards.map((card) => card.y + 180));
+  // até o último card (largura padrão 224px + folga).
+  const boardWidth = Math.max(
+    ...cards.map((card) => card.x + (card.w ?? 224) + 56),
+  );
+  const boardHeight = Math.max(
+    480,
+    ...cards.map((card) => card.y + (card.h ?? 180)),
+  );
   const linkingTitle = cards.find((card) => card.id === linkingFrom)?.title;
 
   // No modo foco o board estica: altura = viewport menos o p-4/p-6 do <main>.
@@ -1343,6 +1476,23 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                       </g>
                     );
                   })}
+                  {(() => {
+                    if (!linkDrag) return null;
+                    const from = rects[linkDrag.fromId];
+                    if (!from) return null;
+                    const center = rectCenter(from);
+                    return (
+                      <line
+                        x1={center.x}
+                        y1={center.y}
+                        x2={linkDrag.x}
+                        y2={linkDrag.y}
+                        strokeWidth={2}
+                        strokeDasharray="6 4"
+                        className="pointer-events-none transition-none stroke-primary"
+                      />
+                    );
+                  })()}
                 </svg>
                 {marquee ? (
                   <div
@@ -1373,6 +1523,15 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                       card.groupId
                         ? groupNames.get(card.groupId)
                         : undefined
+                    }
+                    liveSize={
+                      resize?.id === card.id
+                        ? { w: resize.w, h: resize.h }
+                        : null
+                    }
+                    onLinkHandleDown={(event) => beginLinkGesture(event, card)}
+                    onResizeHandleDown={(event) =>
+                      beginResizeGesture(event, card)
                     }
                     onGestureDown={(event) => beginCardGesture(event, card)}
                     onCardKeyDown={(event) => handleCardKeyDown(event, card)}

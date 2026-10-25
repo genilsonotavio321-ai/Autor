@@ -251,6 +251,8 @@ export interface IdeaBoardItem {
   /** Tamanho do node no momento do snapshot. */
   w?: number;
   h?: number;
+  /** Conteúdo rico (Tiptap) no momento do snapshot. */
+  doc?: Json;
 }
 
 /** Snapshot do canvas salvo pelo autor. */

@@ -44,7 +44,8 @@ export function parseBoardExport(json: unknown): IdeaBoardItem[] {
       (item.refType !== undefined &&
         item.refType !== "character" &&
         item.refType !== "location") ||
-      (item.refId !== undefined && typeof item.refId !== "string")
+      (item.refId !== undefined && typeof item.refId !== "string") ||
+      (item.doc !== undefined && typeof item.doc !== "object")
     ) {
       throw new Error(`Item inválido na posição ${index + 1}`);
     }
