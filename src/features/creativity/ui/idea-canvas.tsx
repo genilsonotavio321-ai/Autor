@@ -18,6 +18,7 @@ import {
   AlignVerticalJustifyCenter,
   Download,
   Group,
+  MapPin,
   Maximize2,
   Minimize2,
   MousePointerSquareDashed,
@@ -28,6 +29,8 @@ import {
   Undo2,
   Ungroup,
   Upload,
+  User,
+  Users,
   X,
   ZoomIn,
   ZoomOut,
@@ -67,11 +70,13 @@ import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
+  Character,
   EntityId,
   IdeaBoard,
   IdeaBoardItem,
   IdeaCard,
   IdeaGroup,
+  Location,
 } from "@/shared/types/database";
 
 import { sendSceneToOutline } from "../application/send-to-outline";
@@ -90,7 +95,10 @@ import {
   distributeVertically,
   type LayoutMove,
 } from "../domain/canvas-layout";
+import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { MentionSheet, type MentionSheetTarget } from "@/features/editor/ui/mention-sheet";
 import { downloadBlob } from "@/features/export/infra/download";
+import { locationRepository } from "@/features/world/infra/dexie-location-repository";
 import { ideaBoardRepository } from "../infra/dexie-idea-board-repository";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
@@ -107,6 +115,8 @@ interface IdeaCanvasProps {
 const NO_CARDS: IdeaCard[] = [];
 const NO_GROUPS: IdeaGroup[] = [];
 const NO_BOARDS: IdeaBoard[] = [];
+const NO_CHARACTERS: Character[] = [];
+const NO_LOCATIONS: Location[] = [];
 
 /** Uma mudança de posição (desfazer/refazer de movimento). */
 type MoveOp = {
@@ -135,7 +145,20 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     useLiveQuery(() => ideaBoardRepository.listByProject(projectId), [
       projectId,
     ]) ?? NO_BOARDS;
+  const characters =
+    useLiveQuery(() => characterRepository.listByProject(projectId), [
+      projectId,
+    ]) ?? NO_CHARACTERS;
+  const locations =
+    useLiveQuery(() => locationRepository.listByProject(projectId), [
+      projectId,
+    ]) ?? NO_LOCATIONS;
+  const router = useRouter();
   const [editingId, setEditingId] = useState<EntityId | null>(null);
+  const [fichaDialogOpen, setFichaDialogOpen] = useState(false);
+  const [fichaTarget, setFichaTarget] = useState<MentionSheetTarget | null>(
+    null,
+  );
   const [sendCard, setSendCard] = useState<IdeaCard | null>(null);
   const [linkingFrom, setLinkingFrom] = useState<EntityId | null>(null);
   const [spacePanning, setSpacePanning] = useState(false);
@@ -522,7 +545,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       toggleSelect(card.id);
       return;
     }
-    setEditingId(card.id);
+    if (card.refType) void openFicha(card);
+    else setEditingId(card.id);
   }
 
   /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
@@ -534,6 +558,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     if (event.key === "Enter") {
       event.preventDefault();
       if (linkingFrom) void toggleLink(card);
+      else if (card.refType) void openFicha(card);
       else setEditingId(card.id);
       return;
     }
@@ -868,6 +893,46 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
+  /** Cria um node de ficha (personagem/local) no canto do canvas. */
+  async function createFichaCard(
+    refType: "character" | "location",
+    entity: { id: string; name: string; description?: string | null },
+  ) {
+    // Mesma cascata da "Nova ideia", cor fixa por tipo de ficha.
+    const n = cards.length;
+    try {
+      await ideaCardRepository.create({
+        projectId,
+        refType,
+        refId: entity.id,
+        title: entity.name,
+        content: entity.description ?? "",
+        color: refType === "character" ? "purple" : "blue",
+        x: 16 + (n % 5) * 24,
+        y: 16 + (n % 5) * 40,
+      });
+      playUiSound("create");
+      toast.success("Ficha adicionada ao canvas");
+      setFichaDialogOpen(false);
+    } catch {
+      toast.error("Falha ao adicionar a ficha");
+    }
+  }
+
+  /** Abre a ficha do node; a ficha pode ter sido excluída desde a criação. */
+  async function openFicha(card: IdeaCard) {
+    if (!card.refType || !card.refId) return;
+    const found =
+      card.refType === "character"
+        ? await characterRepository.getById(card.refId)
+        : await locationRepository.getById(card.refId);
+    if (!found) {
+      toast.error("Ficha não encontrada");
+      return;
+    }
+    setFichaTarget({ type: card.refType, id: card.refId });
+  }
+
   async function duplicateCard(card: IdeaCard) {
     try {
       await ideaCardRepository.create({
@@ -875,6 +940,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         title: `${card.title} (cópia)`,
         content: card.content,
         color: card.color,
+        refType: card.refType,
+        refId: card.refId,
         x: card.x + 24,
         y: card.y + 24,
         w: card.w,
@@ -1168,6 +1235,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         <Button onClick={() => void createCard()}>
           <Plus aria-hidden />
           Nova ideia
+        </Button>
+        <Button variant="outline" onClick={() => setFichaDialogOpen(true)}>
+          <Users aria-hidden />
+          Adicionar ficha
         </Button>
         <p className="text-xs text-muted-foreground">
           Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom
@@ -1536,7 +1607,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     onGestureDown={(event) => beginCardGesture(event, card)}
                     onCardKeyDown={(event) => handleCardKeyDown(event, card)}
                     onLink={() => void toggleLink(card)}
-                    onEdit={() => setEditingId(card.id)}
+                    onEdit={() => {
+                      if (card.refType) void openFicha(card);
+                      else setEditingId(card.id);
+                    }}
                     onSend={() => setSendCard(card)}
                     onDuplicate={() => void duplicateCard(card)}
                   />
@@ -1657,6 +1731,74 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+      <Dialog open={fichaDialogOpen} onOpenChange={setFichaDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Adicionar ficha ao canvas</DialogTitle>
+          </DialogHeader>
+          {characters.length === 0 && locations.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Crie personagens ou locais primeiro nas seções deles.
+            </p>
+          ) : null}
+          {characters.length > 0 ? (
+            <div className="grid gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Personagens
+              </p>
+              <div className="grid gap-2">
+                {characters.map((character) => (
+                  <Button
+                    key={character.id}
+                    variant="outline"
+                    onClick={() =>
+                      void createFichaCard("character", character)
+                    }
+                  >
+                    <User aria-hidden />
+                    {character.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+          {locations.length > 0 ? (
+            <div className="grid gap-2">
+              <p className="text-xs font-medium text-muted-foreground">
+                Locais
+              </p>
+              <div className="grid gap-2">
+                {locations.map((location) => (
+                  <Button
+                    key={location.id}
+                    variant="outline"
+                    onClick={() => void createFichaCard("location", location)}
+                  >
+                    <MapPin aria-hidden />
+                    {location.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </DialogContent>
+      </Dialog>
+      <MentionSheet
+        target={fichaTarget}
+        backToTextSeconds={0}
+        backToTextEnabled={false}
+        onBackToText={() => undefined}
+        onEdit={(target) =>
+          router.push(
+            target.type === "character"
+              ? `/characters?character=${target.id}`
+              : `/world?location=${target.id}`,
+          )
+        }
+        onOpenChange={(open) => {
+          if (!open) setFichaTarget(null);
+        }}
+      />
     </div>
   );
 }

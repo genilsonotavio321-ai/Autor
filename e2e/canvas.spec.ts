@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { addCharacter, createProject } from "./helpers";
 
 /** Cria um projeto e entra no canvas com `count` cards (edição inline fechada). */
 async function setupCanvas(page: Page, count: number) {
@@ -155,4 +155,30 @@ test("canvas: alça de conexão cria link e grip redimensiona", async ({
   });
   await page.mouse.up();
   await expect(first).toHaveCSS("width", "344px");
+});
+
+test("canvas: node de ficha abre a ficha", async ({ page }) => {
+  await createProject(page, "Fichas");
+  await addCharacter(page, "Aurora");
+
+  await page.goto("/canvas");
+  await page.getByRole("button", { name: "Adicionar ficha" }).click();
+  await page.getByRole("button", { name: "Aurora", exact: true }).click();
+
+  // Node de ficha: badge de personagem + nome denormalizado.
+  const fichaNode = page
+    .locator("div[data-card-id]")
+    .filter({ hasText: "Aurora" });
+  await expect(fichaNode).toBeVisible();
+  await expect(fichaNode.getByText("Personagem")).toBeVisible();
+
+  // Tap abre a ficha (MentionSheet sem "Voltar ao texto"); Esc fecha.
+  await fichaNode.click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Aurora" }),
+  ).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toBeHidden();
 });

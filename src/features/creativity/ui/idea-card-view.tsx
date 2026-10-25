@@ -7,7 +7,16 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
-import { Copy, Link2, Pencil, Send, Trash2 } from "lucide-react";
+import {
+  BookOpen,
+  Copy,
+  Link2,
+  MapPin,
+  Pencil,
+  Send,
+  Trash2,
+  User,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -219,10 +228,18 @@ export function IdeaCardView({
             variant="ghost"
             size="icon"
             className="size-7"
-            aria-label={`Editar ${card.title}`}
+            aria-label={
+              card.refType
+                ? `Abrir ficha ${card.title}`
+                : `Editar ${card.title}`
+            }
             onClick={onEdit}
           >
-            <Pencil aria-hidden className="size-4" />
+            {card.refType ? (
+              <BookOpen aria-hidden className="size-4" />
+            ) : (
+              <Pencil aria-hidden className="size-4" />
+            )}
           </Button>
           <Button
             variant="ghost"
@@ -308,6 +325,18 @@ export function IdeaCardView({
         </div>
       ) : (
         <>
+          {card.refType ? (
+            <div className="mb-1 flex items-center gap-1 text-muted-foreground">
+              {card.refType === "character" ? (
+                <User aria-hidden className="size-3.5" />
+              ) : (
+                <MapPin aria-hidden className="size-3.5" />
+              )}
+              <Badge variant="outline" className="text-[10px]">
+                {card.refType === "character" ? "Personagem" : "Local"}
+              </Badge>
+            </div>
+          ) : null}
           <p className="mb-1 min-w-0 break-words text-sm font-medium">
             {card.title}
           </p>
