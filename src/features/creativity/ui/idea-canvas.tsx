@@ -25,7 +25,7 @@ import {
   Lightbulb,
   MapPin,
   Menu,
-  MousePointerSquareDashed,
+  Palette,
   Pencil,
   Plus,
   Redo2,
@@ -40,6 +40,7 @@ import {
   X,
   ZoomIn,
   ZoomOut,
+  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -83,6 +84,7 @@ import {
 } from "@/components/ui/select";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { playUiSound } from "@/shared/lib/sound";
+import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
   Character,
@@ -189,17 +191,22 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   // persistido fica para os quadros salvos se incomodar.
   const [undoStack, setUndoStack] = useState<MoveOp[][]>([]);
   const [redoStack, setRedoStack] = useState<MoveOp[][]>([]);
-  const [selectMode, setSelectMode] = useState(false);
-  const [selection, setSelection] = useState<Set<EntityId>>(new Set());
-  const [marquee, setMarquee] = useState<Marquee | null>(null);
+  // Modo seleção: oculto da UI (bugava fácil); setter inacessível.
+  const [selectMode] = useState(false);
+  const [selection, setSelection] = useState<Set<EntityId>>(new Set());  const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [boardName, setBoardName] = useState("");
   /** Quadro aguardando confirmação de "Carregar" (substitui o canvas). */
   const [confirmBoard, setConfirmBoard] = useState<IdeaBoard | null>(null);
-  const [fab, setFab] = useState<{ x: number; y: number } | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  /** Menu de contexto do card: abre segurando 0,8s sobre o node. */
+  const [cardMenu, setCardMenu] = useState<{
+    card: IdeaCard;
+    x: number;
+    y: number;
+  } | null>(null);
   const [panel, setPanel] = useState<"unblock" | "builder" | null>(null);
   /** Quadro ativo: o canvas salva nele até que outro seja criado/carregado. */
   // shortcut: quadro ativo vive em memória; ao recarregar a página, o
@@ -239,6 +246,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const groupInputRef = useRef<HTMLInputElement | null>(null);
   const boardInputRef = useRef<HTMLInputElement | null>(null);
   const uploadInputRef = useRef<HTMLInputElement | null>(null);
+  // Debounce do seletor de cor do menu (input color dispara a cada arrasto).
+  const colorTimerRef = useRef<number | undefined>(undefined);
 
   const hasCards = cards.length > 0;
 
@@ -467,42 +476,28 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     return () => window.removeEventListener("contextmenu", onContextMenu);
   }, []);
 
-  // Long-press 1,2s no vazio do board abre o botão do menu flutuante.
+  // Menu do card (hold 0,8s) fecha em clique fora ou Esc.
   useEffect(() => {
-    const board = boardRef.current;
-    if (!board) return;
-    let holdTimer: number | undefined;
-    const clear = () => {
-      window.clearTimeout(holdTimer);
-      window.removeEventListener("pointermove", clear);
-      window.removeEventListener("pointerup", clear);
-    };
+    if (!cardMenu) return;
     const onPointerDown = (event: PointerEvent) => {
-      clear();
-      if (event.button !== 0 || spacePanningRef.current || selectMode) return;
-      const element = event.target instanceof Element ? event.target : null;
       if (
-        !element ||
-        element.closest(
-          "[data-card-id], button, a, input, textarea, select, [role='button']",
-        )
+        event.target instanceof Element &&
+        event.target.closest("[data-card-menu]")
       ) {
         return;
       }
-      const x = event.clientX;
-      const y = event.clientY;
-      holdTimer = window.setTimeout(() => {
-        setFab({ x, y });
-      }, 1200);
-      window.addEventListener("pointermove", clear);
-      window.addEventListener("pointerup", clear);
+      setCardMenu(null);
     };
-    board.addEventListener("pointerdown", onPointerDown);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setCardMenu(null);
+    };
+    window.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("keydown", onKeyDown);
     return () => {
-      board.removeEventListener("pointerdown", onPointerDown);
-      clear();
+      window.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("keydown", onKeyDown);
     };
-  }, [selectMode]);
+  }, [cardMenu]);
 
   // Quadro ativo = "arquivo" do canvas: debounce 800ms espelha os cards no
   // quadro até que outro seja criado ou carregado.
@@ -673,9 +668,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   }
 
   /**
-   * Gesto de ponteiro no card: tap abre/alterna, hold seleciona, arrastar
-   * move. Listeners no window só existem durante o gesto (o 2º dedo não
-   * rouba o primeiro).
+   * Gesto de ponteiro no card: tap abre/alterna, hold 0,8s abre o menu do
+   * card, arrastar move. Listeners no window só existem durante o gesto
+   * (o 2º dedo não rouba o primeiro).
    */
   function beginCardGesture(
     event: ReactPointerEvent<HTMLDivElement>,
@@ -698,8 +693,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     const startY = event.clientY;
     const multi = event.ctrlKey || event.metaKey || event.shiftKey;
     const tracker = createGestureTracker({
+      holdMs: 800,
       onTap: () => handleCardTap(card, multi),
-      onHold: () => setSelection(new Set([card.id])),
+      onHold: (point) => setCardMenu({ card, x: point.x, y: point.y }),
       onDragStart: () => {
         dragIdsRef.current = dragIdsFor(card, cards, selection);
         setDragDelta({ ids: dragIdsRef.current, x: 0, y: 0 });
@@ -998,6 +994,16 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
+  /** Cor RGB do menu do card: grava com debounce (o picker dispara demais). */
+  function commitCardColor(cardId: EntityId, color: string) {
+    window.clearTimeout(colorTimerRef.current);
+    colorTimerRef.current = window.setTimeout(() => {
+      void ideaCardRepository
+        .update(cardId, { color })
+        .catch(() => toast.error("Falha ao alterar a cor"));
+    }, 250);
+  }
+
   async function removeLink(a: IdeaCard, b: IdeaCard) {
     try {
       await ideaCardRepository.unlink(a.id, b.id);
@@ -1124,13 +1130,13 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  function exportBoard() {
-    if (cards.length === 0) return;
+  /** Exporta o quadro salvo (.json) para levar a outro projeto. */
+  function exportBoardFile(board: IdeaBoard) {
     downloadBlob(
-      new Blob([JSON.stringify(buildBoardExport(snapshotItems(cards)), null, 2)], {
+      new Blob([JSON.stringify(buildBoardExport(board.items), null, 2)], {
         type: "application/json",
       }),
-      "quadro-autor.json",
+      `quadro-${board.name}.json`,
     );
     playUiSound("backup");
   }
@@ -1241,7 +1247,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
 
 
   return (
-    <div className="flex h-full flex-col">
+    <div className="relative flex h-full flex-col">
       <div
         ref={boardRef}
         data-slot="canvas-board"
@@ -1249,8 +1255,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       >
         {cards.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">
-            Nenhuma ideia ainda. Segure 1,2s num espaço vazio para abrir o
-            menu.
+            Nenhuma ideia ainda. Use o menu no canto superior direito.
           </div>
         ) : null}
 
@@ -1384,25 +1389,17 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           if (file) void importBoardFile(file);
         }}
       />
-      {fab ? (
-        <DropdownMenu
-          open={menuOpen}
-          onOpenChange={(open) => {
-            setMenuOpen(open);
-            if (!open) setFab(null);
-          }}
-        >
-          <DropdownMenuTrigger asChild>
-            <button
-              type="button"
-              aria-label="Menu do canvas"
-              title="Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom"
-              className="fixed z-40 flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
-              style={{ left: fab.x - 20, top: fab.y - 20 }}
-            >
-              <Menu aria-hidden className="size-5" />
-            </button>
-          </DropdownMenuTrigger>
+      <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
+        <DropdownMenuTrigger asChild>
+          <button
+            type="button"
+            aria-label="Menu do canvas"
+            title="Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom"
+            className="absolute top-3 right-3 z-40 flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
+          >
+            <Menu aria-hidden className="size-5" />
+          </button>
+        </DropdownMenuTrigger>
           <DropdownMenuContent
             align="start"
             className="max-h-[70vh] overflow-y-auto"
@@ -1421,15 +1418,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               <Hammer aria-hidden className="size-4" /> Construtor de cena
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => {
-                setSelectMode((mode) => !mode);
-                setSelection(new Set());
-              }}
-            >
-              <MousePointerSquareDashed aria-hidden className="size-4" />
-              {selectMode ? "Sair do modo seleção" : "Modo seleção"}
-            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setZoom((z) => clampZoom(z / 1.25))}
             >
@@ -1468,35 +1456,62 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               </DropdownMenuSubTrigger>
               <DropdownMenuSubContent>
                 <DropdownMenuItem
-                  disabled={cards.length === 0}
-                  onClick={() => exportBoard()}
-                >
-                  <Download aria-hidden className="size-4" /> Exportar quadro
-                </DropdownMenuItem>
-                <DropdownMenuItem
                   onClick={() => uploadInputRef.current?.click()}
                 >
                   <Upload aria-hidden className="size-4" /> Importar quadro
                 </DropdownMenuItem>
                 {boards.length > 0 ? <DropdownMenuSeparator /> : null}
                 {boards.map((board) => (
-                  <DropdownMenuItem
-                    key={`${board.id}-load`}
-                    onClick={() => setConfirmBoard(board)}
+                  <div
+                    key={board.id}
+                    className="flex items-center gap-1 px-1.5 py-1"
                   >
-                    <Download aria-hidden className="size-4" /> Carregar “
-                    {board.name}”
-                  </DropdownMenuItem>
-                ))}
-                {boards.map((board) => (
-                  <DropdownMenuItem
-                    key={`${board.id}-delete`}
-                    className="text-destructive"
-                    onClick={() => void deleteBoard(board)}
-                  >
-                    <Trash2 aria-hidden className="size-4" /> Excluir quadro “
-                    {board.name}”
-                  </DropdownMenuItem>
+                    <span className="min-w-0 flex-1 truncate select-none">
+                      {board.name}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 shrink-0"
+                      aria-label={`Carregar quadro ${board.name}`}
+                      title="Carregar"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setConfirmBoard(board);
+                      }}
+                    >
+                      <FolderOpen aria-hidden className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-6 shrink-0"
+                      aria-label={`Exportar quadro ${board.name}`}
+                      title="Exportar"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        exportBoardFile(board);
+                      }}
+                    >
+                      <Download aria-hidden className="size-4" />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="text-destructive size-6 shrink-0 hover:text-destructive"
+                      aria-label={`Excluir quadro ${board.name}`}
+                      title="Excluir"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        void deleteBoard(board);
+                      }}
+                    >
+                      <Trash2 aria-hidden className="size-4" />
+                    </Button>
+                  </div>
                 ))}
               </DropdownMenuSubContent>
             </DropdownMenuSub>
@@ -1611,6 +1626,86 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
+      {cardMenu ? (
+        <div
+          data-card-menu
+          role="menu"
+          aria-label={`Ações de ${cardMenu.card.title}`}
+          className="fixed z-50 grid min-w-44 gap-0.5 rounded-lg border bg-popover p-1 text-sm shadow-lg"
+          style={{
+            left: Math.min(cardMenu.x, window.innerWidth - 190),
+            top: Math.min(cardMenu.y, window.innerHeight - 240),
+          }}
+        >
+          {cardMenu.card.refType ? (
+            <CardMenuButton
+              label="Abrir ficha"
+              icon={BookOpen}
+              onClick={() => {
+                const card = cardMenu.card;
+                setCardMenu(null);
+                void openFicha(card);
+              }}
+            />
+          ) : (
+            <CardMenuButton
+              label="Editar"
+              icon={Pencil}
+              onClick={() => {
+                const card = cardMenu.card;
+                setCardMenu(null);
+                setEditingId(card.id);
+              }}
+            />
+          )}
+          <CardMenuButton
+            label="Transformar em cena"
+            icon={Send}
+            onClick={() => {
+              const card = cardMenu.card;
+              setCardMenu(null);
+              setSendCard(card);
+            }}
+          />
+          <CardMenuButton
+            label="Duplicar"
+            icon={Copy}
+            onClick={() => {
+              const card = cardMenu.card;
+              setCardMenu(null);
+              void duplicateCard(card);
+            }}
+          />
+          <div className="flex items-center gap-2 px-1.5 py-1 select-none">
+            <Palette
+              aria-hidden
+              className="text-muted-foreground size-4"
+            />
+            <input
+              type="color"
+              aria-label="Cor do card"
+              className="h-6 w-8 cursor-pointer rounded border bg-transparent"
+              defaultValue={
+                cardMenu.card.color?.startsWith("#")
+                  ? cardMenu.card.color
+                  : "#eab308"
+              }
+              onChange={(event) =>
+                commitCardColor(cardMenu.card.id, event.target.value)
+              }
+            />
+          </div>
+          <CardMenuButton
+            label="Excluir"
+            icon={Trash2}
+            destructive
+            onClick={() => {
+              const card = cardMenu.card;
+              setCardMenu(null);
+              void removeCard(card);
+            }}
+          />
+        </div>
       ) : null}
       <SendCardDialog
         card={sendCard}
@@ -1735,7 +1830,13 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             </DialogTitle>
           </DialogHeader>
           {panel === "unblock" ? (
-            <UnblockPanel projectId={projectId} />
+            <UnblockPanel
+              projectId={projectId}
+              onSaved={() => {
+                // Configuração decide se guardar já fecha o popup.
+                if (useUiStore.getState().unblockCloseOnSave) setPanel(null);
+              }}
+            />
           ) : (
             <SceneBuilder projectId={projectId} chapters={chapters} />
           )}
@@ -1976,5 +2077,32 @@ function SendCardDialog({ card, chapters, open, onOpenChange }: SendCardDialogPr
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  );
+}
+
+interface CardMenuButtonProps {
+  label: string;
+  icon: LucideIcon;
+  destructive?: boolean;
+  onClick: () => void;
+}
+
+/** Botão do menu de contexto do card (hold 0,8s sobre o node). */
+function CardMenuButton({
+  label,
+  icon: Icon,
+  destructive,
+  onClick,
+}: CardMenuButtonProps) {
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      className={`flex w-full items-center justify-start gap-2 px-1.5 py-1 text-sm ${destructive ? "text-destructive hover:text-destructive" : ""}`}
+      onClick={onClick}
+    >
+      <Icon aria-hidden className="size-4" />
+      {label}
+    </Button>
   );
 }

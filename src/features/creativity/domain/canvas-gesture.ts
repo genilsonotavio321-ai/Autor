@@ -14,7 +14,7 @@ export type GestureEvent = GesturePoint & { pointerId: number };
 export type GestureHandlers = {
   /** Toque rápido sem movimento: abre o card (ou alterna seleção). */
   onTap?: (point: GesturePoint) => void;
-  /** Pressão parada: seleciona o card. */
+  /** Pressão parada: o dono do gesto decide (menu do card, seleção…). */
   onHold?: (point: GesturePoint) => void;
   onDragStart?: (point: GesturePoint) => void;
   onDragMove?: (point: GesturePoint) => void;

@@ -194,6 +194,12 @@ export function SettingsPage() {
   const setPromptCustomWeight = useUiStore(
     (state) => state.setPromptCustomWeight,
   );
+  const unblockCloseOnSave = useUiStore(
+    (state) => state.unblockCloseOnSave,
+  );
+  const setUnblockCloseOnSave = useUiStore(
+    (state) => state.setUnblockCloseOnSave,
+  );
   const themeVariantLight = useUiStore((state) => state.themeVariantLight);
   const themeVariantDark = useUiStore((state) => state.themeVariantDark);
   const setThemeVariantLight = useUiStore(
@@ -623,6 +629,16 @@ export function SettingsPage() {
               id="prompt-cite-locations"
               checked={promptCiteLocations}
               onCheckedChange={withToggle(setPromptCiteLocations)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="unblock-close-on-save">
+              Fechar painel ao guardar no canvas
+            </Label>
+            <Switch
+              id="unblock-close-on-save"
+              checked={unblockCloseOnSave}
+              onCheckedChange={withToggle(setUnblockCloseOnSave)}
             />
           </div>
         </CardContent>

@@ -370,3 +370,32 @@
   box-shadow: 0 0 0 1.5px oklch(0.75 0.16 65);
 }
 
+/* Corpo rico do card do canvas (display do `doc` do Tiptap) — compacto */
+.card-doc h1 {
+  @apply mt-2 mb-1 text-base font-semibold;
+}
+
+.card-doc h2 {
+  @apply mt-2 mb-1 text-sm font-semibold;
+}
+
+.card-doc h3 {
+  @apply mt-1 mb-0.5 text-sm font-semibold;
+}
+
+.card-doc p {
+  @apply my-1;
+}
+
+.card-doc ul {
+  @apply my-1 list-disc pl-4;
+}
+
+.card-doc ol {
+  @apply my-1 list-decimal pl-4;
+}
+
+.card-doc blockquote {
+  @apply my-1 border-l-2 pl-2 text-muted-foreground;
+}
+

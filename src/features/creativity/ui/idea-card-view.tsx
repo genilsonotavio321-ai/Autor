@@ -3,27 +3,25 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import Link from "next/link";
+import { generateHTML, type JSONContent } from "@tiptap/core";
+import TextAlign from "@tiptap/extension-text-align";
+import StarterKit from "@tiptap/starter-kit";
 import { Link2, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { playUiSound } from "@/shared/lib/sound";
 import type { IdeaCard, Json } from "@/shared/types/database";
 
+import { titleFromPlain } from "../domain/card-title";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { CardDocEditor } from "./card-doc-editor";
 
@@ -35,13 +33,11 @@ const CARD_COLORS: Record<string, string> = {
   purple: "border-purple-500/70 dark:border-purple-500/40",
 };
 
-const COLOR_LABELS: Record<string, string> = {
-  yellow: "Amarelo",
-  green: "Verde",
-  blue: "Azul",
-  pink: "Rosa",
-  purple: "Roxo",
-};
+/** Extensões do display: as mesmas do editor, para renderizar o `doc`. */
+const DISPLAY_EXTENSIONS = [
+  StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
+  TextAlign.configure({ types: ["heading", "paragraph"] }),
+];
 
 /** Exclui o card para a lixeira com toast de Desfazer. */
 export async function removeCard(card: IdeaCard) {
@@ -92,48 +88,46 @@ export function IdeaCardView({
   onLinkHandleDown,
   onResizeHandleDown,
 }: IdeaCardViewProps) {
-  const [title, setTitle] = useState(card.title);
-  const [color, setColor] = useState(card.color ?? "yellow");
   const [doc, setDoc] = useState<Json | null>(null);
   const [plain, setPlain] = useState<string | null>(null);
 
   // Ao entrar na edição, descarta rascunhos da edição anterior.
   useEffect(() => {
     if (!editing) return;
-    setTitle(card.title);
-    setColor(card.color ?? "yellow");
     setDoc(null);
     setPlain(null);
     // Reset deliberado no toggle de `editing`, não a cada mudança de card.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
-  // Autosave 800ms: título, cor e, se tocados, `doc` + espelho de texto.
+  // Autosave 800ms: título derivado + doc + espelho de texto.
   useEffect(() => {
-    if (!editing) return;
+    if (!editing || doc === null) return;
     const timer = window.setTimeout(() => {
       void ideaCardRepository
         .update(card.id, {
-          title,
-          color,
-          ...(doc !== null ? { doc, content: plain ?? "" } : {}),
+          title: titleFromPlain(plain ?? ""),
+          doc,
+          content: plain ?? "",
         })
         .catch(() => toast.error("Falha ao salvar a ideia"));
     }, 800);
     return () => window.clearTimeout(timer);
-  }, [editing, card.id, title, color, doc, plain]);
+  }, [editing, card.id, doc, plain]);
 
   /** Sai salvando na hora: Esc/Ctrl+Enter persistem antes de fechar. */
   const flushEdit = useCallback(() => {
-    void ideaCardRepository
-      .update(card.id, {
-        title,
-        color,
-        ...(doc !== null ? { doc, content: plain ?? "" } : {}),
-      })
-      .catch(() => toast.error("Falha ao salvar a ideia"));
+    if (doc !== null) {
+      void ideaCardRepository
+        .update(card.id, {
+          title: titleFromPlain(plain ?? ""),
+          doc,
+          content: plain ?? "",
+        })
+        .catch(() => toast.error("Falha ao salvar a ideia"));
+    }
     onEditEnd();
-  }, [card.id, title, color, doc, plain, onEditEnd]);
+  }, [card.id, doc, plain, onEditEnd]);
 
   function handleEditKeyDown(event: ReactKeyboardEvent<HTMLDivElement>) {
     const isExit =
@@ -146,7 +140,7 @@ export function IdeaCardView({
     flushEdit();
   }
 
-  const style = {
+  const style: CSSProperties = {
     left: card.x,
     top: card.y,
     // O offset é compartilhado por todos os ids que arrastam juntos.
@@ -160,6 +154,8 @@ export function IdeaCardView({
       : card.w !== undefined || card.h !== undefined
         ? { width: card.w ?? 224, height: card.h }
         : {}),
+    // Cor RGB escolhida no menu do card vira borda direto (paleta usa classe).
+    ...(card.color?.startsWith("#") ? { borderColor: card.color } : {}),
   };
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -180,6 +176,15 @@ export function IdeaCardView({
     return () => window.removeEventListener("pointerdown", onPointerDown);
   }, [editing, flushEdit]);
 
+  // Display do corpo rico: renderiza o `doc` sem instância de editor por card.
+  const html = useMemo(
+    () =>
+      card.doc
+        ? generateHTML(card.doc as JSONContent, DISPLAY_EXTENSIONS)
+        : null,
+    [card.doc],
+  );
+
   return (
     <div
       ref={rootRef}
@@ -198,7 +203,8 @@ export function IdeaCardView({
       }}
       // transition-none: o MotionStyle global injeta transition-duration em *;
       // sem isso o transform do drag transiciona a cada pointermove (lag).
-      className={`absolute w-56 cursor-grab touch-none rounded-lg border-2 bg-card p-3 shadow-sm transition-none select-none group ${CARD_COLORS[editing ? color : (card.color ?? "yellow")] ?? ""} ${selected ? "ring-2 ring-primary" : ""} ${dragOffset ? "opacity-70" : ""}`}
+      // flex-col + overflow-hidden: o texto acompanha o redimensionamento.
+      className={`absolute flex w-56 cursor-grab touch-none flex-col overflow-hidden rounded-lg border-2 bg-card p-3 shadow-sm transition-none select-none group ${CARD_COLORS[card.color ?? "yellow"] ?? ""} ${selected ? "ring-2 ring-primary" : ""} ${dragOffset ? "opacity-70" : ""}`}
     >
 
       {!editing ? (
@@ -222,37 +228,20 @@ export function IdeaCardView({
       ) : null}
       {editing ? (
         <div
-          className="grid gap-2"
+          className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-background/50 p-2"
           // Campos internos não iniciam o gesto do card.
           onPointerDown={(event) => event.stopPropagation()}
         >
-          <Input
-            aria-label="Título da ideia"
-            value={title}
-            autoFocus
-            onChange={(event) => setTitle(event.target.value)}
+          <CardDocEditor
+            content={
+              card.doc ??
+              (card.content ? `${card.title}\n\n${card.content}` : "")
+            }
+            onChange={(nextDoc, nextPlain) => {
+              setDoc(nextDoc);
+              setPlain(nextPlain);
+            }}
           />
-          <div className="max-h-48 overflow-y-auto rounded-md border bg-background/50 p-2">
-            <CardDocEditor
-              content={card.doc ?? card.content}
-              onChange={(nextDoc, nextPlain) => {
-                setDoc(nextDoc);
-                setPlain(nextPlain);
-              }}
-            />
-          </div>
-          <Select value={color} onValueChange={setColor}>
-            <SelectTrigger aria-label="Cor da ideia" className="h-8 w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(COLOR_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
         </div>
       ) : (
         <>
@@ -268,21 +257,34 @@ export function IdeaCardView({
               </Badge>
             </div>
           ) : null}
-          <p className="mb-1 min-w-0 break-words text-sm font-medium">
-            {card.title}
-          </p>
           {groupName ? (
             <p className="mb-1 truncate text-[10px] text-muted-foreground">
               {groupName}
             </p>
           ) : null}
-          {card.content ? (
-            <p className="mb-2 line-clamp-4 text-xs break-words whitespace-pre-wrap text-muted-foreground">
-              {card.content}
-            </p>
-          ) : null}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {html ? (
+              <div
+                className="card-doc text-sm break-words"
+                // HTML gerado pelo generateHTML a partir do próprio JSON
+                // do app (doc Tiptap) — não é entrada externa.
+                dangerouslySetInnerHTML={{ __html: html }}
+              />
+            ) : (
+              <>
+                <p className="mb-1 min-w-0 break-words text-sm font-medium">
+                  {card.title}
+                </p>
+                {card.content ? (
+                  <p className="mb-2 text-xs break-words whitespace-pre-wrap text-muted-foreground">
+                    {card.content}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
           {card.sentSceneId ? (
-            <div className="flex items-center gap-1">
+            <div className="mt-1 flex items-center gap-1">
               <Link
                 href={`/outline?scene=${card.sentSceneId}`}
                 onClick={(event) => event.stopPropagation()}

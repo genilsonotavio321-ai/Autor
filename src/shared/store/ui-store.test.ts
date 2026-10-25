@@ -118,4 +118,12 @@ describe("useUiStore", () => {
     expect(useUiStore.getState().promptCustomWeight).toBe(0);
     expect(localStorage.getItem("autor-ui")).toContain("promptCustomWeight");
   });
+
+  it("Desbloqueio fecha ao guardar por padrão e persiste o toggle", () => {
+    localStorage.clear();
+    expect(useUiStore.getState().unblockCloseOnSave).toBe(true);
+    useUiStore.getState().setUnblockCloseOnSave(false);
+    expect(useUiStore.getState().unblockCloseOnSave).toBe(false);
+    expect(localStorage.getItem("autor-ui")).toContain("unblockCloseOnSave");
+  });
 });

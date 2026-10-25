@@ -32,9 +32,11 @@ import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 
 interface UnblockPanelProps {
   projectId: EntityId;
+  /** Chamado após guardar com sucesso (o canvas decide se fecha o popup). */
+  onSaved?: () => void;
 }
 
-export function UnblockPanel({ projectId }: UnblockPanelProps) {
+export function UnblockPanel({ projectId, onSaved }: UnblockPanelProps) {
   const cards =
     useLiveQuery(() => ideaCardRepository.listByProject(projectId), [
       projectId,
@@ -81,6 +83,7 @@ export function UnblockPanel({ projectId }: UnblockPanelProps) {
     try {
       await ideaCardRepository.create({ projectId, title, content, ...cascade() });
       toast.success("Ideia guardada no canvas");
+      onSaved?.();
     } catch {
       toast.error("Falha ao guardar a ideia");
     }

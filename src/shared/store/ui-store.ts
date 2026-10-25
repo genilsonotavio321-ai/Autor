@@ -115,6 +115,8 @@ interface UiState {
   panelTabVisible: boolean;
   /** Peso dos prompts personalizados nos sorteios (0–1). */
   promptCustomWeight: number;
+  /** Desbloqueio: fecha o popup ao guardar a ideia no canvas. */
+  unblockCloseOnSave: boolean;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -157,6 +159,7 @@ interface UiState {
   setPromptCiteLocations: (enabled: boolean) => void;
   setPanelTabVisible: (visible: boolean) => void;
   setPromptCustomWeight: (weight: number) => void;
+  setUnblockCloseOnSave: (enabled: boolean) => void;
 }
 
 export const useUiStore = create<UiState>()(
@@ -201,6 +204,7 @@ export const useUiStore = create<UiState>()(
       promptCiteLocations: false,
       panelTabVisible: false,
       promptCustomWeight: 0.5,
+      unblockCloseOnSave: true,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -299,6 +303,8 @@ export const useUiStore = create<UiState>()(
       setPanelTabVisible: (visible) => set({ panelTabVisible: visible }),
       setPromptCustomWeight: (weight) =>
         set({ promptCustomWeight: clamp(weight, 0, 1) }),
+      setUnblockCloseOnSave: (enabled) =>
+        set({ unblockCloseOnSave: enabled }),
     }),
     {
       name: "autor-ui",
@@ -347,6 +353,7 @@ export const useUiStore = create<UiState>()(
         promptCiteLocations: state.promptCiteLocations,
         panelTabVisible: state.panelTabVisible,
         promptCustomWeight: state.promptCustomWeight,
+        unblockCloseOnSave: state.unblockCloseOnSave,
       }),
     },
   ),
