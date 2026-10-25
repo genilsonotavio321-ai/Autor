@@ -30,6 +30,9 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
+  // Canvas controla o próprio zoom: o browser não pode roubar o pinch.
+  userScalable: false,
+  maximumScale: 1,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },

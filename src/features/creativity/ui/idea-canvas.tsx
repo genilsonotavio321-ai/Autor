@@ -181,6 +181,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const [sendCard, setSendCard] = useState<IdeaCard | null>(null);
   const [spacePanning, setSpacePanning] = useState(false);
   const [zoom, setZoom] = useState(1);
+  // Zoom atual espelhado: o efeito do pinch lê sem re-attach a cada zoom.
+  const zoomRef = useRef(zoom);
+  zoomRef.current = zoom;
   const [dragDelta, setDragDelta] = useState<{
     ids: EntityId[];
     x: number;
@@ -218,6 +221,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const gestureActiveRef = useRef(false);
   // Encerra o gesto em andamento (remove os listeners do window).
   const gestureEndRef = useRef<(() => void) | null>(null);
+  // Tracker do gesto em andamento: o 2º dedo (pinch) cancela por ele.
+  const activeTrackerRef = useRef<GestureTracker | null>(null);
+  // Pinch com 2 dedos ativo: novos gestos de card não começam.
+  const pinchActiveRef = useRef(false);
   // Alça de conexão em arraste: origem + ponta em coords de conteúdo.
   const [linkDrag, setLinkDrag] = useState<{
     fromId: EntityId;
@@ -350,13 +357,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     if (!hasCards) return;
     const board = boardRef.current;
     if (!board) return;
-    const isBackground = (target: EventTarget | null) => {
-      const element = target instanceof Element ? target : null;
-      if (!element) return false;
-      return !element.closest(
-        "[data-card-id], button, a, input, textarea, select, [role='button']",
-      );
-    };
     const startMarquee = (event: MouseEvent) => {
       event.preventDefault();
       const content = contentRef.current;
@@ -396,10 +396,20 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     };
     const onMouseDown = (event: MouseEvent) => {
       if (event.button !== 0) return;
-      const background = isBackground(event.target);
+      const background = isCanvasBackground(event.target);
       if (selectMode && background) {
         startMarquee(event);
         return;
+      }
+      // Clique no fundo limpa a seleção (tap fora = desselecionar).
+      if (
+        background &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        !event.metaKey &&
+        !event.altKey
+      ) {
+        setSelection(new Set());
       }
       const pan = spacePanningRef.current || background;
       if (!pan) return;
@@ -422,50 +432,119 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     // Re-anexa com cards/zoom frescos: o marquee precisa dos rects atuais.
   }, [hasCards, cards, selectMode, zoom, rects]);
 
-  // Pan com 2 dedos (mobile); 1 dedo segue o scroll nativo. Pinch = zoom.
+  // Touch no board: 1 dedo no fundo = pan; 2 dedos = pinch + pan juntos.
+  // touch-action:none no board garante que o browser não dispute o gesto
+  // (nem pinch da página); o pinch cancela gesto de card e vence.
   useEffect(() => {
     if (!hasCards) return;
     const board = boardRef.current;
     if (!board) return;
-    let last: { x: number; y: number } | null = null;
-    let pinch: { dist: number; zoom: number } | null = null;
-    const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length === 2 && !gestureActiveRef.current) {
-        last = touchMidpoint(event.touches);
-        pinch = { dist: touchDistance(event.touches), zoom };
-      } else {
-        last = null;
+    const pointers = new Map<number, GesturePoint>();
+    let panLast: GesturePoint | null = null;
+    let pinch: {
+      dist: number;
+      zoom: number;
+      mid: GesturePoint;
+      scroll: { x: number; y: number };
+    } | null = null;
+
+    const midpoint = (): GesturePoint => {
+      const list = [...pointers.values()];
+      return {
+        x: (list[0]!.x + list[1]!.x) / 2,
+        y: (list[0]!.y + list[1]!.y) / 2,
+      };
+    };
+    const spread = () => {
+      const list = [...pointers.values()];
+      return Math.hypot(list[0]!.x - list[1]!.x, list[0]!.y - list[1]!.y);
+    };
+
+    const onPointerDown = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pointers.size === 2) {
+        // 2 dedos: pinch vence — cancela drag/menu de card em andamento.
+        activeTrackerRef.current?.cancel();
+        gestureEndRef.current?.();
+        setCardMenu(null);
+        pinchActiveRef.current = true;
+        panLast = null;
+        pinch = {
+          dist: spread(),
+          zoom: zoomRef.current,
+          mid: midpoint(),
+          scroll: { x: board.scrollLeft, y: board.scrollTop },
+        };
+        return;
+      }
+      if (pointers.size > 2) return; // 3º dedo não estraga o pinch.
+      // 1 dedo no fundo: limpa a seleção (tap fora) e prepara o pan.
+      const background = isCanvasBackground(event.target);
+      if (
+        background &&
+        !event.ctrlKey &&
+        !event.shiftKey &&
+        !event.metaKey
+      ) {
+        setSelection(new Set());
+      }
+      panLast = background
+        ? { x: event.clientX, y: event.clientY }
+        : null;
+    };
+
+    const onPointerMove = (event: PointerEvent) => {
+      if (!pointers.has(event.pointerId)) return;
+      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      if (pinch) {
+        const rect = board.getBoundingClientRect();
+        const ratio = pinch.dist > 0 ? spread() / pinch.dist : 1;
+        const nextZoom = clampZoom(pinch.zoom * ratio);
+        const mid = midpoint();
+        // Ancora no midpoint: o conteúdo sob os dedos fica sob os dedos.
+        const anchor = {
+          x: (pinch.scroll.x + pinch.mid.x - rect.left) / pinch.zoom,
+          y: (pinch.scroll.y + pinch.mid.y - rect.top) / pinch.zoom,
+        };
+        board.scrollLeft = anchor.x * nextZoom - (mid.x - rect.left);
+        board.scrollTop = anchor.y * nextZoom - (mid.y - rect.top);
+        setZoom(nextZoom);
+        return;
+      }
+      if (panLast) {
+        board.scrollLeft -= event.clientX - panLast.x;
+        board.scrollTop -= event.clientY - panLast.y;
+        panLast = { x: event.clientX, y: event.clientY };
+      }
+    };
+
+    const onPointerUp = (event: PointerEvent) => {
+      if (!pointers.delete(event.pointerId)) return;
+      if (pointers.size < 2) {
         pinch = null;
+        pinchActiveRef.current = false;
+      }
+      if (pointers.size === 1) {
+        const [remaining] = [...pointers.values()];
+        // Dedo que sobrou do pinch continua com pan.
+        panLast = remaining ?? null;
+      } else if (pointers.size === 0) {
+        panLast = null;
       }
     };
-    const onTouchMove = (event: TouchEvent) => {
-      if (event.touches.length !== 2 || !last || gestureActiveRef.current) return;
-      event.preventDefault();
-      const next = touchMidpoint(event.touches);
-      board.scrollLeft -= next.x - last.x;
-      board.scrollTop -= next.y - last.y;
-      last = next;
-      if (pinch && pinch.dist > 0) {
-        setZoom(
-          clampZoom(pinch.zoom * (touchDistance(event.touches) / pinch.dist)),
-        );
-      }
-    };
-    const onTouchEnd = (event: TouchEvent) => {
-      if (event.touches.length < 2) {
-        last = null;
-        pinch = null;
-      }
-    };
-    board.addEventListener("touchstart", onTouchStart, { passive: false });
-    board.addEventListener("touchmove", onTouchMove, { passive: false });
-    board.addEventListener("touchend", onTouchEnd);
+
+    board.addEventListener("pointerdown", onPointerDown);
+    window.addEventListener("pointermove", onPointerMove);
+    board.addEventListener("pointerup", onPointerUp);
+    board.addEventListener("pointercancel", onPointerUp);
     return () => {
-      board.removeEventListener("touchstart", onTouchStart);
-      board.removeEventListener("touchmove", onTouchMove);
-      board.removeEventListener("touchend", onTouchEnd);
+      board.removeEventListener("pointerdown", onPointerDown);
+      window.removeEventListener("pointermove", onPointerMove);
+      board.removeEventListener("pointerup", onPointerUp);
+      board.removeEventListener("pointercancel", onPointerUp);
     };
-  }, [hasCards, zoom]);
+  }, [hasCards]);
 
   // Long-press no iOS/touch abre menu de contexto; gesto ativo não deve.
   useEffect(() => {
@@ -579,14 +658,36 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  /** Tap: Ctrl/Shift (ou modo seleção) alterna; senão abre. */
+  /** Zoom pelos botões ancorado no centro do viewport (pinch ancora nos dedos). */
+  function zoomBy(factor: number) {
+    const board = boardRef.current;
+    const next = clampZoom(zoom * factor);
+    if (next === zoom) return;
+    if (board) {
+      const rect = board.getBoundingClientRect();
+      const center = {
+        x: (board.scrollLeft + rect.width / 2) / zoom,
+        y: (board.scrollTop + rect.height / 2) / zoom,
+      };
+      board.scrollLeft = center.x * next - rect.width / 2;
+      board.scrollTop = center.y * next - rect.height / 2;
+    }
+    setZoom(next);
+  }
+
+  /** Tap: 1º seleciona (alças visíveis); de novo no único selecionado abre. */
   function handleCardTap(card: IdeaCard, multi: boolean) {
-    if (selectMode || multi) {
+    if (multi) {
       toggleSelect(card.id);
       return;
     }
-    if (card.refType) void openFicha(card);
-    else setEditingId(card.id);
+    if (selection.size === 1 && selection.has(card.id)) {
+      // 2º tap (ou duplo) no node selecionado: ficha abre ficha, resto edita.
+      if (card.refType) void openFicha(card);
+      else setEditingId(card.id);
+      return;
+    }
+    setSelection(new Set([card.id]));
   }
 
   /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
@@ -688,6 +789,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     ) {
       return;
     }
+    if (pinchActiveRef.current) return;
     if (gestureEndRef.current) return;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -727,6 +829,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     tracker: GestureTracker,
   ) {
     gestureActiveRef.current = true;
+    activeTrackerRef.current = tracker;
     const onMove = (move: PointerEvent) =>
       tracker.move({
         x: move.clientX,
@@ -756,6 +859,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       window.removeEventListener("pointercancel", onCancel);
       window.removeEventListener("blur", onCancel);
       gestureActiveRef.current = false;
+      activeTrackerRef.current = null;
       gestureEndRef.current = null;
       dragIdsRef.current = [];
       setDragDelta(null);
@@ -784,6 +888,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   ) {
     if (event.button !== 0) return;
     if (editingId !== null) return;
+    if (pinchActiveRef.current) return;
     if (gestureEndRef.current) return;
     const update = (point: GesturePoint) =>
       setLinkDrag({ fromId: card.id, ...toContent(point) });
@@ -818,6 +923,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   ) {
     if (event.button !== 0) return;
     if (editingId !== null) return;
+    if (pinchActiveRef.current) return;
     if (gestureEndRef.current) return;
     const startX = event.clientX;
     const startY = event.clientY;
@@ -1251,7 +1357,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       <div
         ref={boardRef}
         data-slot="canvas-board"
-        className="relative flex-1 cursor-grab overflow-auto rounded-lg border bg-muted/30"
+        className="relative flex-1 cursor-grab overflow-auto rounded-lg border bg-muted/30 touch-none"
       >
         {cards.length === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">
@@ -1418,14 +1524,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               <Hammer aria-hidden className="size-4" /> Construtor de cena
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onClick={() => setZoom((z) => clampZoom(z / 1.25))}
-            >
+            <DropdownMenuItem onClick={() => zoomBy(1 / 1.25)}>
               <ZoomOut aria-hidden className="size-4" /> Afastar
             </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => setZoom((z) => clampZoom(z * 1.25))}
-            >
+            <DropdownMenuItem onClick={() => zoomBy(1.25)}>
               <ZoomIn aria-hidden className="size-4" /> Aproximar
             </DropdownMenuItem>
             <DropdownMenuItem
@@ -1951,17 +2053,13 @@ function clampZoom(value: number): number {
   return Math.min(2, Math.max(0.5, value));
 }
 
-function touchDistance(touches: TouchList): number {
-  const dx = touches[0]!.clientX - touches[1]!.clientX;
-  const dy = touches[0]!.clientY - touches[1]!.clientY;
-  return Math.hypot(dx, dy);
-}
-
-function touchMidpoint(touches: TouchList): { x: number; y: number } {
-  return {
-    x: (touches[0]!.clientX + touches[1]!.clientX) / 2,
-    y: (touches[0]!.clientY + touches[1]!.clientY) / 2,
-  };
+/** Alvo é o fundo do canvas (não card, botão, alça nem linha de conexão). */
+function isCanvasBackground(target: EventTarget | null): boolean {
+  const element = target instanceof Element ? target : null;
+  if (!element) return false;
+  return !element.closest(
+    "[data-card-id], button, a, input, textarea, select, [role='button']",
+  );
 }
 
 function rectCenter(rect: CardRect): { x: number; y: number } {
