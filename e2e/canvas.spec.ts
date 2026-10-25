@@ -2,18 +2,30 @@ import { expect, test, type Page } from "@playwright/test";
 
 import { createProject } from "./helpers";
 
+/** Cria um projeto e entra no canvas com `count` cards (edição inline fechada). */
+async function setupCanvas(page: Page, count: number) {
+  await createProject(page, "Gestos");
+  await page.goto("/canvas");
+  for (let i = 0; i < count; i++) {
+    await page.getByRole("button", { name: "Nova ideia" }).click();
+    // createCard é assíncrono (Dexie): espera a edição abrir antes de fechar.
+    const title = page.getByLabel("Título da ideia");
+    await expect(title).toBeVisible();
+    await page.keyboard.press("Escape");
+    await expect(title).toBeHidden();
+  }
+}
+
 test("canvas: modo foco ocupa a tela e Esc restaura", async ({ page }) => {
   await createProject(page, "Foco");
 
   await page.goto("/canvas");
-  // Board só existe com cards — cria um e fecha o dialog de edição.
+  // Board só existe com cards — cria um e sai da edição inline.
   await page.getByRole("button", { name: "Nova ideia" }).click();
-  // createCard é assíncrono (Dexie): espera o dialog abrir ANTES do Esc.
-  const editDialog = page.getByRole("dialog");
-  await expect(editDialog).toBeVisible();
+  const title = page.getByLabel("Título da ideia");
+  await expect(title).toBeVisible();
   await page.keyboard.press("Escape");
-  await expect(editDialog).toBeHidden();
-  await expect(page.locator("[data-slot='dialog-overlay']")).toHaveCount(0);
+  await expect(title).toBeHidden();
 
   await page
     .getByRole("button", { name: "Ativar modo foco (Esc para sair)" })
@@ -45,20 +57,6 @@ test("canvas: modo foco ocupa a tela e Esc restaura", async ({ page }) => {
   await expect(page.locator("div[data-card-id]").first()).toBeVisible();
 });
 
-/** Cria um projeto e entra no canvas com `count` cards (dialog de edição fechado). */
-async function setupCanvas(page: Page, count: number) {
-  await createProject(page, "Gestos");
-  await page.goto("/canvas");
-  for (let i = 0; i < count; i++) {
-    await page.getByRole("button", { name: "Nova ideia" }).click();
-    const dialog = page.getByRole("dialog");
-    // createCard é assíncrono (Dexie): espera abrir antes de fechar.
-    await expect(dialog).toBeVisible();
-    await page.keyboard.press("Escape");
-    await expect(dialog).toBeHidden();
-  }
-}
-
 test("canvas: gestos de mouse — arraste, hold e seleção múltipla", async ({
   page,
 }) => {
@@ -66,8 +64,7 @@ test("canvas: gestos de mouse — arraste, hold e seleção múltipla", async ({
   const first = page.locator("div[data-card-id]").first();
   const second = page.locator("div[data-card-id]").nth(1);
 
-  // Arraste: move o card 250/40 px (zoom 1: px de tela = px de conteúdo).
-  // 250px afasta o primeiro card do segundo (sem sobreposição nos cliques).
+  // Arraste: move o card em 250/40 px (zoom 1: px de tela = px de conteúdo).
   const box = (await first.boundingBox())!;
   await page.mouse.move(box.x + 30, box.y + 20);
   await page.mouse.down();
@@ -82,7 +79,7 @@ test("canvas: gestos de mouse — arraste, hold e seleção múltipla", async ({
   await page.mouse.down();
   await page.waitForTimeout(450);
   await expect(second).toHaveClass(/ring-2/);
-  await page.mouse.move(box2.x + 280, box2.y + 60, { steps: 4 });
+  await page.mouse.move(box2.x + 90, box2.y + 60, { steps: 4 });
   await page.mouse.up();
   await expect(second).toHaveCSS("left", "40px");
 
@@ -92,4 +89,37 @@ test("canvas: gestos de mouse — arraste, hold e seleção múltipla", async ({
   await page.keyboard.press("Escape");
   await expect(first).not.toHaveClass(/ring-2/);
   await expect(second).not.toHaveClass(/ring-2/);
+});
+
+test("canvas: edição inline salva e toolbar flutuante aparece", async ({
+  page,
+}) => {
+  await setupCanvas(page, 1);
+  const card = page.locator("div[data-card-id]").first();
+
+  // Tap abre edição inline com foco no título.
+  await card.click();
+  const title = page.getByLabel("Título da ideia");
+  await expect(title).toBeVisible();
+  await expect(title).toBeFocused();
+  await title.fill("Rumo norte");
+  await page.keyboard.press("Escape");
+  await expect(title).toBeHidden();
+  // A saída salva na hora: a face do card mostra o novo título.
+  await expect(page.getByText("Rumo norte")).toBeVisible();
+
+  // Hold seleciona → toolbar flutuante fica visível (opacity 1).
+  const toolbar = page.getByRole("toolbar");
+  const box = (await card.boundingBox())!;
+  await page.mouse.move(box.x + 20, box.y + 15);
+  await page.mouse.down();
+  await page.waitForTimeout(450);
+  await expect(toolbar).toHaveCSS("opacity", "1");
+  await page.mouse.up();
+
+  // "Editar" na toolbar reabre a edição inline.
+  await page.getByRole("button", { name: "Editar Rumo norte" }).click();
+  await expect(page.getByLabel("Título da ideia")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(page.getByLabel("Título da ideia")).toBeHidden();
 });

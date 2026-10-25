@@ -62,7 +62,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
@@ -97,13 +96,6 @@ interface IdeaCanvasProps {
   chapters: Chapter[];
 }
 
-const COLOR_LABELS: Record<string, string> = {
-  yellow: "Amarelo",
-  green: "Verde",
-  blue: "Azul",
-  pink: "Rosa",
-  purple: "Roxo",
-};
 
 /** Lista estável para o `??` do useLiveQuery (deps de useMemo/useLayoutEffect). */
 const NO_CARDS: IdeaCard[] = [];
@@ -137,7 +129,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     useLiveQuery(() => ideaBoardRepository.listByProject(projectId), [
       projectId,
     ]) ?? NO_BOARDS;
-  const [editCard, setEditCard] = useState<IdeaCard | null>(null);
+  const [editingId, setEditingId] = useState<EntityId | null>(null);
   const [sendCard, setSendCard] = useState<IdeaCard | null>(null);
   const [linkingFrom, setLinkingFrom] = useState<EntityId | null>(null);
   const [spacePanning, setSpacePanning] = useState(false);
@@ -512,7 +504,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       toggleSelect(card.id);
       return;
     }
-    setEditCard(card);
+    setEditingId(card.id);
   }
 
   /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
@@ -524,7 +516,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     if (event.key === "Enter") {
       event.preventDefault();
       if (linkingFrom) void toggleLink(card);
-      else setEditCard(card);
+      else setEditingId(card.id);
       return;
     }
     if (event.key === "Delete" || event.key === "Backspace") {
@@ -603,6 +595,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     card: IdeaCard,
   ) {
     if (event.button !== 0) return;
+    // Edição inline aberta: nenhum clique vira gesto (nem em outro card).
+    if (editingId !== null) return;
     // Espaço pressionado: o ponteiro pertence ao pan, não ao card.
     if (spacePanningRef.current) return;
     // Botões internos têm handler próprio; não iniciam gesto no card.
@@ -753,7 +747,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         x: 16 + (n % 5) * 24,
         y: 16 + (n % 5) * 40,
       });
-      setEditCard(card);
+      setEditingId(card.id);
     } catch {
       toast.error("Falha ao criar a ideia");
     }
@@ -1368,6 +1362,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     linking={linkingFrom === card.id}
                     linkMode={linkingFrom !== null}
                     selected={selection.has(card.id)}
+                    editing={editingId === card.id}
+                    onEditEnd={() => setEditingId(null)}
                     dragOffset={
                       dragDelta && dragDelta.ids.includes(card.id)
                         ? { x: dragDelta.x / zoom, y: dragDelta.y / zoom }
@@ -1381,7 +1377,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     onGestureDown={(event) => beginCardGesture(event, card)}
                     onCardKeyDown={(event) => handleCardKeyDown(event, card)}
                     onLink={() => void toggleLink(card)}
-                    onEdit={() => setEditCard(card)}
+                    onEdit={() => setEditingId(card.id)}
                     onSend={() => setSendCard(card)}
                     onDuplicate={() => void duplicateCard(card)}
                   />
@@ -1392,13 +1388,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         </>
       )}
 
-      <EditCardDialog
-        card={editCard}
-        open={editCard !== null}
-        onOpenChange={(open) => {
-          if (!open) setEditCard(null);
-        }}
-      />
       <SendCardDialog
         card={sendCard}
         chapters={chapters}
@@ -1564,117 +1553,6 @@ function marqueeHits(
         rect.x < x1 && rect.x + rect.width > x0 && rect.y < y1 && rect.y + rect.height > y0,
     )
     .map(([id]) => id as EntityId);
-}
-
-interface EditCardDialogProps {
-  card: IdeaCard | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-function EditCardDialog({ card, open, onOpenChange }: EditCardDialogProps) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [color, setColor] = useState("yellow");
-  const titleRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    if (!open || !card) return;
-    setTitle(card.title);
-    setContent(card.content);
-    setColor(card.color ?? "yellow");
-  }, [open, card]);
-
-  async function save() {
-    if (!card) return;
-    try {
-      await ideaCardRepository.update(card.id, {
-        title: title.trim() || card.title,
-        content,
-        color,
-      });
-      onOpenChange(false);
-    } catch {
-      toast.error("Falha ao salvar a ideia");
-    }
-  }
-
-  async function remove() {
-    if (!card) return;
-    await removeCard(card);
-    onOpenChange(false);
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-lg"
-        onOpenAutoFocus={(event) => {
-          // Foco no campo (não no card por trás) para Enter salvar.
-          event.preventDefault();
-          titleRef.current?.focus();
-        }}
-        onKeyDown={(event) => handleDialogEnter(event, () => void save())}
-      >
-        <DialogHeader>
-          <DialogTitle>Editar ideia</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="idea-title">Título</Label>
-            <Input
-              ref={titleRef}
-              id="idea-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="idea-content">Conteúdo</Label>
-            <Textarea
-              id="idea-content"
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              rows={5}
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label>Cor</Label>
-            <Select value={color} onValueChange={setColor}>
-              <SelectTrigger aria-label="Cor do card" className="w-40">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(COLOR_LABELS).map(([key, label]) => (
-                  <SelectItem key={key} value={key}>
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter className="gap-2 sm:justify-between">
-          <div>
-            <Button
-              variant="ghost"
-              className="text-destructive"
-              onClick={() => void remove()}
-            >
-              <Trash2 aria-hidden />
-              Excluir
-            </Button>
-          </div>
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={() => void save()}>Salvar</Button>
-          </div>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
 }
 
 interface SendCardDialogProps {
