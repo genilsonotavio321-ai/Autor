@@ -35,22 +35,10 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
     .filter({ hasText: "Desbloqueio · Enredo" })
     .first();
   await expect(card).toBeVisible();
-  // Sem grip: o card inteiro é o handle (segurar arrasta, clique abre).
+  // O card inteiro é o handle: setas movem o card focado (Enter abriria o card).
   const handle = page.getByRole("button", { name: "Ideia Desbloqueio · Enredo" });
   await handle.focus();
-  // Enter inicia/encerra o drag por teclado (Space fica livre para o pan).
-  await page.keyboard.press("Enter");
-  await expect(handle).toHaveAttribute("aria-describedby", /DndDescribedBy/);
-  // O sensor anexa o listener de keydown de forma adiada: a primeira seta
-  // pode se perder logo após o pickup — repete até o transform registrar.
-  await expect(async () => {
-    await page.keyboard.press("ArrowRight");
-    await expect(card).toHaveCSS(
-      "transform",
-      "matrix(1, 0, 0, 1, 25, 0)",
-    );
-  }).toPass({ timeout: 8_000 });
-  await page.keyboard.press("Enter");
+  await page.keyboard.press("ArrowRight");
   await expect(card).toHaveCSS("left", "41px");
 
   // Transformar em cena: escolhe o capítulo e envia para a Estrutura.

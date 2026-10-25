@@ -6,37 +6,24 @@ import {
   useMemo,
   useRef,
   useState,
-  type RefObject,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type PointerEvent as ReactPointerEvent,
 } from "react";
-import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useRouter } from "next/navigation";
-import {
-  DndContext,
-  KeyboardSensor,
-  PointerSensor,
-  useDraggable,
-  useSensor,
-  useSensors,
-  type DragEndEvent,
-} from "@dnd-kit/core";
 import {
   AlignHorizontalJustifyCenter,
   AlignStartHorizontal,
   AlignStartVertical,
   AlignVerticalJustifyCenter,
-  Copy,
   Download,
   Group,
-  Link2,
   Maximize2,
   Minimize2,
   MousePointerSquareDashed,
-  Pencil,
   Plus,
   Redo2,
   Save,
-  Send,
   Trash2,
   Undo2,
   Ungroup,
@@ -90,6 +77,7 @@ import type {
 
 import { sendSceneToOutline } from "../application/send-to-outline";
 import { buildBoardExport, parseBoardExport } from "../domain/board-io";
+import { createGestureTracker, dragIdsFor } from "../domain/canvas-gesture";
 import {
   alignLeft,
   alignTop,
@@ -102,18 +90,12 @@ import { ideaBoardRepository } from "../infra/dexie-idea-board-repository";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
 
+import { IdeaCardView, removeCard } from "./idea-card-view";
+
 interface IdeaCanvasProps {
   projectId: EntityId;
   chapters: Chapter[];
 }
-
-const CARD_COLORS: Record<string, string> = {
-  yellow: "border-yellow-400/70 dark:border-yellow-500/40",
-  green: "border-green-500/70 dark:border-green-500/40",
-  blue: "border-sky-500/70 dark:border-sky-500/40",
-  pink: "border-pink-500/70 dark:border-pink-500/40",
-  purple: "border-purple-500/70 dark:border-purple-500/40",
-};
 
 const COLOR_LABELS: Record<string, string> = {
   yellow: "Amarelo",
@@ -182,27 +164,21 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const focusMode = useUiStore((state) => state.focusMode);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
 
-  const sensors = useSensors(
-    // Segurar ~250px-move arrasta; clique rápido abre o card (fase 4).
-    useSensor(PointerSensor, {
-      activationConstraint: { delay: 250, tolerance: 6 },
-    }),
-    // Padrão do dnd-kit: Espaço INICIA drag de teclado no card focado —
-    // conflitava com o pan (Espaço "movia" cards sozinho). Enter inicia/encerra.
-    useSensor(KeyboardSensor, {
-      keyboardCodes: { start: ["Enter"], cancel: ["Escape"], end: ["Enter"] },
-    }),
-  );
-
-  // Drag do dnd-kit ativo: com 2 dedos, o pan não age (o 1º dedo no grip
-  // já começou um arraste de card).
-  const activeDragRef = useRef<string | number | null>(null);
+  // Gesto de card ativo (dedo/mouse no meio de um tap/hold/arraste): com
+  // 2 dedos, o pan não age — o 1º dedo já começou um gesto no card.
+  const gestureActiveRef = useRef(false);
+  // Encerra o gesto em andamento (remove os listeners do window).
+  const gestureEndRef = useRef<(() => void) | null>(null);
   // Ids que arrastam juntos (grupo persistente ou seleção múltipla).
   const dragIdsRef = useRef<EntityId[]>([]);
   const boardRef = useRef<HTMLDivElement | null>(null);
   const contentRef = useRef<HTMLDivElement | null>(null);
-  // Soltar um arraste dispara click no card: suprimimos o próximo clique.
-  const suppressClick = useRef(false);
+  // Rajada de setas: posições originais (undo) e atuais — 1 op por rajada.
+  const nudgeRef = useRef<{
+    starts: Map<EntityId, { x: number; y: number }>;
+    positions: Map<EntityId, { x: number; y: number }>;
+  } | null>(null);
+  const nudgeTimerRef = useRef<number | undefined>(undefined);
   // O listener de pan lê o estado do espaço sem re-attach.
   const spacePanningRef = useRef(false);
   spacePanningRef.current = spacePanning;
@@ -279,8 +255,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.code !== "Space") return;
-      // Drag de teclado ativo: o espaço pertence ao dnd-kit, não ao pan.
-      if (activeDragRef.current) return;
+      // Gesto de card ativo: o Espaço não abre pan no meio de um arraste.
+      if (gestureActiveRef.current) return;
       const element = event.target as HTMLElement | null;
       if (
         element &&
@@ -391,7 +367,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     let last: { x: number; y: number } | null = null;
     let pinch: { dist: number; zoom: number } | null = null;
     const onTouchStart = (event: TouchEvent) => {
-      if (event.touches.length === 2 && !activeDragRef.current) {
+      if (event.touches.length === 2 && !gestureActiveRef.current) {
         last = touchMidpoint(event.touches);
         pinch = { dist: touchDistance(event.touches), zoom };
       } else {
@@ -400,7 +376,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       }
     };
     const onTouchMove = (event: TouchEvent) => {
-      if (event.touches.length !== 2 || !last || activeDragRef.current) return;
+      if (event.touches.length !== 2 || !last || gestureActiveRef.current) return;
       event.preventDefault();
       const next = touchMidpoint(event.touches);
       board.scrollLeft -= next.x - last.x;
@@ -427,6 +403,15 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       board.removeEventListener("touchend", onTouchEnd);
     };
   }, [hasCards, zoom]);
+
+  // Long-press no iOS/touch abre menu de contexto; gesto ativo não deve.
+  useEffect(() => {
+    const onContextMenu = (event: MouseEvent) => {
+      if (gestureActiveRef.current) event.preventDefault();
+    };
+    window.addEventListener("contextmenu", onContextMenu);
+    return () => window.removeEventListener("contextmenu", onContextMenu);
+  }, []);
 
   // Ctrl+roda = zoom (o pinch do trackpad chega como ctrl+wheel); roda
   // comum continua sendo scroll nativo.
@@ -479,12 +464,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [focusMode, linkingFrom, selection, toggleFocusMode]);
 
-  function suppressNextClick() {
-    window.setTimeout(() => {
-      suppressClick.current = false;
-    }, 0);
-  }
-
   /** Endpoint da linha durante o drag: acompanha o card em tempo real. */
   function linePoint(cardId: EntityId, center: { x: number; y: number }) {
     if (!dragDelta || !dragDelta.ids.includes(cardId)) return center;
@@ -494,16 +473,13 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     };
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
-    const { active, delta } = event;
-    if (!delta || (delta.x === 0 && delta.y === 0)) return;
-    const ids =
-      dragIdsRef.current.length > 0
-        ? dragIdsRef.current
-        : [active.id as EntityId];
+  /** Persiste o lote do arraste (delta em px visuais) como 1 op de undo. */
+  async function commitDrag(dxScreen: number, dyScreen: number) {
+    const ids = dragIdsRef.current;
     // delta vem em px visuais: converte para unidades do conteúdo (zoom).
-    const dx = delta.x / zoom;
-    const dy = delta.y / zoom;
+    const dx = dxScreen / zoom;
+    const dy = dyScreen / zoom;
+    if (ids.length === 0 || (dx === 0 && dy === 0)) return;
     const ops: MoveOp[] = [];
     for (const id of ids) {
       const card = cards.find((item) => item.id === id);
@@ -524,6 +500,179 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     } catch {
       toast.error("Falha ao mover a ideia");
     }
+  }
+
+  /** Tap: modo conexão conecta; Ctrl/Shift (ou modo seleção) alterna; senão abre. */
+  function handleCardTap(card: IdeaCard, multi: boolean) {
+    if (linkingFrom) {
+      void toggleLink(card);
+      return;
+    }
+    if (selectMode || multi) {
+      toggleSelect(card.id);
+      return;
+    }
+    setEditCard(card);
+  }
+
+  /** Teclado no card focado: Enter abre/conecta, setas movem, Delete exclui. */
+  function handleCardKeyDown(
+    event: ReactKeyboardEvent<HTMLDivElement>,
+    card: IdeaCard,
+  ) {
+    if (event.nativeEvent.isComposing) return;
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (linkingFrom) void toggleLink(card);
+      else setEditCard(card);
+      return;
+    }
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      // Foco num card selecionado: a seleção inteira sai (lote).
+      if (selection.has(card.id)) void deleteSelection();
+      else void removeCard(card);
+      return;
+    }
+    // Setas movem 25px (Shift = 1px); a rajada inteira = 1 undo no flush.
+    const step = event.shiftKey ? 1 : 25;
+    const deltas: Record<string, [number, number]> = {
+      ArrowLeft: [-step, 0],
+      ArrowRight: [step, 0],
+      ArrowUp: [0, -step],
+      ArrowDown: [0, step],
+    };
+    const delta = deltas[event.key];
+    if (!delta) return;
+    event.preventDefault();
+    nudgeSelection(card, delta[0]!, delta[1]!);
+  }
+
+  /** Micro-movimento por seta; 600ms ocioso agrupa a rajada em 1 undo. */
+  function nudgeSelection(card: IdeaCard, dx: number, dy: number) {
+    const ids = dragIdsFor(card, cards, selection);
+    if (ids.length === 0) return;
+    if (!nudgeRef.current) {
+      const starts = new Map(
+        cards
+          .filter((item) => ids.includes(item.id))
+          .map(
+            (item) =>
+              [item.id, { x: item.x, y: item.y }] as [
+                EntityId,
+                { x: number; y: number },
+              ],
+          ),
+      );
+      nudgeRef.current = { starts, positions: new Map(starts) };
+    }
+    const burst = nudgeRef.current;
+    void Promise.all(
+      ids.map((id) => {
+        const from = burst.positions.get(id);
+        if (!from) return undefined;
+        const to = { x: from.x + dx, y: from.y + dy };
+        burst.positions.set(id, to);
+        return ideaCardRepository.move(id, to.x, to.y);
+      }),
+    ).catch(() => toast.error("Falha ao mover a ideia"));
+    window.clearTimeout(nudgeTimerRef.current);
+    nudgeTimerRef.current = window.setTimeout(() => {
+      const current = nudgeRef.current;
+      nudgeRef.current = null;
+      if (!current) return;
+      const ops: MoveOp[] = [];
+      for (const [id, from] of current.starts) {
+        const to = current.positions.get(id);
+        if (!to || (to.x === from.x && to.y === from.y)) continue;
+        ops.push({ id, from, to });
+      }
+      if (ops.length === 0) return;
+      setUndoStack((stack) => [...stack, ops]);
+      setRedoStack([]);
+    }, 600);
+  }
+
+  /**
+   * Gesto de ponteiro no card: tap abre/alterna, hold seleciona, arrastar
+   * move. Listeners no window só existem durante o gesto (o 2º dedo não
+   * rouba o primeiro).
+   */
+  function beginCardGesture(
+    event: ReactPointerEvent<HTMLDivElement>,
+    card: IdeaCard,
+  ) {
+    if (event.button !== 0) return;
+    // Espaço pressionado: o ponteiro pertence ao pan, não ao card.
+    if (spacePanningRef.current) return;
+    // Botões internos têm handler próprio; não iniciam gesto no card.
+    if (
+      event.target instanceof Element &&
+      event.target.closest("button, a, input, textarea, select")
+    ) {
+      return;
+    }
+    if (gestureEndRef.current) return;
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const multi = event.ctrlKey || event.metaKey || event.shiftKey;
+    const tracker = createGestureTracker({
+      onTap: () => handleCardTap(card, multi),
+      onHold: () => setSelection(new Set([card.id])),
+      onDragStart: () => {
+        dragIdsRef.current = dragIdsFor(card, cards, selection);
+        setDragDelta({ ids: dragIdsRef.current, x: 0, y: 0 });
+      },
+      onDragMove: (point) => {
+        setDragDelta({
+          ids: dragIdsRef.current,
+          x: point.x - startX,
+          y: point.y - startY,
+        });
+      },
+      onDragEnd: (point) => {
+        void commitDrag(point.x - startX, point.y - startY);
+      },
+      onDragCancel: () => {
+        dragIdsRef.current = [];
+        setDragDelta(null);
+      },
+    });
+    gestureActiveRef.current = true;
+    const onMove = (move: PointerEvent) =>
+      tracker.move({
+        x: move.clientX,
+        y: move.clientY,
+        pointerId: move.pointerId,
+      });
+    const onUp = (up: PointerEvent) => {
+      tracker.end({
+        x: up.clientX,
+        y: up.clientY,
+        pointerId: up.pointerId,
+      });
+      gestureEndRef.current?.();
+    };
+    const onCancel = () => {
+      tracker.cancel();
+      gestureEndRef.current?.();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", onCancel);
+    // Trocar de janela no meio do arraste descarta o movimento.
+    window.addEventListener("blur", onCancel);
+    gestureEndRef.current = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onCancel);
+      window.removeEventListener("blur", onCancel);
+      gestureActiveRef.current = false;
+      gestureEndRef.current = null;
+      dragIdsRef.current = [];
+      setDragDelta(null);
+    };
+    tracker.start({ pointerId: event.pointerId, x: startX, y: startY });
   }
 
   async function undoMove() {
@@ -1142,47 +1291,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               </Button>
             </div>
           ) : null}
-          <DndContext
-            sensors={spacePanning ? [] : sensors}
-            collisionDetection={() => []}
-            onDragStart={(event) => {
-              const card = cards.find((item) => item.id === event.active.id);
-              activeDragRef.current = event.active.id;
-              suppressClick.current = true;
-              // Membros do grupo persistente arrastam juntos; fora dele, a
-              // seleção múltipla inteira; sozinho, só o card ativo.
-              dragIdsRef.current = card
-                ? card.groupId
-                  ? cards
-                      .filter((item) => item.groupId === card.groupId)
-                      .map((item) => item.id)
-                  : selection.has(card.id)
-                    ? [...selection]
-                    : [card.id]
-                : [event.active.id as EntityId];
-              setDragDelta({ ids: dragIdsRef.current, x: 0, y: 0 });
-            }}
-            onDragMove={(event) => {
-              setDragDelta({
-                ids: dragIdsRef.current,
-                x: event.delta.x,
-                y: event.delta.y,
-              });
-            }}
-            onDragEnd={(event) => {
-              activeDragRef.current = null;
-              dragIdsRef.current = [];
-              setDragDelta(null);
-              suppressNextClick();
-              void handleDragEnd(event);
-            }}
-            onDragCancel={() => {
-              activeDragRef.current = null;
-              dragIdsRef.current = [];
-              setDragDelta(null);
-              suppressNextClick();
-            }}
-          >
             <div
               ref={boardRef}
               data-slot="canvas-board"
@@ -1259,9 +1367,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     card={card}
                     linking={linkingFrom === card.id}
                     linkMode={linkingFrom !== null}
-                    suppressClick={suppressClick}
                     selected={selection.has(card.id)}
-                    selectMode={selectMode}
                     dragOffset={
                       dragDelta && dragDelta.ids.includes(card.id)
                         ? { x: dragDelta.x / zoom, y: dragDelta.y / zoom }
@@ -1272,7 +1378,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                         ? groupNames.get(card.groupId)
                         : undefined
                     }
-                    onToggleSelect={() => toggleSelect(card.id)}
+                    onGestureDown={(event) => beginCardGesture(event, card)}
+                    onCardKeyDown={(event) => handleCardKeyDown(event, card)}
                     onLink={() => void toggleLink(card)}
                     onEdit={() => setEditCard(card)}
                     onSend={() => setSendCard(card)}
@@ -1282,7 +1389,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                 </div>
               </div>
             </div>
-          </DndContext>
         </>
       )}
 
@@ -1458,177 +1564,6 @@ function marqueeHits(
         rect.x < x1 && rect.x + rect.width > x0 && rect.y < y1 && rect.y + rect.height > y0,
     )
     .map(([id]) => id as EntityId);
-}
-
-async function removeCard(card: IdeaCard) {
-  await ideaCardRepository.softDelete(card.id);
-  playUiSound("delete");
-  toast(`"${card.title}" movido para a lixeira`, {
-    action: {
-      label: "Desfazer",
-      onClick: () => {
-        void ideaCardRepository.restore(card.id);
-      },
-    },
-  });
-}
-
-interface IdeaCardViewProps {
-  card: IdeaCard;
-  linking: boolean;
-  linkMode: boolean;
-  /** Suprime o clique que o navegador dispara ao soltar um arraste. */
-  suppressClick: RefObject<boolean>;
-  selected: boolean;
-  selectMode: boolean;
-  /** Deslocamento visual do drag (px de conteúdo) para todos os ids do lote. */
-  dragOffset: { x: number; y: number } | null;
-  /** Nome do grupo persistente do card, se houver (badge). */
-  groupName?: string;
-  onToggleSelect: () => void;
-  onLink: () => void;
-  onEdit: () => void;
-  onSend: () => void;
-  onDuplicate: () => void;
-}
-
-function IdeaCardView({
-  card,
-  linking,
-  linkMode,
-  suppressClick,
-  selected,
-  selectMode,
-  dragOffset,
-  groupName,
-  onToggleSelect,
-  onLink,
-  onEdit,
-  onSend,
-  onDuplicate,
-}: IdeaCardViewProps) {
-  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
-    id: card.id,
-  });
-  const style = {
-    left: card.x,
-    top: card.y,
-    // O offset é compartilhado por todos os ids que arrastam juntos — o
-    // transform do dnd só cobria o card ativo.
-    transform: dragOffset
-      ? `translate3d(${dragOffset.x}px, ${dragOffset.y}px, 0)`
-      : undefined,
-    ...(isDragging ? { zIndex: 10 } : {}),
-  };
-
-  return (
-    <div
-      ref={setNodeRef}
-      data-card-id={card.id}
-      data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
-      aria-label={`Ideia ${card.title}`}
-      style={style}
-      onClick={(event) => {
-        if (suppressClick.current) return;
-        // Clique em botão/link interno tem handler próprio; não abre o card.
-        if (
-          event.target instanceof Element &&
-          event.target.closest("button, a, input, textarea, select")
-        ) {
-          return;
-        }
-        // Modo seleção (ou Ctrl/Shift+clique) alterna; senão abre o card.
-        if (selectMode || event.ctrlKey || event.metaKey || event.shiftKey) {
-          onToggleSelect();
-          return;
-        }
-        onEdit();
-      }}
-      // transition-none: o MotionStyle global injeta transition-duration em *;
-      // sem isso o transform do drag transiciona a cada pointermove (lag).
-      className={`absolute w-56 cursor-grab touch-none rounded-lg border-2 bg-card p-3 shadow-sm transition-none select-none ${CARD_COLORS[card.color ?? "yellow"] ?? ""} ${selected ? "ring-2 ring-primary" : ""} ${isDragging ? "opacity-70" : ""}`}
-    >
-      <p className="mb-1 min-w-0 break-words text-sm font-medium">
-        {card.title}
-      </p>
-      {groupName ? (
-        <p className="mb-1 truncate text-[10px] text-muted-foreground">
-          {groupName}
-        </p>
-      ) : null}
-      {card.content ? (
-        <p className="mb-2 line-clamp-4 text-xs break-words whitespace-pre-wrap text-muted-foreground">
-          {card.content}
-        </p>
-      ) : null}
-      <div className="flex items-center gap-1">
-        {card.sentSceneId ? (
-          <Link
-            href={`/outline?scene=${card.sentSceneId}`}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <Badge variant="outline" className="text-[10px]">
-              → Cena
-            </Badge>
-          </Link>
-        ) : null}
-        <span className="flex-1" />
-        <Button
-          variant="ghost"
-          size="icon"
-          className={`size-7 ${linking ? "bg-accent text-accent-foreground" : ""}`}
-          aria-label={
-            linking
-              ? `Cancelar conexão de ${card.title}`
-              : linkMode
-                ? `Conectar ${card.title} ao card selecionado`
-                : `Conectar ${card.title} a outro card`
-          }
-          onClick={onLink}
-        >
-          <Link2 aria-hidden className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label={`Editar ${card.title}`}
-          onClick={onEdit}
-        >
-          <Pencil aria-hidden className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label={`Transformar ${card.title} em cena`}
-          onClick={onSend}
-        >
-          <Send aria-hidden className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7"
-          aria-label={`Duplicar ${card.title}`}
-          onClick={onDuplicate}
-        >
-          <Copy aria-hidden className="size-4" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="size-7 text-destructive"
-          aria-label={`Excluir ${card.title}`}
-          onClick={() => void removeCard(card)}
-        >
-          <Trash2 aria-hidden className="size-4" />
-        </Button>
-      </div>
-    </div>
-  );
 }
 
 interface EditCardDialogProps {
