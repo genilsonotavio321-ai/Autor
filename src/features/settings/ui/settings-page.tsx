@@ -200,6 +200,12 @@ export function SettingsPage() {
   const setUnblockCloseOnSave = useUiStore(
     (state) => state.setUnblockCloseOnSave,
   );
+  const canvasButtonsHidden = useUiStore(
+    (state) => state.canvasButtonsHidden,
+  );
+  const setCanvasButtonsHidden = useUiStore(
+    (state) => state.setCanvasButtonsHidden,
+  );
   const themeVariantLight = useUiStore((state) => state.themeVariantLight);
   const themeVariantDark = useUiStore((state) => state.themeVariantDark);
   const setThemeVariantLight = useUiStore(
@@ -639,6 +645,27 @@ export function SettingsPage() {
               id="unblock-close-on-save"
               checked={unblockCloseOnSave}
               onCheckedChange={withToggle(setUnblockCloseOnSave)}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="canvas">
+        <CardHeader>
+          <CardTitle>Canvas</CardTitle>
+          <CardDescription>
+            Botões flutuantes no canto do canvas de ideias.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="canvas-buttons-hidden">
+              Ocultar botões do canvas
+            </Label>
+            <Switch
+              id="canvas-buttons-hidden"
+              checked={canvasButtonsHidden}
+              onCheckedChange={withToggle(setCanvasButtonsHidden)}
             />
           </div>
         </CardContent>

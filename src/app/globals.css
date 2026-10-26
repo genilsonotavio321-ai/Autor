@@ -399,3 +399,11 @@
   @apply my-1 border-l-2 pl-2 text-muted-foreground;
 }
 
+/* Esconde a barra de rolagem nativa (o thumb é desenhado por cima). */
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+

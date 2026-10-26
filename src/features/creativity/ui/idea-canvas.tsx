@@ -208,6 +208,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   /** Quadro aguardando confirmação de "Carregar" (substitui o canvas). */
   const [confirmBoard, setConfirmBoard] = useState<IdeaBoard | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  // Configuração: true esconde os botões flutuantes (volta tudo ao menu).
+  const canvasButtonsHidden = useUiStore(
+    (state) => state.canvasButtonsHidden,
+  );
   /** Menu de contexto do card: abre segurando 0,8s sobre o node. */
   const [cardMenu, setCardMenu] = useState<{
     card: IdeaCard;
@@ -1566,13 +1570,14 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           if (file) void importBoardFile(file);
         }}
       />
+      <div className="absolute top-3 right-3 z-40 flex flex-col gap-2">
       <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
         <DropdownMenuTrigger asChild>
           <button
             type="button"
             aria-label="Menu do canvas"
             title="Espaço + arraste (ou dois dedos) move o canvas; Ctrl + rola dá zoom"
-            className="absolute top-3 right-3 z-40 flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
+            className="flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
           >
             <Menu aria-hidden className="size-5" />
           </button>
@@ -1594,25 +1599,29 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             <DropdownMenuItem onClick={() => setPanel("builder")}>
               <Hammer aria-hidden className="size-4" /> Construtor de cena
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={() => zoomBy(1 / 1.25)}>
-              <ZoomOut aria-hidden className="size-4" /> Afastar
-            </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => zoomBy(1.25)}>
-              <ZoomIn aria-hidden className="size-4" /> Aproximar
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={undoStack.length === 0}
-              onClick={() => void undoMove()}
-            >
-              <Undo2 aria-hidden className="size-4" /> Desfazer movimento
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              disabled={redoStack.length === 0}
-              onClick={() => void redoMove()}
-            >
-              <Redo2 aria-hidden className="size-4" /> Refazer movimento
-            </DropdownMenuItem>
+            {canvasButtonsHidden ? (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => zoomBy(1 / 1.25)}>
+                  <ZoomOut aria-hidden className="size-4" /> Afastar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => zoomBy(1.25)}>
+                  <ZoomIn aria-hidden className="size-4" /> Aproximar
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={undoStack.length === 0}
+                  onClick={() => void undoMove()}
+                >
+                  <Undo2 aria-hidden className="size-4" /> Desfazer movimento
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  disabled={redoStack.length === 0}
+                  onClick={() => void redoMove()}
+                >
+                  <Redo2 aria-hidden className="size-4" /> Refazer movimento
+                </DropdownMenuItem>
+              </>
+            ) : null}
             <DropdownMenuSeparator />
             <DropdownMenuItem
               disabled={cards.length === 0}
@@ -1631,7 +1640,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                 <DropdownMenuItem
                   onClick={() => uploadInputRef.current?.click()}
                 >
-                  <Upload aria-hidden className="size-4" /> Importar quadro
+                  <Download aria-hidden className="size-4" /> Importar quadro
                 </DropdownMenuItem>
                 {boards.length > 0 ? <DropdownMenuSeparator /> : null}
                 {boards.map((board) => (
@@ -1668,7 +1677,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                         exportBoardFile(board);
                       }}
                     >
-                      <Download aria-hidden className="size-4" />
+                      <Upload aria-hidden className="size-4" />
                     </Button>
                     <Button
                       type="button"
@@ -1799,6 +1808,49 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             ) : null}
           </DropdownMenuContent>
         </DropdownMenu>
+        {!canvasButtonsHidden ? (
+          <>
+            <button
+              type="button"
+              aria-label="Desfazer movimento"
+              title="Desfazer movimento"
+              disabled={undoStack.length === 0}
+              onClick={() => void undoMove()}
+              className="flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none disabled:opacity-40"
+            >
+              <Undo2 aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Refazer movimento"
+              title="Refazer movimento"
+              disabled={redoStack.length === 0}
+              onClick={() => void redoMove()}
+              className="flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none disabled:opacity-40"
+            >
+              <Redo2 aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Afastar"
+              title="Afastar"
+              onClick={() => zoomBy(1 / 1.25)}
+              className="flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
+            >
+              <ZoomOut aria-hidden className="size-5" />
+            </button>
+            <button
+              type="button"
+              aria-label="Aproximar"
+              title="Aproximar"
+              onClick={() => zoomBy(1.25)}
+              className="flex size-10 items-center justify-center rounded-full border bg-card shadow-lg transition-none"
+            >
+              <ZoomIn aria-hidden className="size-5" />
+            </button>
+          </>
+        ) : null}
+      </div>
       {cardMenu ? (
         <div
           data-card-menu

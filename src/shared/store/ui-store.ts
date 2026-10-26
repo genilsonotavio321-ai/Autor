@@ -117,6 +117,9 @@ interface UiState {
   promptCustomWeight: number;
   /** Desbloqueio: fecha o popup ao guardar a ideia no canvas. */
   unblockCloseOnSave: boolean;
+  /** Canvas: oculta os botões flutuantes (desfazer/refazer/zoom ficam no menu). */
+  canvasButtonsHidden: boolean;
+  setCanvasButtonsHidden: (enabled: boolean) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -205,6 +208,7 @@ export const useUiStore = create<UiState>()(
       panelTabVisible: false,
       promptCustomWeight: 0.5,
       unblockCloseOnSave: true,
+      canvasButtonsHidden: false,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -305,6 +309,8 @@ export const useUiStore = create<UiState>()(
         set({ promptCustomWeight: clamp(weight, 0, 1) }),
       setUnblockCloseOnSave: (enabled) =>
         set({ unblockCloseOnSave: enabled }),
+      setCanvasButtonsHidden: (enabled) =>
+        set({ canvasButtonsHidden: enabled }),
     }),
     {
       name: "autor-ui",
@@ -354,6 +360,7 @@ export const useUiStore = create<UiState>()(
         panelTabVisible: state.panelTabVisible,
         promptCustomWeight: state.promptCustomWeight,
         unblockCloseOnSave: state.unblockCloseOnSave,
+        canvasButtonsHidden: state.canvasButtonsHidden,
       }),
     },
   ),

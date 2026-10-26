@@ -126,4 +126,12 @@ describe("useUiStore", () => {
     expect(useUiStore.getState().unblockCloseOnSave).toBe(false);
     expect(localStorage.getItem("autor-ui")).toContain("unblockCloseOnSave");
   });
+
+  it("Botões flutuantes do canvas visíveis por padrão e o toggle persiste", () => {
+    localStorage.clear();
+    expect(useUiStore.getState().canvasButtonsHidden).toBe(false);
+    useUiStore.getState().setCanvasButtonsHidden(true);
+    expect(useUiStore.getState().canvasButtonsHidden).toBe(true);
+    expect(localStorage.getItem("autor-ui")).toContain("canvasButtonsHidden");
+  });
 });

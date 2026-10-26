@@ -24,6 +24,7 @@ import type { IdeaCard, Json } from "@/shared/types/database";
 import { titleFromPlain } from "../domain/card-title";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { CardDocEditor } from "./card-doc-editor";
+import { CardScrollArea } from "./card-scroll-area";
 
 const CARD_COLORS: Record<string, string> = {
   yellow: "border-yellow-400/70 dark:border-yellow-500/40",
@@ -62,16 +63,16 @@ const LINK_SIDE_LABEL: Record<(typeof LINK_SIDES)[number], string> = {
   left: "esquerda",
 };
 
-// Alças no meio de cada aresta, 14px para dentro (o root tem overflow-hidden:
-// fora da borda o handle seria cortado).
+// Alças no meio de cada aresta, metade para fora do node: ficam no root
+// (sem overflow-hidden), acima do visual, sem cobrir o texto.
 const LINK_ANCHOR: Record<
   (typeof LINK_SIDES)[number],
   { left: string; top: string }
 > = {
-  top: { left: "50%", top: "14px" },
-  right: { left: "calc(100% - 14px)", top: "50%" },
-  bottom: { left: "50%", top: "calc(100% - 14px)" },
-  left: { left: "14px", top: "50%" },
+  top: { left: "50%", top: "0" },
+  right: { left: "100%", top: "50%" },
+  bottom: { left: "50%", top: "100%" },
+  left: { left: "0", top: "50%" },
 };
 
 interface IdeaCardViewProps {
@@ -178,8 +179,6 @@ export function IdeaCardView({
       : card.w !== undefined || card.h !== undefined
         ? { width: card.w ?? 224, height: card.h }
         : {}),
-    // Cor RGB escolhida no menu do card vira borda direto (paleta usa classe).
-    ...(card.color?.startsWith("#") ? { borderColor: card.color } : {}),
   };
 
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -231,8 +230,9 @@ export function IdeaCardView({
       }}
       // transition-none: o MotionStyle global injeta transition-duration em *;
       // sem isso o transform do drag transiciona a cada pointermove (lag).
-      // flex-col + overflow-hidden: o texto acompanha o redimensionamento.
-      className={`absolute flex w-56 cursor-grab touch-none flex-col overflow-hidden rounded-lg border-2 bg-card p-3 shadow-sm transition-none select-none group ${CARD_COLORS[card.color ?? "yellow"] ?? ""} ${selected ? "ring-2 ring-primary" : ""} ${dragOffset ? "opacity-70" : ""}`}
+      // O visual (fundo/borda/recorte) é o filho flex-1; as alças ficam no
+      // root para aparecerem fora do node sem serem cortadas.
+      className={`absolute group flex w-56 cursor-grab touch-none flex-col transition-none select-none ${dragOffset ? "opacity-70" : ""}`}
     >
 
       {!editing ? (
@@ -248,7 +248,7 @@ export function IdeaCardView({
                 ...LINK_ANCHOR[side],
                 transform: `translate(-50%, -50%) scale(${linkScale})`,
               }}
-              className={`absolute z-10 flex size-5 cursor-crosshair touch-none items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
+              className={`absolute z-10 flex size-5 cursor-crosshair touch-none items-center justify-center rounded-full border border-border bg-muted text-muted-foreground shadow-sm transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
             >
               <Link2 aria-hidden className="size-2.5" />
             </button>
@@ -261,9 +261,16 @@ export function IdeaCardView({
           />
         </>
       ) : null}
+      <div
+        className={`flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 bg-card p-3 shadow-sm ${CARD_COLORS[card.color ?? "yellow"] ?? ""} ${selected ? "ring-2 ring-primary" : ""}`}
+        // Cor RGB escolhida no menu do card vira borda direto (paleta usa classe).
+        style={
+          card.color?.startsWith("#") ? { borderColor: card.color } : undefined
+        }
+      >
       {editing ? (
-        <div
-          className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-background/50 p-2"
+        <CardScrollArea
+          className="min-h-0 flex-1 rounded-md border bg-background/50 p-2"
           // Campos internos não iniciam o gesto do card.
           onPointerDown={(event) => event.stopPropagation()}
         >
@@ -277,7 +284,7 @@ export function IdeaCardView({
               setPlain(nextPlain);
             }}
           />
-        </div>
+        </CardScrollArea>
       ) : (
         <>
           {card.refType ? (
@@ -297,7 +304,7 @@ export function IdeaCardView({
               {groupName}
             </p>
           ) : null}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <CardScrollArea className="min-h-0 flex-1">
             {html ? (
               <div
                 className="card-doc text-sm break-words"
@@ -317,7 +324,7 @@ export function IdeaCardView({
                 ) : null}
               </>
             )}
-          </div>
+          </CardScrollArea>
           {card.sentSceneId ? (
             <div className="mt-1 flex items-center gap-1">
               <Link
@@ -332,6 +339,7 @@ export function IdeaCardView({
           ) : null}
         </>
       )}
+      </div>
     </div>
   );
 }
