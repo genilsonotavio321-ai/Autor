@@ -321,8 +321,8 @@ export function DataSection() {
             <div>
               <p className="text-sm font-medium">Backup</p>
               <p className="text-xs text-muted-foreground">
-                Inclui todos os projetos, capítulos, personagens, mundo, notas
-                e configurações.
+                Inclui todos os projetos, capítulos, personagens, mundo, notas,
+                pastas e configurações.
               </p>
             </div>
           </div>

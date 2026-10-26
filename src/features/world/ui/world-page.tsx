@@ -34,7 +34,27 @@ import { formatRelativeTime } from "@/shared/lib/dates";
 import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
-import type { EntityId, Location, LoreEntry } from "@/shared/types/database";
+import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
+import {
+  deleteFolderCascade,
+  restoreFolderCascade,
+} from "@/features/folders/application/folder-service";
+import {
+  directCounts,
+  effectiveParentId,
+  itemsInFolder,
+  rootItems,
+} from "@/features/folders/domain/folder-tree";
+import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
+import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
+import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
+import { FolderCard } from "@/features/folders/ui/folder-card";
+import type {
+  EntityId,
+  Folder,
+  Location,
+  LoreEntry,
+} from "@/shared/types/database";
 
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 
@@ -85,6 +105,85 @@ export function WorldPage() {
       () => (projectId ? characterRepository.listByProject(projectId) : []),
       [projectId],
     ) ?? [];
+  const liveFolders = useLiveQuery(
+    () => (projectId ? folderRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  // Uma árvore de pastas por aba: locais e lore são independentes.
+  const locationFolders = useMemo(
+    () =>
+      (liveFolders ?? []).filter((folder) => folder.kind === "location"),
+    [liveFolders],
+  );
+  const loreFolders = useMemo(
+    () => (liveFolders ?? []).filter((folder) => folder.kind === "lore"),
+    [liveFolders],
+  );
+  const liveLocationFolderIds = useMemo(
+    () => new Set(locationFolders.map((folder) => folder.id)),
+    [locationFolders],
+  );
+  const liveLoreFolderIds = useMemo(
+    () => new Set(loreFolders.map((folder) => folder.id)),
+    [loreFolders],
+  );
+  const [openLocationFolderId, setOpenLocationFolderId] =
+    useState<EntityId | null>(null);
+  const [openLoreFolderId, setOpenLoreFolderId] = useState<EntityId | null>(
+    null,
+  );
+  const currentLocationFolder = useMemo(
+    () =>
+      openLocationFolderId
+        ? (locationFolders.find((f) => f.id === openLocationFolderId) ?? null)
+        : null,
+    [locationFolders, openLocationFolderId],
+  );
+  const currentLoreFolder = useMemo(
+    () =>
+      openLoreFolderId
+        ? (loreFolders.find((f) => f.id === openLoreFolderId) ?? null)
+        : null,
+    [loreFolders, openLoreFolderId],
+  );
+  const viewLocationFolders = useMemo(
+    () =>
+      locationFolders.filter(
+        (folder) =>
+          effectiveParentId(folder, liveLocationFolderIds) ===
+          (openLocationFolderId ?? null),
+      ),
+    [locationFolders, liveLocationFolderIds, openLocationFolderId],
+  );
+  const viewLoreFolders = useMemo(
+    () =>
+      loreFolders.filter(
+        (folder) =>
+          effectiveParentId(folder, liveLoreFolderIds) ===
+          (openLoreFolderId ?? null),
+      ),
+    [loreFolders, liveLoreFolderIds, openLoreFolderId],
+  );
+  const viewLocationFolderIds = useMemo(
+    () => viewLocationFolders.map((folder) => folder.id),
+    [viewLocationFolders],
+  );
+  const viewLoreFolderIds = useMemo(
+    () => viewLoreFolders.map((folder) => folder.id),
+    [viewLoreFolders],
+  );
+  const locationFolderCounts = useMemo(
+    () => directCounts(locationFolders, locations),
+    [locationFolders, locations],
+  );
+  const loreFolderCounts = useMemo(
+    () => directCounts(loreFolders, loreEntries),
+    [loreFolders, loreEntries],
+  );
+  const locationHint = useFolderDragHint({
+    viewFolderIds: viewLocationFolderIds,
+  });
+  const loreHint = useFolderDragHint({ viewFolderIds: viewLoreFolderIds });
 
   const [locationDialog, setLocationDialog] = useState<{
     open: boolean;
@@ -117,10 +216,14 @@ export function WorldPage() {
 
   const titlesById = useMemo(() => {
     const map = new Map<UniqueIdentifier, string>();
+    for (const folder of locationFolders)
+      map.set(folder.id, `pasta ${folder.name}`);
+    for (const folder of loreFolders)
+      map.set(folder.id, `pasta ${folder.name}`);
     for (const location of locations) map.set(location.id, location.name);
     for (const entry of loreEntries) map.set(entry.id, entry.title);
     return map;
-  }, [locations, loreEntries]);
+  }, [locations, loreEntries, locationFolders, loreFolders]);
 
   const announcements = useMemo<Announcements>(() => {
     const labelFor = (id: UniqueIdentifier) => titlesById.get(id) ?? "ficha";
@@ -167,6 +270,57 @@ export function WorldPage() {
     setPendingLoreId(null);
   }, [pendingLoreId, pendingView, loreEntries]);
 
+  // Pasta aberta morreu (excluída em cascata etc.) — volta à raiz em vez de
+  // deixar a aba presa numa pasta fantasma.
+  useEffect(() => {
+    if (
+      openLocationFolderId &&
+      !locationFolders.some((folder) => folder.id === openLocationFolderId)
+    ) {
+      setOpenLocationFolderId(null);
+    }
+  }, [locationFolders, openLocationFolderId]);
+
+  useEffect(() => {
+    if (
+      openLoreFolderId &&
+      !loreFolders.some((folder) => folder.id === openLoreFolderId)
+    ) {
+      setOpenLoreFolderId(null);
+    }
+  }, [loreFolders, openLoreFolderId]);
+
+  // Locais visíveis na aba: raiz = fichas-mãe sem pasta (ou de pasta morta);
+  // dentro da pasta, os membros diretos dela.
+  const visibleLocations = useMemo(
+    () =>
+      openLocationFolderId === null
+        ? rootItems(topLevelLocations, liveLocationFolderIds)
+        : itemsInFolder(topLevelLocations, openLocationFolderId),
+    [topLevelLocations, liveLocationFolderIds, openLocationFolderId],
+  );
+  const viewLocationIds = useMemo(
+    () => [
+      ...viewLocationFolderIds,
+      ...visibleLocations.map((location) => location.id),
+    ],
+    [viewLocationFolderIds, visibleLocations],
+  );
+  const visibleLoreEntries = useMemo(
+    () =>
+      openLoreFolderId === null
+        ? rootItems(loreEntries, liveLoreFolderIds)
+        : itemsInFolder(loreEntries, openLoreFolderId),
+    [loreEntries, liveLoreFolderIds, openLoreFolderId],
+  );
+  const viewLoreIds = useMemo(
+    () => [
+      ...viewLoreFolderIds,
+      ...visibleLoreEntries.map((entry) => entry.id),
+    ],
+    [viewLoreFolderIds, visibleLoreEntries],
+  );
+
   function handleDragStart() {
     suppressClick.current = true;
   }
@@ -183,14 +337,28 @@ export function WorldPage() {
     }, 0);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const ids = topLevelLocations.map((location) => location.id);
-    const oldIndex = ids.indexOf(String(active.id));
-    const newIndex = ids.indexOf(String(over.id));
-    if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(ids, oldIndex, newIndex);
-    void locationRepository
-      .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    void resolveFolderDragEnd({
+      kind: "location",
+      projectId,
+      folders: locationFolders,
+      viewFolderIds: viewLocationFolderIds,
+      openFolderId: openLocationFolderId,
+      activeId,
+      overId,
+      activeRect: active.rect.current.translated,
+      overRect: over.rect,
+    })
+      .then((outcome) => {
+        if (outcome === "created") {
+          playUiSound("create");
+          toast.success("Pasta criada com os dois locais");
+        } else if (outcome === "reorder") {
+          reorderLocations(activeId, overId);
+        }
+      })
+      .catch(() => toast.error("Falha ao mover"));
   }
 
   function handleLoreDragEnd(event: DragEndEvent) {
@@ -199,11 +367,52 @@ export function WorldPage() {
     }, 0);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const ids = loreEntries.map((entry) => entry.id);
-    const oldIndex = ids.indexOf(String(active.id));
-    const newIndex = ids.indexOf(String(over.id));
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    void resolveFolderDragEnd({
+      kind: "lore",
+      projectId,
+      folders: loreFolders,
+      viewFolderIds: viewLoreFolderIds,
+      openFolderId: openLoreFolderId,
+      activeId,
+      overId,
+      activeRect: active.rect.current.translated,
+      overRect: over.rect,
+    })
+      .then((outcome) => {
+        if (outcome === "created") {
+          playUiSound("create");
+          toast.success("Pasta criada com as duas entradas");
+        } else if (outcome === "reorder") {
+          reorderLoreEntries(activeId, overId);
+        }
+      })
+      .catch(() => toast.error("Falha ao mover"));
+  }
+
+  /** Reordenação de fichas (drop na borda do card) — pastas ficam de fora. */
+  function reorderLocations(activeId: string, overId: string) {
+    const oldIndex = viewLocationIds.indexOf(activeId);
+    const newIndex = viewLocationIds.indexOf(overId);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(ids, oldIndex, newIndex);
+    const folderIdSet = new Set(viewLocationFolderIds);
+    const reordered = arrayMove(viewLocationIds, oldIndex, newIndex).filter(
+      (id) => !folderIdSet.has(id),
+    );
+    void locationRepository
+      .applyMoves(reordered.map((id, order) => ({ id, order })))
+      .catch(() => toast.error("Falha ao reordenar"));
+  }
+
+  function reorderLoreEntries(activeId: string, overId: string) {
+    const oldIndex = viewLoreIds.indexOf(activeId);
+    const newIndex = viewLoreIds.indexOf(overId);
+    if (oldIndex === -1 || newIndex === -1) return;
+    const folderIdSet = new Set(viewLoreFolderIds);
+    const reordered = arrayMove(viewLoreIds, oldIndex, newIndex).filter(
+      (id) => !folderIdSet.has(id),
+    );
     void loreEntryRepository
       .applyMoves(reordered.map((id, order) => ({ id, order })))
       .catch(() => toast.error("Falha ao reordenar"));
@@ -233,6 +442,43 @@ export function WorldPage() {
         },
       },
     });
+  }
+
+  async function removeFolder(folder: Folder) {
+    await deleteFolderCascade(folder);
+    playUiSound("delete");
+    toast(`Pasta "${folder.name}" movida para a lixeira`, {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          void restoreFolderCascade(folder.id);
+        },
+      },
+    });
+  }
+
+  async function renameFolder(folder: Folder, name: string) {
+    try {
+      await folderRepository.rename(folder.id, name);
+    } catch {
+      toast.error("Falha ao renomear a pasta");
+    }
+  }
+
+  function exitLocationFolder() {
+    setOpenLocationFolderId(
+      currentLocationFolder
+        ? effectiveParentId(currentLocationFolder, liveLocationFolderIds)
+        : null,
+    );
+  }
+
+  function exitLoreFolder() {
+    setOpenLoreFolderId(
+      currentLoreFolder
+        ? effectiveParentId(currentLoreFolder, liveLoreFolderIds)
+        : null,
+    );
   }
 
   return (
@@ -282,21 +528,50 @@ export function WorldPage() {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 accessibility={{ announcements }}
-                onDragStart={handleDragStart}
-                onDragEnd={handleLocationDragEnd}
-                onDragCancel={handleDragCancel}
+                onDragStart={(event) => {
+                  handleDragStart();
+                  locationHint.onDragStart(event);
+                }}
+                onDragMove={locationHint.onDragMove}
+                onDragOver={locationHint.onDragOver}
+                onDragEnd={(event) => {
+                  locationHint.onDragEnd();
+                  handleLocationDragEnd(event);
+                }}
+                onDragCancel={() => {
+                  locationHint.onDragCancel();
+                  handleDragCancel();
+                }}
               >
+                {currentLocationFolder ? (
+                  <FolderBackBar
+                    title={currentLocationFolder.name}
+                    onBack={exitLocationFolder}
+                  />
+                ) : null}
                 <SortableContext
-                  items={topLevelLocations.map((location) => location.id)}
+                  items={viewLocationIds}
                   strategy={rectSortingStrategy}
                 >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                    {topLevelLocations.map((location) => (
+                    {viewLocationFolders.map((folder) => (
+                      <FolderCard
+                        key={folder.id}
+                        folder={folder}
+                        count={locationFolderCounts.get(folder.id) ?? 0}
+                        suppressClick={suppressClick}
+                        onOpen={(target) => setOpenLocationFolderId(target.id)}
+                        onRename={renameFolder}
+                        onDelete={removeFolder}
+                      />
+                    ))}
+                    {visibleLocations.map((location) => (
                       <LocationCard
                         key={location.id}
                         location={location}
                         childrenByParent={locationChildren}
                         suppressClick={suppressClick}
+                        folderDropActive={locationHint.mode === "create"}
                         onView={setViewLocation}
                         onRemove={removeLocation}
                         onNewChild={(parent) =>
@@ -309,6 +584,12 @@ export function WorldPage() {
                     ))}
                   </ul>
                 </SortableContext>
+                {openLocationFolderId !== null &&
+                viewLocationFolders.length === 0 &&
+                visibleLocations.length === 0 ? (
+                  <EmptyState>Pasta vazia. Arraste locais até aqui.</EmptyState>
+                ) : null}
+                {locationHint.hint}
               </DndContext>
             )}
           </TabsContent>
@@ -324,26 +605,63 @@ export function WorldPage() {
                 sensors={sensors}
                 collisionDetection={closestCenter}
                 accessibility={{ announcements }}
-                onDragStart={handleDragStart}
-                onDragEnd={handleLoreDragEnd}
-                onDragCancel={handleDragCancel}
+                onDragStart={(event) => {
+                  handleDragStart();
+                  loreHint.onDragStart(event);
+                }}
+                onDragMove={loreHint.onDragMove}
+                onDragOver={loreHint.onDragOver}
+                onDragEnd={(event) => {
+                  loreHint.onDragEnd();
+                  handleLoreDragEnd(event);
+                }}
+                onDragCancel={() => {
+                  loreHint.onDragCancel();
+                  handleDragCancel();
+                }}
               >
+                {currentLoreFolder ? (
+                  <FolderBackBar
+                    title={currentLoreFolder.name}
+                    onBack={exitLoreFolder}
+                  />
+                ) : null}
                 <SortableContext
-                  items={loreEntries.map((entry) => entry.id)}
+                  items={viewLoreIds}
                   strategy={rectSortingStrategy}
                 >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
-                    {loreEntries.map((entry) => (
+                    {viewLoreFolders.map((folder) => (
+                      <FolderCard
+                        key={folder.id}
+                        folder={folder}
+                        count={loreFolderCounts.get(folder.id) ?? 0}
+                        suppressClick={suppressClick}
+                        onOpen={(target) => setOpenLoreFolderId(target.id)}
+                        onRename={renameFolder}
+                        onDelete={removeFolder}
+                      />
+                    ))}
+                    {visibleLoreEntries.map((entry) => (
                       <LoreCard
                         key={entry.id}
                         entry={entry}
                         suppressClick={suppressClick}
+                        folderDropActive={loreHint.mode === "create"}
                         onView={setViewLore}
                         onRemove={removeLore}
                       />
                     ))}
                   </ul>
                 </SortableContext>
+                {openLoreFolderId !== null &&
+                viewLoreFolders.length === 0 &&
+                visibleLoreEntries.length === 0 ? (
+                  <EmptyState>
+                    Pasta vazia. Arraste entradas até aqui.
+                  </EmptyState>
+                ) : null}
+                {loreHint.hint}
               </DndContext>
             )}
           </TabsContent>
@@ -460,6 +778,8 @@ interface LocationCardProps {
   /** Filhos por ficha-mãe (item 7) — usados na renderização recursiva. */
   childrenByParent: Map<EntityId, Location[]>;
   suppressClick: RefObject<boolean>;
+  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
+  folderDropActive: boolean;
   onView: (location: Location) => void;
   onRemove: (location: Location) => void;
   onNewChild: (location: Location) => void;
@@ -469,15 +789,25 @@ function LocationCard({
   location,
   childrenByParent,
   suppressClick,
+  folderDropActive,
   onView,
   onRemove,
   onNewChild,
 }: LocationCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: location.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: location.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Congela o "abre espaço" do sortable: só o card arrastado se move,
+    // o alvo não foge do ponteiro (soltar no centro vira fácil).
+    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
     transition,
   };
 
@@ -503,7 +833,7 @@ function LocationCard({
       }}
       className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         isDragging ? "opacity-60" : ""
-      }`}
+      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >
       <div className="mb-2 flex items-start gap-2">
         <button
@@ -672,16 +1002,33 @@ function LocationChildRow({
 interface LoreCardProps {
   entry: LoreEntry;
   suppressClick: RefObject<boolean>;
+  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
+  folderDropActive: boolean;
   onView: (entry: LoreEntry) => void;
   onRemove: (entry: LoreEntry) => void;
 }
 
-function LoreCard({ entry, suppressClick, onView, onRemove }: LoreCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: entry.id });
+function LoreCard({
+  entry,
+  suppressClick,
+  folderDropActive,
+  onView,
+  onRemove,
+}: LoreCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: entry.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Congela o "abre espaço" do sortable: só o card arrastado se move,
+    // o alvo não foge do ponteiro (soltar no centro vira fácil).
+    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
     transition,
   };
 
@@ -707,7 +1054,7 @@ function LoreCard({ entry, suppressClick, onView, onRemove }: LoreCardProps) {
       }}
       className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         isDragging ? "opacity-60" : ""
-      }`}
+      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >
       <div className="mb-2 flex items-start gap-2">
         <button

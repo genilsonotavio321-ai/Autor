@@ -75,12 +75,27 @@ import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { playUiSound } from "@/shared/lib/sound";
-import type { EntityId, Note } from "@/shared/types/database";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
 import { ExportFormatDialog, type ExportFormat } from "@/features/export/ui/export-format-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
+import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
+import {
+  deleteFolderCascade,
+  restoreFolderCascade,
+} from "@/features/folders/application/folder-service";
+import {
+  directCounts,
+  effectiveParentId,
+  itemsInFolder,
+  rootItems,
+} from "@/features/folders/domain/folder-tree";
+import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
+import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
+import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
+import { FolderCard } from "@/features/folders/ui/folder-card";
+import type { EntityId, Folder, Note } from "@/shared/types/database";
 
 import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
 import { noteRepository } from "../infra/dexie-note-repository";
@@ -146,14 +161,76 @@ export function NotesPage() {
   }, [pendingId, notes]);
 
   const sortedNotes = useMemo(() => sortNotes(notes, sort), [notes, sort]);
+  const liveFolders = useLiveQuery(
+    () => (projectId ? folderRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  // Pastas da aba Notas (uma árvore por tipo de ficha).
+  const folders = useMemo(
+    () => (liveFolders ?? []).filter((folder) => folder.kind === "note"),
+    [liveFolders],
+  );
+  const liveFolderIds = useMemo(
+    () => new Set(folders.map((folder) => folder.id)),
+    [folders],
+  );
+  const [openFolderId, setOpenFolderId] = useState<EntityId | null>(null);
+  const currentFolder = useMemo(
+    () =>
+      openFolderId
+        ? (folders.find((folder) => folder.id === openFolderId) ?? null)
+        : null,
+    [folders, openFolderId],
+  );
+  const viewFolders = useMemo(
+    () =>
+      folders.filter(
+        (folder) =>
+          effectiveParentId(folder, liveFolderIds) === (openFolderId ?? null),
+      ),
+    [folders, liveFolderIds, openFolderId],
+  );
+  const viewFolderIds = useMemo(
+    () => viewFolders.map((folder) => folder.id),
+    [viewFolders],
+  );
+  const folderHint = useFolderDragHint({ viewFolderIds });
+  const folderCounts = useMemo(
+    () => directCounts(folders, notes),
+    [folders, notes],
+  );
+  // Dentro da pasta, fixadas e soltas aparecem juntas (a seção "Fixadas"
+  // é só da raiz e ignora notas de pastas).
+  const folderNotes = useMemo(
+    () =>
+      openFolderId === null ? [] : itemsInFolder(sortedNotes, openFolderId),
+    [sortedNotes, openFolderId],
+  );
+  const folderNoteIds = useMemo(
+    () => folderNotes.map((note) => note.id),
+    [folderNotes],
+  );
+  const rootNotes = useMemo(
+    () =>
+      openFolderId === null ? rootItems(sortedNotes, liveFolderIds) : [],
+    [sortedNotes, liveFolderIds, openFolderId],
+  );
   const pinnedNotes = useMemo(
-    () => sortedNotes.filter((note) => note.pinned),
-    [sortedNotes],
+    () => rootNotes.filter((note) => note.pinned),
+    [rootNotes],
   );
   const regularNotes = useMemo(
-    () => sortedNotes.filter((note) => !note.pinned),
-    [sortedNotes],
+    () => rootNotes.filter((note) => !note.pinned),
+    [rootNotes],
   );
+
+  // Pasta aberta morreu (excluída em cascata, restaurada na lixeira etc.) —
+  // volta à raiz em vez de deixar a página presa numa pasta fantasma.
+  useEffect(() => {
+    if (openFolderId && !folders.some((folder) => folder.id === openFolderId)) {
+      setOpenFolderId(null);
+    }
+  }, [folders, openFolderId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -194,15 +271,52 @@ export function NotesPage() {
     }, 0);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const activeNote = notes.find((note) => note.id === active.id);
-    const overNote = notes.find((note) => note.id === over.id);
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    void resolveFolderDragEnd({
+      kind: "note",
+      projectId,
+      folders,
+      viewFolderIds,
+      openFolderId,
+      activeId,
+      overId,
+      activeRect: active.rect.current.translated,
+      overRect: over.rect,
+    })
+      .then((outcome) => {
+        if (outcome === "created") {
+          playUiSound("create");
+          toast.success("Pasta criada com as duas notas");
+        } else if (outcome === "reorder") {
+          reorderNotes(activeId, overId);
+        }
+      })
+      .catch(() => toast.error("Falha ao mover"));
+  }
+
+  /** Reordenação de fichas (drop na borda): na raiz mantém o esquema
+   * fixadas/soltas; dentro da pasta reordena só as notas da pasta. */
+  function reorderNotes(activeId: string, overId: string) {
+    if (openFolderId !== null) {
+      const oldIndex = folderNoteIds.indexOf(activeId);
+      const newIndex = folderNoteIds.indexOf(overId);
+      if (oldIndex < 0 || newIndex < 0) return;
+      const reordered = arrayMove(folderNoteIds, oldIndex, newIndex);
+      void noteRepository
+        .applyMoves(reordered.map((id, order) => ({ id, order })))
+        .catch(() => toast.error("Falha ao reordenar"));
+      return;
+    }
+    const activeNote = notes.find((note) => note.id === activeId);
+    const overNote = notes.find((note) => note.id === overId);
     // Cross-group drags are not persisted (pinned and regular keep separate
     // ordering); mirroring the no-op fallback from the chapter list.
     if (!activeNote || !overNote || activeNote.pinned !== overNote.pinned) return;
     const group = activeNote.pinned ? pinnedNotes : regularNotes;
     const ids = group.map((note) => note.id);
-    const oldIndex = ids.indexOf(String(active.id));
-    const newIndex = ids.indexOf(String(over.id));
+    const oldIndex = ids.indexOf(activeId);
+    const newIndex = ids.indexOf(overId);
     if (oldIndex < 0 || newIndex < 0) return;
     const reordered = arrayMove(ids, oldIndex, newIndex);
     // Persist the full visible order (pinned first, then regular).
@@ -236,6 +350,35 @@ export function NotesPage() {
         },
       },
     });
+  }
+
+  async function removeFolder(folder: Folder) {
+    await deleteFolderCascade(folder);
+    playUiSound("delete");
+    toast(`Pasta "${folder.name}" movida para a lixeira`, {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          void restoreFolderCascade(folder.id);
+        },
+      },
+    });
+  }
+
+  async function renameFolder(folder: Folder, name: string) {
+    try {
+      await folderRepository.rename(folder.id, name);
+    } catch {
+      toast.error("Falha ao renomear a pasta");
+    }
+  }
+
+  function exitFolder() {
+    setOpenFolderId(
+      currentFolder
+        ? effectiveParentId(currentFolder, liveFolderIds)
+        : null,
+    );
   }
 
   async function clearNotes() {
@@ -424,54 +567,123 @@ export function NotesPage() {
           sensors={sensors}
           collisionDetection={closestCenter}
           accessibility={{ announcements }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
+          onDragStart={(event) => {
+            handleDragStart();
+            folderHint.onDragStart(event);
+          }}
+          onDragMove={folderHint.onDragMove}
+          onDragOver={folderHint.onDragOver}
+          onDragEnd={(event) => {
+            folderHint.onDragEnd();
+            handleDragEnd(event);
+          }}
+          onDragCancel={() => {
+            folderHint.onDragCancel();
+            handleDragCancel();
+          }}
         >
           <div className="grid gap-6">
-            {pinnedNotes.length > 0 ? (
-              <section aria-label="Notas fixadas">
+            {currentFolder ? (
+              <FolderBackBar title={currentFolder.name} onBack={exitFolder} />
+            ) : null}
+            {viewFolders.length > 0 ? (
+              <section aria-label="Pastas de notas">
                 <SortableContext
-                  items={pinnedNotes.map((note) => note.id)}
+                  items={viewFolderIds}
                   strategy={rectSortingStrategy}
                 >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                    {pinnedNotes.map((note) => (
-                      <NoteCard
-                        key={note.id}
-                        note={note}
+                    {viewFolders.map((folder) => (
+                      <FolderCard
+                        key={folder.id}
+                        folder={folder}
+                        count={folderCounts.get(folder.id) ?? 0}
                         suppressClick={suppressClick}
-                        onOpenView={(target) => setViewNote(target)}
-                        onTogglePin={(target) => void togglePin(target)}
-                        onShare={(target) => setExportTarget({ open: true, note: target })}
-                        onRemove={(target) => void remove(target)}
+                        onOpen={(target) => setOpenFolderId(target.id)}
+                        onRename={renameFolder}
+                        onDelete={removeFolder}
                       />
                     ))}
                   </ul>
                 </SortableContext>
               </section>
             ) : null}
-            <section aria-label="Notas">
-              <SortableContext
-                items={regularNotes.map((note) => note.id)}
-                strategy={rectSortingStrategy}
-              >
-                <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                  {regularNotes.map((note) => (
-                    <NoteCard
-                      key={note.id}
-                      note={note}
-                      suppressClick={suppressClick}
-                      onOpenView={(target) => setViewNote(target)}
-                      onTogglePin={(target) => void togglePin(target)}
-                      onShare={(target) => setExportTarget({ open: true, note: target })}
-                      onRemove={(target) => void remove(target)}
-                    />
-                  ))}
-                </ul>
-              </SortableContext>
-            </section>
+            {openFolderId === null ? (
+              <>
+                {pinnedNotes.length > 0 ? (
+                  <section aria-label="Notas fixadas">
+                    <SortableContext
+                      items={pinnedNotes.map((note) => note.id)}
+                      strategy={rectSortingStrategy}
+                    >
+                      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+                        {pinnedNotes.map((note) => (
+                          <NoteCard
+                            key={note.id}
+                            note={note}
+                            suppressClick={suppressClick}
+                            folderDropActive={folderHint.mode === "create"}
+                            onOpenView={(target) => setViewNote(target)}
+                            onTogglePin={(target) => void togglePin(target)}
+                            onShare={(target) => setExportTarget({ open: true, note: target })}
+                            onRemove={(target) => void remove(target)}
+                          />
+                        ))}
+                      </ul>
+                    </SortableContext>
+                  </section>
+                ) : null}
+                <section aria-label="Notas">
+                  <SortableContext
+                    items={regularNotes.map((note) => note.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+                      {regularNotes.map((note) => (
+                        <NoteCard
+                          key={note.id}
+                          note={note}
+                          suppressClick={suppressClick}
+                          folderDropActive={folderHint.mode === "create"}
+                          onOpenView={(target) => setViewNote(target)}
+                          onTogglePin={(target) => void togglePin(target)}
+                          onShare={(target) => setExportTarget({ open: true, note: target })}
+                          onRemove={(target) => void remove(target)}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                </section>
+              </>
+            ) : (
+              <section aria-label="Notas da pasta">
+                {folderNotes.length > 0 ? (
+                  <SortableContext
+                    items={folderNoteIds}
+                    strategy={rectSortingStrategy}
+                  >
+                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+                      {folderNotes.map((note) => (
+                        <NoteCard
+                          key={note.id}
+                          note={note}
+                          suppressClick={suppressClick}
+                          folderDropActive={folderHint.mode === "create"}
+                          onOpenView={(target) => setViewNote(target)}
+                          onTogglePin={(target) => void togglePin(target)}
+                          onShare={(target) => setExportTarget({ open: true, note: target })}
+                          onRemove={(target) => void remove(target)}
+                        />
+                      ))}
+                    </ul>
+                  </SortableContext>
+                ) : viewFolders.length === 0 ? (
+                  <EmptyState>Pasta vazia. Arraste notas até aqui.</EmptyState>
+                ) : null}
+              </section>
+            )}
           </div>
+          {folderHint.hint}
         </DndContext>
       )}
 
@@ -518,6 +730,8 @@ export function NotesPage() {
 interface NoteCardProps {
   note: Note;
   suppressClick: React.RefObject<boolean>;
+  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
+  folderDropActive: boolean;
   onOpenView: (note: Note) => void;
   onTogglePin: (note: Note) => void;
   onShare: (note: Note) => void;
@@ -527,16 +741,26 @@ interface NoteCardProps {
 function NoteCard({
   note,
   suppressClick,
+  folderDropActive,
   onOpenView,
   onTogglePin,
   onShare,
   onRemove,
 }: NoteCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: note.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: note.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Congela o "abre espaço" do sortable: só o card arrastado se move,
+    // o alvo não foge do ponteiro (soltar no centro vira fácil).
+    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
     transition,
   };
 
@@ -562,7 +786,7 @@ function NoteCard({
       }}
       className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         isDragging ? "z-10 opacity-60" : ""
-      }`}
+      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >
       <div className="mb-2 flex items-start gap-2">
         <button

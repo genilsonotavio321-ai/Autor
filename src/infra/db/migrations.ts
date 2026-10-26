@@ -39,6 +39,7 @@ export const TABLE_NAMES = [
   "ideaGroups",
   "ideaBoards",
   "promptItems",
+  "folders",
 ] as const;
 
 /** Full JSON dump of every table — stored before any migration runs. */

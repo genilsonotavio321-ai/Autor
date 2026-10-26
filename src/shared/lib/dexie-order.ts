@@ -1,7 +1,11 @@
 import type Dexie from "dexie";
 
 /** Tables carrying a manual (non-indexed) `order` property. */
-export type OrderTableName = "characters" | "locations" | "loreEntries";
+export type OrderTableName =
+  | "characters"
+  | "locations"
+  | "loreEntries"
+  | "folders";
 
 /**
  * Persists a drag-and-drop reorder in a single transaction. Shared by the

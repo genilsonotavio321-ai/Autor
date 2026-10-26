@@ -2,6 +2,7 @@ import { versionRepository } from "@/features/editor/infra/dexie-version-reposit
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { ideaCardRepository } from "@/features/creativity/infra/dexie-idea-card-repository";
+import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import { plotBeatRepository } from "@/features/plot/infra/dexie-plot-beat-repository";
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
@@ -26,7 +27,8 @@ export type TrashItemKind =
   | "scene"
   | "event"
   | "beat"
-  | "ideaCard";
+  | "ideaCard"
+  | "folder";
 
 interface HardDeletable {
   hardDelete(id: EntityId): Promise<void>;
@@ -114,6 +116,7 @@ async function purgeProject(projectId: EntityId): Promise<void> {
     timelineEventRepository,
     noteRepository,
     ideaCardRepository,
+    folderRepository,
   ];
   for (const repo of ownedRepos) {
     const rows = await projectRows(repo, projectId);
@@ -174,6 +177,9 @@ export async function purgeTrashItem(
     case "ideaCard":
       await purgeEntity(ideaCardRepository, id);
       return;
+    case "folder":
+      await purgeEntity(folderRepository, id);
+      return;
   }
 }
 
@@ -198,4 +204,5 @@ export async function emptyTrash(): Promise<void> {
   await purgeDeleted(timelineEventRepository);
   await purgeDeleted(plotBeatRepository);
   await purgeDeleted(ideaCardRepository);
+  await purgeDeleted(folderRepository);
 }

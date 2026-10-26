@@ -67,7 +67,12 @@ export function ProjectCard({
   );
 
   return (
-    <Link href={`/projects/${project.id}`} className="group block h-full">
+    <Link
+      href={`/projects/${project.id}`}
+      // Abrir um projeto também o seleciona como projeto carregado no app.
+      onClick={() => setSelectedProjectId(project.id)}
+      className="group block h-full"
+    >
       <Card className="relative h-full transition-colors group-hover:border-primary/40">
         <Button
           variant="ghost"
@@ -127,9 +132,14 @@ export function ProjectRow({
   project: Project;
   stats?: ProjectStats;
 }) {
+  const setSelectedProjectId = useUiStore(
+    (state) => state.setSelectedProjectId,
+  );
   return (
     <Link
       href={`/projects/${project.id}`}
+      // Abrir um projeto também o seleciona como projeto carregado no app.
+      onClick={() => setSelectedProjectId(project.id)}
       className="flex flex-wrap items-center gap-x-3 gap-y-1 overflow-hidden rounded-lg border bg-card p-3 transition-colors hover:border-primary/40 hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
     >
       <div

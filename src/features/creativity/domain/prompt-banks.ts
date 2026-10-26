@@ -157,6 +157,64 @@ function agree(text: string, gender?: CharacterGender): string {
   return text.replaceAll("@", gender === "feminino" ? "a" : "o");
 }
 
+/** Quantas vezes o token aparece no template. */
+function countToken(text: string, token: string): number {
+  return text.split(token).length - 1;
+}
+
+/**
+ * Um template com N ocorrências de `{personagem}` exige N fichas distintas —
+ * com menos que isso ele fica fora do sorteio (evita "O que Kinger quer de
+ * Kinger?" quando só existe uma ficha).
+ */
+function needsDistinct(
+  text: string,
+  token: string,
+  pool: readonly unknown[] | undefined,
+): boolean {
+  return countToken(text, token) >= 2 && (pool?.length ?? 0) < 2;
+}
+
+/**
+ * Substitui cada `{personagem}`/`{local}` por um nome distinto dentro da
+ * frase: rodízio a partir de `charSeed`/`locSeed`, então duas ocorrências
+ * nunca recebem o mesmo nome enquanto houver fichas suficientes. `exclude`
+ * tira nomes já usados fora do fill (o sujeito do "E se"); com todas as
+ * fichas excluídas, cai no rodízio completo (repetição inevitável).
+ */
+export function fillPlaceholders(
+  text: string,
+  characters: Character[] | undefined,
+  locations: Location[] | undefined,
+  charSeed: number,
+  locSeed: number,
+  exclude: string[] = [],
+): string {
+  let filled = text;
+  if (characters && characters.length > 0) {
+    const pool = characters.filter((item) => !exclude.includes(item.name));
+    const usable = pool.length > 0 ? pool : characters;
+    const start = ((charSeed % usable.length) + usable.length) % usable.length;
+    let index = 0;
+    filled = filled.replace(/\{personagem\}/g, () => {
+      const name = usable[(start + index) % usable.length]!.name;
+      index += 1;
+      return name;
+    });
+  }
+  if (locations && locations.length > 0) {
+    const usable = locations;
+    const start = ((locSeed % usable.length) + usable.length) % usable.length;
+    let index = 0;
+    filled = filled.replace(/\{local\}/g, () => {
+      const name = usable[(start + index) % usable.length]!.name;
+      index += 1;
+      return name;
+    });
+  }
+  return filled;
+}
+
 /** Sorteia uma pergunta provocativa da categoria; com fichas de personagem
  * ou locais no projeto, o banco ganha perguntas sobre um deles. `weight` é
  * a chance de sair variante customizada (0 = nunca, 1 = sempre); sem
@@ -173,7 +231,9 @@ export function drawPrompt(
   const customPool = (custom ?? []).filter(
     (item) =>
       ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
-      ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
+      ((locations?.length ?? 0) > 0 || !item.includes("{local}")) &&
+      !needsDistinct(item, "{personagem}", characters) &&
+      !needsDistinct(item, "{local}", locations),
   );
   const builtinPool = [
     ...PROMPT_BANKS[category],
@@ -189,13 +249,8 @@ export function drawPrompt(
     characters && characters.length > 0
       ? drawFrom(characters, seed + 3)
       : undefined;
-  const location =
-    locations && locations.length > 0
-      ? drawFrom(locations, seed + 11)
-      : undefined;
   let text = question;
-  if (character) text = text.replaceAll("{personagem}", character.name);
-  if (location) text = text.replaceAll("{local}", location.name);
+  text = fillPlaceholders(text, characters, locations, seed + 3, seed + 11);
   text = agree(text, character?.gender);
   return text === last
     ? drawPrompt(
@@ -231,11 +286,14 @@ export function drawWhatIf(
     character?.gender === "masculino" || character?.gender === "feminino";
   // Ficha sem gênero m/f nunca recebe templates com `@`.
   const dropGendered = character !== undefined && !agrees;
-  // Variante que depende de um placeholder vazio fica fora do sorteio.
+  // Variante que depende de um placeholder vazio fica fora do sorteio; o
+  // mesmo vale para template que exige nomes distintos sem fichas suficientes.
   const customPool = (custom ?? []).filter(
     (item) =>
       ((characters?.length ?? 0) > 0 || !item.includes("{personagem}")) &&
-      ((locations?.length ?? 0) > 0 || !item.includes("{local}")),
+      ((locations?.length ?? 0) > 0 || !item.includes("{local}")) &&
+      !needsDistinct(item, "{personagem}", characters) &&
+      !needsDistinct(item, "{local}", locations),
   );
   const eligibleCustoms = dropGendered
     ? customPool.filter((item) => !item.includes("@"))
@@ -250,23 +308,20 @@ export function drawWhatIf(
   const roll = (((seed % 100) + 100) % 100) / 100;
   const useCustom = eligibleCustoms.length > 0 && roll < weight;
 
-  /** Placeholders + concordância de gênero na variante sorteada. */
-  const fill = (text: string): string => {
-    let filled = text;
-    if (characters && characters.length > 0) {
-      filled = filled.replaceAll(
-        "{personagem}",
-        drawFrom(characters, seed + 5).name,
-      );
-    }
-    if (locations && locations.length > 0) {
-      filled = filled.replaceAll(
-        "{local}",
-        drawFrom(locations, seed + 13).name,
-      );
-    }
-    return agree(filled, character?.gender);
-  };
+  /** Placeholders + concordância de gênero na variante sorteada. O sujeito
+   * entra no exclude para não repetir seu próprio nome no resto da frase. */
+  const fill = (text: string): string =>
+    agree(
+      fillPlaceholders(
+        text,
+        characters,
+        locations,
+        seed + 5,
+        seed + 13,
+        character ? [character.name] : [],
+      ),
+      character?.gender,
+    );
 
   const subject = character
     ? character.name

@@ -43,7 +43,28 @@ import { useSelectedProject } from "@/features/projects/application/use-selected
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { resolveTagColor } from "@/features/tags/domain/repository";
 import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
-import type { Character, CharacterRole, Tag } from "@/shared/types/database";
+import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
+import {
+  deleteFolderCascade,
+  restoreFolderCascade,
+} from "@/features/folders/application/folder-service";
+import {
+  directCounts,
+  effectiveParentId,
+  itemsInFolder,
+  rootItems,
+} from "@/features/folders/domain/folder-tree";
+import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
+import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
+import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
+import { FolderCard } from "@/features/folders/ui/folder-card";
+import type {
+  Character,
+  CharacterRole,
+  EntityId,
+  Folder,
+  Tag,
+} from "@/shared/types/database";
 
 import { CHARACTER_ROLE_LABELS } from "../domain/repository";
 import { buildRandomCharacter } from "../domain/random-character";
@@ -71,6 +92,44 @@ export function CharactersPage() {
     [projectId],
   );
   const characters = useMemo(() => liveCharacters ?? [], [liveCharacters]);
+  const liveFolders = useLiveQuery(
+    () => (projectId ? folderRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  // Pastas da aba Personagens (uma árvore por tipo de ficha).
+  const folders = useMemo(
+    () => (liveFolders ?? []).filter((folder) => folder.kind === "character"),
+    [liveFolders],
+  );
+  const liveFolderIds = useMemo(
+    () => new Set(folders.map((folder) => folder.id)),
+    [folders],
+  );
+  const [openFolderId, setOpenFolderId] = useState<EntityId | null>(null);
+  const currentFolder = useMemo(
+    () =>
+      openFolderId
+        ? (folders.find((folder) => folder.id === openFolderId) ?? null)
+        : null,
+    [folders, openFolderId],
+  );
+  const viewFolders = useMemo(
+    () =>
+      folders.filter(
+        (folder) =>
+          effectiveParentId(folder, liveFolderIds) === (openFolderId ?? null),
+      ),
+    [folders, liveFolderIds, openFolderId],
+  );
+  const viewFolderIds = useMemo(
+    () => viewFolders.map((folder) => folder.id),
+    [viewFolders],
+  );
+  const folderCounts = useMemo(
+    () => directCounts(folders, characters),
+    [folders, characters],
+  );
+  const folderHint = useFolderDragHint({ viewFolderIds });
   const tags =
     useLiveQuery(
       () => (projectId ? tagRepository.listByProject(projectId) : []),
@@ -101,9 +160,10 @@ export function CharactersPage() {
 
   const titlesById = useMemo(() => {
     const map = new Map<UniqueIdentifier, string>();
+    for (const folder of folders) map.set(folder.id, `pasta ${folder.name}`);
     for (const character of characters) map.set(character.id, character.name);
     return map;
-  }, [characters]);
+  }, [characters, folders]);
 
   const announcements = useMemo<Announcements>(() => {
     const labelFor = (id: UniqueIdentifier) => titlesById.get(id) ?? "personagem";
@@ -136,10 +196,32 @@ export function CharactersPage() {
     setPendingId(null);
   }, [pendingId, pendingView, characters]);
 
-  const visible = characters.filter(
+  // Pasta aberta morreu (excluída em cascata, restaurada na lixeira etc.) —
+  // volta à raiz em vez de deixar a página presa numa pasta fantasma.
+  useEffect(() => {
+    if (openFolderId && !folders.some((folder) => folder.id === openFolderId)) {
+      setOpenFolderId(null);
+    }
+  }, [folders, openFolderId]);
+
+  // Raiz mostra fichas sem pasta (ou de pasta apagada); dentro da pasta,
+  // só as fichas dela — o padrão de órfãos das subfichas de locais.
+  const folderCharacters = useMemo(
+    () =>
+      openFolderId === null
+        ? rootItems(characters, liveFolderIds)
+        : itemsInFolder(characters, openFolderId),
+    [characters, liveFolderIds, openFolderId],
+  );
+  const visible = folderCharacters.filter(
     (character) =>
       (roleFilter === ALL || character.role === roleFilter) &&
       (tagFilter === ALL || character.tags.includes(tagFilter)),
+  );
+  // Ordem combinada da grade: pastas da pasta atual primeiro, depois fichas.
+  const viewIds = useMemo(
+    () => [...viewFolderIds, ...visible.map((character) => character.id)],
+    [viewFolderIds, visible],
   );
 
   async function remove(character: Character) {
@@ -153,6 +235,35 @@ export function CharactersPage() {
         },
       },
     });
+  }
+
+  async function removeFolder(folder: Folder) {
+    await deleteFolderCascade(folder);
+    playUiSound("delete");
+    toast(`Pasta "${folder.name}" movida para a lixeira`, {
+      action: {
+        label: "Desfazer",
+        onClick: () => {
+          void restoreFolderCascade(folder.id);
+        },
+      },
+    });
+  }
+
+  async function renameFolder(folder: Folder, name: string) {
+    try {
+      await folderRepository.rename(folder.id, name);
+    } catch {
+      toast.error("Falha ao renomear a pasta");
+    }
+  }
+
+  function exitFolder() {
+    setOpenFolderId(
+      currentFolder
+        ? effectiveParentId(currentFolder, liveFolderIds)
+        : null,
+    );
   }
 
   async function createRandomCharacter() {
@@ -177,11 +288,39 @@ export function CharactersPage() {
     }, 0);
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const ids = visible.map((character) => character.id);
-    const oldIndex = ids.indexOf(String(active.id));
-    const newIndex = ids.indexOf(String(over.id));
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    void resolveFolderDragEnd({
+      kind: "character",
+      projectId,
+      folders,
+      viewFolderIds,
+      openFolderId,
+      activeId,
+      overId,
+      activeRect: active.rect.current.translated,
+      overRect: over.rect,
+    })
+      .then((outcome) => {
+        if (outcome === "created") {
+          playUiSound("create");
+          toast.success("Pasta criada com os dois personagens");
+        } else if (outcome === "reorder") {
+          reorderCharacters(activeId, overId);
+        }
+      })
+      .catch(() => toast.error("Falha ao mover"));
+  }
+
+  /** Reordenação de fichas (drop na borda do card) — pastas ficam de fora. */
+  function reorderCharacters(activeId: string, overId: string) {
+    const oldIndex = viewIds.indexOf(activeId);
+    const newIndex = viewIds.indexOf(overId);
     if (oldIndex === -1 || newIndex === -1) return;
-    const reordered = arrayMove(ids, oldIndex, newIndex);
+    const folderIdSet = new Set(viewFolderIds);
+    const reordered = arrayMove(viewIds, oldIndex, newIndex).filter(
+      (id) => !folderIdSet.has(id),
+    );
     void characterRepository
       .applyMoves(reordered.map((id, order) => ({ id, order })))
       .catch(() => toast.error("Falha ao reordenar"));
@@ -272,36 +411,62 @@ export function CharactersPage() {
           Nenhum personagem ainda. Registre protagonistas, antagonistas e
           personagens de apoio com seus objetivos e relações.
         </EmptyState>
-      ) : visible.length === 0 ? (
+      ) : visible.length === 0 && viewFolders.length === 0 ? (
         <EmptyState>
-          Nenhum personagem corresponde aos filtros.
+          {openFolderId !== null
+            ? "Pasta vazia. Arraste personagens até aqui."
+            : "Nenhum personagem corresponde aos filtros."}
         </EmptyState>
       ) : (
         <DndContext
           sensors={sensors}
           collisionDetection={closestCenter}
           accessibility={{ announcements }}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDragCancel={handleDragCancel}
+          onDragStart={(event) => {
+            handleDragStart();
+            folderHint.onDragStart(event);
+          }}
+          onDragMove={folderHint.onDragMove}
+          onDragOver={folderHint.onDragOver}
+          onDragEnd={(event) => {
+            folderHint.onDragEnd();
+            handleDragEnd(event);
+          }}
+          onDragCancel={() => {
+            folderHint.onDragCancel();
+            handleDragCancel();
+          }}
         >
-          <SortableContext
-            items={visible.map((character) => character.id)}
-            strategy={rectSortingStrategy}
-          >
+          {currentFolder ? (
+            <FolderBackBar title={currentFolder.name} onBack={exitFolder} />
+          ) : null}
+          <SortableContext items={viewIds} strategy={rectSortingStrategy}>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
+              {viewFolders.map((folder) => (
+                <FolderCard
+                  key={folder.id}
+                  folder={folder}
+                  count={folderCounts.get(folder.id) ?? 0}
+                  suppressClick={suppressClick}
+                  onOpen={(target) => setOpenFolderId(target.id)}
+                  onRename={renameFolder}
+                  onDelete={removeFolder}
+                />
+              ))}
               {visible.map((character) => (
                 <CharacterCard
                   key={character.id}
                   character={character}
                   tags={tags}
                   suppressClick={suppressClick}
+                  folderDropActive={folderHint.mode === "create"}
                   onView={setViewCharacter}
                   onRemove={remove}
                 />
               ))}
             </ul>
           </SortableContext>
+          {folderHint.hint}
         </DndContext>
       )}
 
@@ -349,6 +514,8 @@ interface CharacterCardProps {
   character: Character;
   tags: Tag[];
   suppressClick: RefObject<boolean>;
+  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
+  folderDropActive: boolean;
   onView: (character: Character) => void;
   onRemove: (character: Character) => void;
 }
@@ -357,14 +524,24 @@ function CharacterCard({
   character,
   tags,
   suppressClick,
+  folderDropActive,
   onView,
   onRemove,
 }: CharacterCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: character.id });
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+    isOver,
+  } = useSortable({ id: character.id });
 
   const style = {
-    transform: CSS.Transform.toString(transform),
+    // Congela o "abre espaço" do sortable: só o card arrastado se move,
+    // o alvo não foge do ponteiro (soltar no centro vira fácil).
+    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
     transition,
   };
 
@@ -394,7 +571,7 @@ function CharacterCard({
       }}
       className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:p-4 ${
         isDragging ? "opacity-60" : ""
-      }`}
+      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >
       <div className="mb-2 flex items-start gap-3">
         <span

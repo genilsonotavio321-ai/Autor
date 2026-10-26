@@ -18,6 +18,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { restoreFolderCascade } from "@/features/folders/application/folder-service";
+import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
 import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import { plotBeatRepository } from "@/features/plot/infra/dexie-plot-beat-repository";
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
@@ -163,6 +165,7 @@ export function TrashPage() {
     () => ideaCardRepository.listDeleted(),
     [],
   );
+  const deletedFolders = useLiveQuery(() => folderRepository.listDeleted(), []);
 
   const sections = [
     {
@@ -340,6 +343,27 @@ export function TrashPage() {
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
+    {
+      headingId: "trash-folders",
+      title: "Pastas",
+      items: (deletedFolders ?? []).map((folder) => ({
+        id: folder.id,
+        title: folder.name,
+        deletedAt: folder.deletedAt,
+      })),
+      onRestore: async (item: TrashItem) => {
+        // Restaurar a pasta traz de volta as pastas internas e as fichas
+        // que foram apagadas junto com ela.
+        await restoreFolderCascade(item.id);
+        playUiSound("restore");
+        toast.success(`Pasta "${item.title}" restaurada`);
+      },
+      onPurge: async (item: TrashItem) => {
+        await purgeTrashItem("folder", item.id);
+        playUiSound("delete");
+        toast.success(`Pasta "${item.title}" excluída permanentemente`);
+      },
+    },
   ];
 
   const loading =
@@ -352,7 +376,8 @@ export function TrashPage() {
     deletedScenes === undefined ||
     deletedEvents === undefined ||
     deletedBeats === undefined ||
-    deletedIdeaCards === undefined;
+    deletedIdeaCards === undefined ||
+    deletedFolders === undefined;
   const empty = sections.every((section) => section.items.length === 0);
 
   async function handleEmptyTrash() {

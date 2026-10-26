@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, Frame, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,12 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
     () => chapterRepository.listByProject(projectId),
     [projectId],
   );
+
+  // Abrir a página de um projeto (inclusive deep link) o seleciona como
+  // projeto carregado no app.
+  useEffect(() => {
+    if (project && !project.deletedAt) setSelectedProjectId(project.id);
+  }, [project, setSelectedProjectId]);
 
   if (project === undefined || chapters === undefined) {
     return (

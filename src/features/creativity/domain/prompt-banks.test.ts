@@ -158,6 +158,8 @@ describe("gerador com personagens", () => {
     };
     const bento = [character({ name: "Bento", gender: "masculino" })];
     // seed 5 → roll 0,05 < peso 0,5 → pool custom (obstáculo) vira o eixo.
+    // Uma ficha só: sem alternativa, o placeholder repete o sujeito (fallback
+    // do rodízio) — com 2+ fichas o teste abaixo garante nomes distintos.
     const text = drawWhatIf(
       5,
       undefined,
@@ -168,6 +170,58 @@ describe("gerador com personagens", () => {
     expect(text).toBe(
       "E se Bento descobrisse que Bento o traía em Taverna do Porco, diante de todos os aliados?",
     );
+  });
+
+  it("nunca repete o mesmo personagem na mesma frase", () => {
+    const cast = [
+      character({ name: "Aurora", gender: "feminino" }),
+      character({ name: "Bento", gender: "masculino" }),
+      character({ id: "char-3", name: "Kinger", gender: "masculino" }),
+    ];
+    for (let seed = 0; seed < 60; seed++) {
+      const question = drawPrompt(
+        "personagem",
+        seed,
+        undefined,
+        cast,
+        undefined,
+        ["O que {personagem} realmente quer de {personagem}?"],
+        1,
+      );
+      const match = question.match(/O que (\w+) realmente quer de (\w+)\?/);
+      expect(match).not.toBeNull();
+      expect(match![1]).not.toBe(match![2]);
+    }
+  });
+
+  it("template com dois placeholders e uma ficha só fica fora do sorteio", () => {
+    const solo = [character({ name: "Kinger" })];
+    for (let seed = 0; seed < 30; seed++) {
+      const question = drawPrompt(
+        "personagem",
+        seed,
+        undefined,
+        solo,
+        undefined,
+        ["O que {personagem} realmente quer de {personagem}?"],
+        1,
+      );
+      expect(question).not.toContain("realmente quer de");
+    }
+  });
+
+  it("sujeito do 'E se' não repete no placeholder", () => {
+    const cast = [
+      character({ name: "Aurora", gender: "feminino" }),
+      character({ name: "Bento", gender: "masculino" }),
+    ];
+    const customs = ["descobrisse que {personagem} o traía desde o início"];
+    for (let seed = 0; seed < 60; seed++) {
+      const text = drawWhatIf(seed, undefined, cast, customs, undefined, 1);
+      const match = text.match(/^E se (\w+) descobrisse que (\w+) o traía/);
+      expect(match).not.toBeNull();
+      expect(match![1]).not.toBe(match![2]);
+    }
   });
 
   it("variante com placeholder sem ficha/local correspondente fica fora", () => {

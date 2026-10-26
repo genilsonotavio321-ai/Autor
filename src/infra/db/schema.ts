@@ -5,6 +5,7 @@ import type {
   Chapter,
   Character,
   CustomPrompt,
+  Folder,
   IdeaBoard,
   IdeaCard,
   IdeaGroup,
@@ -47,6 +48,7 @@ export class AutorDatabase extends Dexie {
   ideaGroups!: EntityTable<IdeaGroup, "id">;
   ideaBoards!: EntityTable<IdeaBoard, "id">;
   promptItems!: EntityTable<CustomPrompt, "id">;
+  folders!: EntityTable<Folder, "id">;
 
   constructor() {
     super("autor");
@@ -150,6 +152,31 @@ export class AutorDatabase extends Dexie {
       ideaGroups: "id, projectId",
       ideaBoards: "id, projectId, createdAt",
       promptItems: "id, kind",
+    });
+
+    // v6: pastas de fichas (Personagens, Locais, Lore, Notas). Copia TODAS as
+    // tabelas do v5 — a Dexie apaga tabelas omitidas entre versões.
+    this.version(6).stores({
+      projects: "id, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, structure, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
+      ideaGroups: "id, projectId",
+      ideaBoards: "id, projectId, createdAt",
+      promptItems: "id, kind",
+      folders: "id, projectId, kind, deletedAt",
     });
   }
 }

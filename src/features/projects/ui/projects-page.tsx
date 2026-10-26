@@ -35,6 +35,9 @@ export function ProjectsPage() {
   const projectsLayout = useUiStore((state) => state.projectsLayout);
   const setProjectsSort = useUiStore((state) => state.setProjectsSort);
   const setProjectsLayout = useUiStore((state) => state.setProjectsLayout);
+  const setSelectedProjectId = useUiStore(
+    (state) => state.setSelectedProjectId,
+  );
 
   const entries = useLiveQuery(async (): Promise<ProjectEntry[]> => {
     const projects = await projectRepository.listActive();
@@ -189,7 +192,11 @@ export function ProjectsPage() {
       <ProjectFormDialog
         open={dialogOpen}
         onOpenChange={setDialogOpen}
-        onSaved={(project) => router.push(`/projects/${project.id}`)}
+        onSaved={(project) => {
+          // Criar um projeto já o seleciona como projeto carregado no app.
+          setSelectedProjectId(project.id);
+          router.push(`/projects/${project.id}`);
+        }}
       />
     </div>
   );

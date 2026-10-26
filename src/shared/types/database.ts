@@ -113,6 +113,20 @@ export interface Relationship {
   note?: string;
 }
 
+/** Tipos de ficha que podem ser agrupados em pastas (uma árvore por aba). */
+export type FolderKind = "character" | "location" | "lore" | "note";
+
+/** Pasta de fichas numa aba (Personagens, Locais, Lore, Notas). */
+export interface Folder extends BaseEntity {
+  projectId: EntityId;
+  kind: FolderKind;
+  name: string;
+  /** Manual position among same-kind folders. */
+  order?: number;
+  /** Pasta-mãe; sem valor = pasta na raiz da aba. */
+  parentId?: EntityId;
+}
+
 export interface Character extends BaseEntity {
   projectId: EntityId;
   name: string;
@@ -129,6 +143,8 @@ export interface Character extends BaseEntity {
   relationships: Relationship[];
   avatarBlob?: Blob;
   tags: EntityId[];
+  /** Pasta na aba Personagens (arrastar um card sobre outro cria). */
+  folderId?: EntityId;
 }
 
 export interface Location extends BaseEntity {
@@ -141,6 +157,8 @@ export interface Location extends BaseEntity {
   /** Ficha-mãe quando este local é uma subficha (item 7). */
   parentId?: EntityId;
   tags: EntityId[];
+  /** Pasta na aba Locais (arrastar um card sobre outro cria). */
+  folderId?: EntityId;
 }
 
 export interface LoreEntry extends BaseEntity {
@@ -153,6 +171,8 @@ export interface LoreEntry extends BaseEntity {
   content: Json;
   tags: EntityId[];
   linkedIds: EntityId[];
+  /** Pasta na aba Lore (arrastar um card sobre outro cria). */
+  folderId?: EntityId;
 }
 
 export interface PlotBeat extends BaseEntity {
@@ -188,6 +208,8 @@ export interface Note extends BaseEntity {
    */
   order?: number;
   tags: EntityId[];
+  /** Pasta na aba Notas (arrastar um card sobre outro cria). */
+  folderId?: EntityId;
 }
 
 export interface Tag {

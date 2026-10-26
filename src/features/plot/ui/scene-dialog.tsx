@@ -154,6 +154,7 @@ export function SceneDialog({
             <Label htmlFor="scene-summary">Resumo</Label>
             <Textarea
               id="scene-summary"
+              className="max-h-32"
               value={summary}
               onChange={(event) => setSummary(event.target.value)}
               placeholder="O que acontece nesta cena?"
@@ -164,6 +165,8 @@ export function SceneDialog({
             <Label htmlFor="scene-body">Corpo da cena</Label>
             <Textarea
               id="scene-body"
+              // field-sizing-content cresce sem limite; o teto mantém o footer visível.
+              className="max-h-[50dvh]"
               value={body}
               onChange={(event) => setBody(event.target.value)}
               placeholder="Texto completo da cena — aparece no modo leitura. Uma linha equivale a um parágrafo."
