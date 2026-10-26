@@ -53,9 +53,32 @@ export async function removeCard(card: IdeaCard) {
   });
 }
 
+const LINK_SIDES = ["top", "right", "bottom", "left"] as const;
+
+const LINK_SIDE_LABEL: Record<(typeof LINK_SIDES)[number], string> = {
+  top: "topo",
+  right: "direita",
+  bottom: "baixo",
+  left: "esquerda",
+};
+
+// Alças no meio de cada aresta, 14px para dentro (o root tem overflow-hidden:
+// fora da borda o handle seria cortado).
+const LINK_ANCHOR: Record<
+  (typeof LINK_SIDES)[number],
+  { left: string; top: string }
+> = {
+  top: { left: "50%", top: "14px" },
+  right: { left: "calc(100% - 14px)", top: "50%" },
+  bottom: { left: "50%", top: "calc(100% - 14px)" },
+  left: { left: "14px", top: "50%" },
+};
+
 interface IdeaCardViewProps {
   card: IdeaCard;
   selected: boolean;
+  /** Zoom atual do canvas: as alças de link compensam o tamanho. */
+  zoom: number;
   /** Edição inline aberta neste card (uma por vez). */
   editing: boolean;
   onEditEnd: () => void;
@@ -69,7 +92,7 @@ interface IdeaCardViewProps {
   onCardKeyDown: (event: ReactKeyboardEvent<HTMLDivElement>) => void;
   /** Tamanho ao vivo durante o arraste do grip (vence card.w/card.h). */
   liveSize: { w: number; h: number } | null;
-  /** pointerdown na alça de conexão da borda direita. */
+  /** pointerdown numa alça de conexão (4 arestas). */
   onLinkHandleDown: (event: ReactPointerEvent<HTMLElement>) => void;
   /** pointerdown no grip de resize do canto inferior-direito. */
   onResizeHandleDown: (event: ReactPointerEvent<HTMLElement>) => void;
@@ -78,6 +101,7 @@ interface IdeaCardViewProps {
 export function IdeaCardView({
   card,
   selected,
+  zoom,
   editing,
   onEditEnd,
   dragOffset,
@@ -185,6 +209,10 @@ export function IdeaCardView({
     [card.doc],
   );
 
+  // Alças de link compensam o zoom: afastado ficam maiores na tela (fáceis
+  // de pegar), ampliado menores. (1/zoom)^1,5 com limites.
+  const linkScale = Math.min(2.4, Math.max(0.6, 1 / zoom ** 1.5));
+
   return (
     <div
       ref={rootRef}
@@ -210,14 +238,21 @@ export function IdeaCardView({
       {!editing ? (
         <>
           {/* shortcut: alças respondem só a ponteiro; teclado fica para quando doer. */}
-          <button
-            type="button"
-            aria-label={`Conectar a partir de ${card.title}`}
-            onPointerDown={onLinkHandleDown}
-            className={`absolute top-1/2 -right-3 z-10 flex size-6 -translate-y-1/2 cursor-crosshair touch-none items-center justify-center rounded-full border bg-card shadow-sm transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
-          >
-            <Link2 aria-hidden className="size-3" />
-          </button>
+          {LINK_SIDES.map((side) => (
+            <button
+              key={side}
+              type="button"
+              aria-label={`Conectar ${card.title} pelo ${LINK_SIDE_LABEL[side]}`}
+              onPointerDown={onLinkHandleDown}
+              style={{
+                ...LINK_ANCHOR[side],
+                transform: `translate(-50%, -50%) scale(${linkScale})`,
+              }}
+              className={`absolute z-10 flex size-5 cursor-crosshair touch-none items-center justify-center rounded-full border border-background bg-primary text-primary-foreground shadow transition-none ${selected ? "opacity-100" : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"}`}
+            >
+              <Link2 aria-hidden className="size-2.5" />
+            </button>
+          ))}
           <button
             type="button"
             aria-label={`Redimensionar ${card.title}`}

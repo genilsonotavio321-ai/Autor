@@ -196,7 +196,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   const [redoStack, setRedoStack] = useState<MoveOp[][]>([]);
   // Modo seleção: oculto da UI (bugava fácil); setter inacessível.
   const [selectMode] = useState(false);
-  const [selection, setSelection] = useState<Set<EntityId>>(new Set());  const [marquee, setMarquee] = useState<Marquee | null>(null);
+  const [selection, setSelection] = useState<Set<EntityId>>(new Set());
+  // Seleção espelhada: o efeito de touch do board lê sem re-attach.
+  const selectionRef = useRef(selection);
+  selectionRef.current = selection;
+  const [marquee, setMarquee] = useState<Marquee | null>(null);
   const [groupDialogOpen, setGroupDialogOpen] = useState(false);
   const [groupName, setGroupName] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
@@ -432,14 +436,15 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     // Re-anexa com cards/zoom frescos: o marquee precisa dos rects atuais.
   }, [hasCards, cards, selectMode, zoom, rects]);
 
-  // Touch no board: 1 dedo no fundo = pan; 2 dedos = pinch + pan juntos.
-  // touch-action:none no board garante que o browser não dispute o gesto
-  // (nem pinch da página); o pinch cancela gesto de card e vence.
+  // Touch no board: 1 dedo no fundo (ou em card não selecionado) = pan;
+  // 2 dedos = pinch + pan juntos. touch-action:none no board garante que o
+  // browser não dispute o gesto (nem pinch da página); o pinch cancela
+  // gesto de card e vence.
   useEffect(() => {
     if (!hasCards) return;
     const board = boardRef.current;
     if (!board) return;
-    const pointers = new Map<number, GesturePoint>();
+    const pointers = new Map<number, GesturePoint & { t: number }>();
     let panLast: GesturePoint | null = null;
     let pinch: {
       dist: number;
@@ -459,10 +464,25 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       const list = [...pointers.values()];
       return Math.hypot(list[0]!.x - list[1]!.x, list[0]!.y - list[1]!.y);
     };
+    // Dedos praticamente juntos (tap duplo) não são pinch: o ratio
+    // explodiria e o zoom travaria no clamp. Re-tenta a cada move.
+    const tryStartPinch = () => {
+      if (pointers.size !== 2 || spread() < 24) return;
+      pinch = {
+        dist: spread(),
+        zoom: zoomRef.current,
+        mid: midpoint(),
+        scroll: { x: board.scrollLeft, y: board.scrollTop },
+      };
+    };
 
     const onPointerDown = (event: PointerEvent) => {
       if (event.pointerType !== "touch") return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      pointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        t: Date.now(),
+      });
       if (pointers.size === 2) {
         // 2 dedos: pinch vence — cancela drag/menu de card em andamento.
         activeTrackerRef.current?.cancel();
@@ -470,17 +490,22 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         setCardMenu(null);
         pinchActiveRef.current = true;
         panLast = null;
-        pinch = {
-          dist: spread(),
-          zoom: zoomRef.current,
-          mid: midpoint(),
-          scroll: { x: board.scrollLeft, y: board.scrollTop },
-        };
+        tryStartPinch();
         return;
       }
       if (pointers.size > 2) return; // 3º dedo não estraga o pinch.
-      // 1 dedo no fundo: limpa a seleção (tap fora) e prepara o pan.
+      // 1 dedo: no fundo limpa a seleção (tap fora); card não selecionado
+      // também vira pan — só card selecionado pertence ao gesto do node.
       const background = isCanvasBackground(event.target);
+      const cardEl =
+        event.target instanceof Element
+          ? event.target.closest("[data-card-id]")
+          : null;
+      const cardSelected = cardEl
+        ? selectionRef.current.has(
+            (cardEl.getAttribute("data-card-id") ?? "") as EntityId,
+          )
+        : false;
       if (
         background &&
         !event.ctrlKey &&
@@ -489,15 +514,33 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       ) {
         setSelection(new Set());
       }
-      panLast = background
-        ? { x: event.clientX, y: event.clientY }
-        : null;
+      panLast =
+        background || (cardEl !== null && !cardSelected)
+          ? { x: event.clientX, y: event.clientY }
+          : null;
     };
 
     const onPointerMove = (event: PointerEvent) => {
       if (!pointers.has(event.pointerId)) return;
-      pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+      const now = Date.now();
+      pointers.set(event.pointerId, {
+        x: event.clientX,
+        y: event.clientY,
+        t: now,
+      });
+      if (pointers.size === 2 && !pinch) tryStartPinch();
       if (pinch) {
+        // Failsafe: o outro dedo sem evento há 600ms morreu (up perdido) —
+        // encerra o pinch e o dedo atual vira pan.
+        for (const [id, point] of pointers) {
+          if (id !== event.pointerId && now - point.t > 600) {
+            pointers.delete(id);
+            pinch = null;
+            pinchActiveRef.current = false;
+            panLast = { x: event.clientX, y: event.clientY };
+            return;
+          }
+        }
         const rect = board.getBoundingClientRect();
         const ratio = pinch.dist > 0 ? spread() / pinch.dist : 1;
         const nextZoom = clampZoom(pinch.zoom * ratio);
@@ -534,15 +577,30 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       }
     };
 
+    const onTouchOut = (event: PointerEvent) => {
+      if (event.pointerType !== "touch") return;
+      onPointerUp(event);
+    };
+    const onBlur = () => {
+      pointers.clear();
+      pinch = null;
+      pinchActiveRef.current = false;
+      panLast = null;
+    };
+
     board.addEventListener("pointerdown", onPointerDown);
     window.addEventListener("pointermove", onPointerMove);
-    board.addEventListener("pointerup", onPointerUp);
-    board.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointercancel", onPointerUp);
+    window.addEventListener("pointerout", onTouchOut);
+    window.addEventListener("blur", onBlur);
     return () => {
       board.removeEventListener("pointerdown", onPointerDown);
       window.removeEventListener("pointermove", onPointerMove);
-      board.removeEventListener("pointerup", onPointerUp);
-      board.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointercancel", onPointerUp);
+      window.removeEventListener("pointerout", onTouchOut);
+      window.removeEventListener("blur", onBlur);
     };
   }, [hasCards]);
 
@@ -769,9 +827,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   }
 
   /**
-   * Gesto de ponteiro no card: tap abre/alterna, hold 0,8s abre o menu do
-   * card, arrastar move. Listeners no window só existem durante o gesto
-   * (o 2º dedo não rouba o primeiro).
+   * Gesto de ponteiro no card. Selecionado: tap abre, arrastar move.
+   * Não selecionado: tap seleciona, hold abre o menu, arrastar vira pan
+   * (o board assume o dedo). Listeners no window só existem durante o
+   * gesto (o 2º dedo não rouba o primeiro).
    */
   function beginCardGesture(
     event: ReactPointerEvent<HTMLDivElement>,
@@ -794,6 +853,17 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     const startX = event.clientX;
     const startY = event.clientY;
     const multi = event.ctrlKey || event.metaKey || event.shiftKey;
+    // Node não selecionado: só tap (seleciona) e hold (menu). Arrastar não
+    // move o node — o dedo vira pan do canvas no efeito do board.
+    if (!selection.has(card.id)) {
+      const idle = createGestureTracker({
+        holdMs: 800,
+        onTap: () => handleCardTap(card, multi),
+        onHold: (point) => setCardMenu({ card, x: point.x, y: point.y }),
+      });
+      trackGesture(event, idle);
+      return;
+    }
     const tracker = createGestureTracker({
       holdMs: 800,
       onTap: () => handleCardTap(card, multi),
@@ -1453,6 +1523,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                   <IdeaCardView
                     key={card.id}
                     card={card}
+                    zoom={zoom}
                     selected={selection.has(card.id)}
                     editing={editingId === card.id}
                     onEditEnd={() => setEditingId(null)}
