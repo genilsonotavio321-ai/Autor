@@ -18,10 +18,12 @@ export const metadata: Metadata = {
   description: "App pessoal de escrita e planejamento de livros",
   applicationName: "Autor",
   manifest: "/manifest.webmanifest",
+  // black-translucent: app de tela de início preenche o status bar do iPhone
+  // (o chrome aplica env(safe-area-inset-top) para não ficar sob o horário).
   appleWebApp: {
     capable: true,
     title: "Autor",
-    statusBarStyle: "default",
+    statusBarStyle: "black-translucent",
   },
   icons: {
     icon: "/icon.svg",
@@ -33,6 +35,9 @@ export const viewport: Viewport = {
   // Canvas controla o próprio zoom: o browser não pode roubar o pinch.
   userScalable: false,
   maximumScale: 1,
+  // viewport-fit=cover: o app ocupa a tela inteira no iPhone (régua,
+  // status bar) — as barras do app compensam com env(safe-area-inset-*).
+  viewportFit: "cover",
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },

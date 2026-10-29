@@ -46,6 +46,40 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
 }
 
+/** Retenção da lixeira: itens excluídos são apagados automaticamente após este tempo. */
+export const MS_HOUR = 3_600_000;
+export const MS_DAY = 24 * MS_HOUR;
+
+export type TrashRetentionOption = { value: number; label: string };
+
+export const TRASH_RETENTION_OPTIONS: TrashRetentionOption[] = [
+  { value: MS_HOUR, label: "1 hora" },
+  { value: 6 * MS_HOUR, label: "6 horas" },
+  { value: 12 * MS_HOUR, label: "12 horas" },
+  { value: MS_DAY, label: "1 dia" },
+  { value: 3 * MS_DAY, label: "3 dias" },
+  { value: 7 * MS_DAY, label: "7 dias" },
+  { value: 14 * MS_DAY, label: "14 dias" },
+  { value: 30 * MS_DAY, label: "30 dias" },
+  { value: 60 * MS_DAY, label: "60 dias" },
+  { value: 90 * MS_DAY, label: "90 dias" },
+  { value: 180 * MS_DAY, label: "6 meses" },
+  { value: 365 * MS_DAY, label: "1 ano" },
+];
+
+/** Padrão histórico do app: 30 dias. */
+export const DEFAULT_TRASH_RETENTION_MS = 30 * MS_DAY;
+
+/** Frequência de checagem da expiração da lixeira enquanto o app está aberto. */
+export const TRASH_PURGE_CHECK_INTERVAL_MS = MS_HOUR;
+
+/** Intervalo de checagem das notificações de escrita enquanto o app está aberto. */
+export const NOTIFICATIONS_CHECK_INTERVAL_MS = 15 * 60_000;
+
+/** Dias sem criar personagem/cena/capítulo até o aviso disparar (para o slider). */
+export const STALE_DAYS_MIN = 1;
+export const STALE_DAYS_MAX = 60;
+
 interface UiState {
   sidebarCollapsed: boolean;
   commandPaletteOpen: boolean;
@@ -119,7 +153,24 @@ interface UiState {
   unblockCloseOnSave: boolean;
   /** Canvas: oculta os botões flutuantes (desfazer/refazer/zoom ficam no menu). */
   canvasButtonsHidden: boolean;
+  /** Tempo que um item fica na lixeira antes de ser apagado de vez. */
+  trashRetentionMs: number;
+  /** Notificações do app (meta do dia aviso e criatividade parada). */
+  notificationsEnabled: boolean;
+  notifyGoalNotMet: boolean;
+  notifyNoNewCharacters: boolean;
+  notifyNoNewScenes: boolean;
+  notifyNoNewChapters: boolean;
+  /** Dias sem criar personagem/cena/capítulo até avisar. */
+  notificationsStaleDays: number;
   setCanvasButtonsHidden: (enabled: boolean) => void;
+  setTrashRetentionMs: (value: number) => void;
+  setNotificationsEnabled: (enabled: boolean) => void;
+  setNotifyGoalNotMet: (enabled: boolean) => void;
+  setNotifyNoNewCharacters: (enabled: boolean) => void;
+  setNotifyNoNewScenes: (enabled: boolean) => void;
+  setNotifyNoNewChapters: (enabled: boolean) => void;
+  setNotificationsStaleDays: (days: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   openCommandPalette: () => void;
@@ -209,6 +260,13 @@ export const useUiStore = create<UiState>()(
       promptCustomWeight: 0.5,
       unblockCloseOnSave: true,
       canvasButtonsHidden: false,
+      trashRetentionMs: DEFAULT_TRASH_RETENTION_MS,
+      notificationsEnabled: false,
+      notifyGoalNotMet: true,
+      notifyNoNewCharacters: true,
+      notifyNoNewScenes: true,
+      notifyNoNewChapters: true,
+      notificationsStaleDays: 7,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -311,6 +369,26 @@ export const useUiStore = create<UiState>()(
         set({ unblockCloseOnSave: enabled }),
       setCanvasButtonsHidden: (enabled) =>
         set({ canvasButtonsHidden: enabled }),
+      setTrashRetentionMs: (value) => {
+        const valid = TRASH_RETENTION_OPTIONS.find(
+          (option) => option.value === value,
+        );
+        set({
+          trashRetentionMs: valid
+            ? valid.value
+            : DEFAULT_TRASH_RETENTION_MS,
+        });
+      },
+      setNotificationsEnabled: (enabled) =>
+        set({ notificationsEnabled: enabled }),
+      setNotifyGoalNotMet: (enabled) => set({ notifyGoalNotMet: enabled }),
+      setNotifyNoNewCharacters: (enabled) =>
+        set({ notifyNoNewCharacters: enabled }),
+      setNotifyNoNewScenes: (enabled) => set({ notifyNoNewScenes: enabled }),
+      setNotifyNoNewChapters: (enabled) =>
+        set({ notifyNoNewChapters: enabled }),
+      setNotificationsStaleDays: (days) =>
+        set({ notificationsStaleDays: clamp(days, STALE_DAYS_MIN, STALE_DAYS_MAX) }),
     }),
     {
       name: "autor-ui",
@@ -361,6 +439,13 @@ export const useUiStore = create<UiState>()(
         promptCustomWeight: state.promptCustomWeight,
         unblockCloseOnSave: state.unblockCloseOnSave,
         canvasButtonsHidden: state.canvasButtonsHidden,
+        trashRetentionMs: state.trashRetentionMs,
+        notificationsEnabled: state.notificationsEnabled,
+        notifyGoalNotMet: state.notifyGoalNotMet,
+        notifyNoNewCharacters: state.notifyNoNewCharacters,
+        notifyNoNewScenes: state.notifyNoNewScenes,
+        notifyNoNewChapters: state.notifyNoNewChapters,
+        notificationsStaleDays: state.notificationsStaleDays,
       }),
     },
   ),

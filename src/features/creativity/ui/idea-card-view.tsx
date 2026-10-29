@@ -12,6 +12,7 @@ import {
 } from "react";
 import Link from "next/link";
 import { generateHTML, type JSONContent } from "@tiptap/core";
+import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
 import { Link2, MapPin, User } from "lucide-react";
@@ -21,6 +22,7 @@ import { Badge } from "@/components/ui/badge";
 import { playUiSound } from "@/shared/lib/sound";
 import type { IdeaCard, Json } from "@/shared/types/database";
 
+import { GrifarMark } from "@/features/editor/domain/grifar-mark";
 import { titleFromPlain } from "../domain/card-title";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { CardDocEditor } from "./card-doc-editor";
@@ -38,6 +40,13 @@ const CARD_COLORS: Record<string, string> = {
 const DISPLAY_EXTENSIONS = [
   StarterKit.configure({ heading: { levels: [1, 2, 3] } }),
   TextAlign.configure({ types: ["heading", "paragraph"] }),
+  // grifar/imagem entraram no editor de cards; sem elas, generateHTML quebra.
+  Image.configure({
+    allowBase64: true,
+    inline: false,
+    HTMLAttributes: { class: "max-w-full rounded-lg" },
+  }),
+  GrifarMark,
 ];
 
 /** Exclui o card para a lixeira com toast de Desfazer. */
@@ -122,7 +131,6 @@ export function IdeaCardView({
     setDoc(null);
     setPlain(null);
     // Reset deliberado no toggle de `editing`, não a cada mudança de card.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing]);
 
   // Autosave 800ms: título derivado + doc + espelho de texto.

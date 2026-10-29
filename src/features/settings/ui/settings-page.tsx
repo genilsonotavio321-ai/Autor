@@ -3,6 +3,7 @@
 import { Keyboard, Monitor, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,11 +15,19 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { DataSection } from "@/features/export/ui/export-page";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { PromptManager } from "@/features/creativity/ui/prompt-manager";
+import { requestNotificationPermission } from "@/features/productivity/infra/notification-service";
 import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import { TagsManager } from "@/features/tags/ui/tags-manager";
 import { playUiSound } from "@/shared/lib/sound";
@@ -26,6 +35,7 @@ import {
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
   type HomeSection,
+  TRASH_RETENTION_OPTIONS,
   useUiStore,
 } from "@/shared/store/ui-store";
 
@@ -205,6 +215,42 @@ export function SettingsPage() {
   );
   const setCanvasButtonsHidden = useUiStore(
     (state) => state.setCanvasButtonsHidden,
+  );
+  const trashRetentionMs = useUiStore((state) => state.trashRetentionMs);
+  const setTrashRetentionMs = useUiStore(
+    (state) => state.setTrashRetentionMs,
+  );
+  const notificationsEnabled = useUiStore(
+    (state) => state.notificationsEnabled,
+  );
+  const setNotificationsEnabled = useUiStore(
+    (state) => state.setNotificationsEnabled,
+  );
+  const notifyGoalNotMet = useUiStore((state) => state.notifyGoalNotMet);
+  const setNotifyGoalNotMet = useUiStore(
+    (state) => state.setNotifyGoalNotMet,
+  );
+  const notifyNoNewCharacters = useUiStore(
+    (state) => state.notifyNoNewCharacters,
+  );
+  const setNotifyNoNewCharacters = useUiStore(
+    (state) => state.setNotifyNoNewCharacters,
+  );
+  const notifyNoNewScenes = useUiStore((state) => state.notifyNoNewScenes);
+  const setNotifyNoNewScenes = useUiStore(
+    (state) => state.setNotifyNoNewScenes,
+  );
+  const notifyNoNewChapters = useUiStore(
+    (state) => state.notifyNoNewChapters,
+  );
+  const setNotifyNoNewChapters = useUiStore(
+    (state) => state.setNotifyNoNewChapters,
+  );
+  const notificationsStaleDays = useUiStore(
+    (state) => state.notificationsStaleDays,
+  );
+  const setNotificationsStaleDays = useUiStore(
+    (state) => state.setNotificationsStaleDays,
   );
   const themeVariantLight = useUiStore((state) => state.themeVariantLight);
   const themeVariantDark = useUiStore((state) => state.themeVariantDark);
@@ -590,6 +636,129 @@ export function SettingsPage() {
             step={1}
             onValueChange={setResumeNoticeSeconds}
           />
+        </CardContent>
+      </Card>
+
+      <Card id="lixeira">
+        <CardHeader>
+          <CardTitle>Lixeira</CardTitle>
+          <CardDescription>
+            Itens excluídos são apagados automaticamente após este tempo de
+            espera (o padrão do app é 30 dias).
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid max-w-xs gap-2">
+            <Label htmlFor="trash-retention">
+              Apagar itens da lixeira após
+            </Label>
+            <Select
+              value={String(trashRetentionMs)}
+              onValueChange={(value) => setTrashRetentionMs(Number(value))}
+            >
+              <SelectTrigger id="trash-retention">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TRASH_RETENTION_OPTIONS.map((option) => (
+                  <SelectItem key={option.value} value={String(option.value)}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card id="notificacoes">
+        <CardHeader>
+          <CardTitle>Notificações</CardTitle>
+          <CardDescription>
+            Avisos do sistema enquanto o app está em uso — sem a permissão do
+            navegador, aparecem como aviso dentro do app. Cada tipo avisa uma
+            vez por dia.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="notifications-enabled">Ativar notificações</Label>
+            <Switch
+              id="notifications-enabled"
+              checked={notificationsEnabled}
+              onCheckedChange={async (checked) => {
+                if (checked) {
+                  const result = await requestNotificationPermission();
+                  if (result === "denied") {
+                    playUiSound("warn");
+                    toast.warning(
+                      "Notificações do sistema bloqueadas neste navegador; os avisos aparecerão dentro do app.",
+                    );
+                  }
+                }
+                setNotificationsEnabled(checked);
+              }}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="notify-goal-not-met" className="min-w-0">
+              Meta do dia não batida
+              <span className="block text-xs font-normal text-muted-foreground">
+                Avisa a partir das 19h.
+              </span>
+            </Label>
+            <Switch
+              id="notify-goal-not-met"
+              disabled={!notificationsEnabled}
+              checked={notifyGoalNotMet}
+              onCheckedChange={withToggle(setNotifyGoalNotMet)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="notify-no-new-characters">
+              Tempo sem criar personagem novo
+            </Label>
+            <Switch
+              id="notify-no-new-characters"
+              disabled={!notificationsEnabled}
+              checked={notifyNoNewCharacters}
+              onCheckedChange={withToggle(setNotifyNoNewCharacters)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="notify-no-new-scenes">
+              Tempo sem criar cena nova
+            </Label>
+            <Switch
+              id="notify-no-new-scenes"
+              disabled={!notificationsEnabled}
+              checked={notifyNoNewScenes}
+              onCheckedChange={withToggle(setNotifyNoNewScenes)}
+            />
+          </div>
+          <div className="flex items-center justify-between gap-4">
+            <Label htmlFor="notify-no-new-chapters">
+              Tempo sem criar capítulo novo
+            </Label>
+            <Switch
+              id="notify-no-new-chapters"
+              disabled={!notificationsEnabled}
+              checked={notifyNoNewChapters}
+              onCheckedChange={withToggle(setNotifyNoNewChapters)}
+            />
+          </div>
+          <div className="max-w-xs">
+            <SettingSlider
+              id="notifications-stale-days"
+              label="Considerar parado a partir de"
+              unit="dias"
+              value={notificationsStaleDays}
+              min={1}
+              max={60}
+              step={1}
+              onValueChange={setNotificationsStaleDays}
+            />
+          </div>
         </CardContent>
       </Card>
 

@@ -10,6 +10,8 @@ import { Topbar } from "@/components/layout/topbar";
 import { SearchDialog } from "@/features/search/ui/search-dialog";
 import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { SprintTicker } from "@/features/productivity/ui/sprint-ticker";
+import { NotificationMonitor } from "@/features/productivity/ui/notification-monitor";
+import { TrashAutoPurge } from "@/features/projects/ui/trash-auto-purge";
 import { playClickSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
@@ -89,6 +91,13 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   const motionStyle = <MotionStyle />;
   const searchDialog = <SearchDialog />;
+  // Serviços persistentes do shell: expiração da lixeira e notificações.
+  const backgroundServices = (
+    <>
+      <TrashAutoPurge />
+      <NotificationMonitor />
+    </>
+  );
   const sprintTicker = <SprintTicker />;
   // key={pathname} remonta o <main> a cada navegação, disparando a animação
   // de entrada. Piso de 280ms no MotionStyle porque o slider global pode
@@ -102,6 +111,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     return (
       <div className="min-h-svh w-full">
         {motionStyle}
+        {backgroundServices}
         {searchDialog}
         {sprintTicker}
         {skipLink}
@@ -118,6 +128,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         <main
           id="main-content"
           key={pathname}
+          // Tela cheia no iPhone: sem topbar aqui, a área segura faz o papel.
+          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
           className={`min-h-svh p-4 md:p-6 ${pageMotionClass}`}
         >
           {children}
@@ -129,6 +141,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-svh w-full">
       {motionStyle}
+      {backgroundServices}
       {searchDialog}
       {sprintTicker}
       {skipLink}

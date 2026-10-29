@@ -399,6 +399,22 @@
   @apply my-1 border-l-2 pl-2 text-muted-foreground;
 }
 
+/* Grifar no display do card (mark "grifar" do editor de cards) */
+.card-doc .grifar {
+  background-color: oklch(0.95 0.05 95 / 0.6);
+  border-radius: 2px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
+.dark .card-doc .grifar {
+  background-color: oklch(0.32 0.04 90 / 0.6);
+}
+
+.card-doc img {
+  @apply my-1 max-w-full rounded-lg;
+}
+
 /* Esconde a barra de rolagem nativa (o thumb é desenhado por cima). */
 .no-scrollbar {
   scrollbar-width: none;

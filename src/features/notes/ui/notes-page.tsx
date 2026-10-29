@@ -95,6 +95,7 @@ import { folderRepository } from "@/features/folders/infra/dexie-folder-reposito
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
 import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
 import { FolderCard } from "@/features/folders/ui/folder-card";
+import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type { EntityId, Folder, Note } from "@/shared/types/database";
 
 import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
@@ -469,6 +470,12 @@ export function NotesPage() {
             : undefined
         }
       >
+          <NewFolderButton
+            kind="note"
+            projectId={projectId}
+            parentId={openFolderId ?? undefined}
+            onCreated={(folder) => setOpenFolderId(folder.id)}
+          />
           <Select value={sort} onValueChange={(value) => setSort(value as NotesSort)}>
             <SelectTrigger className="w-52" aria-label="Ordenar notas">
               <ArrowUpDown aria-hidden className="size-4" />

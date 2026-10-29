@@ -49,6 +49,7 @@ import { folderRepository } from "@/features/folders/infra/dexie-folder-reposito
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
 import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
 import { FolderCard } from "@/features/folders/ui/folder-card";
+import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type {
   EntityId,
   Folder,
@@ -491,6 +492,23 @@ export function WorldPage() {
             : undefined
         }
       >
+        {projectId !== null ? (
+          worldTab === "locations" ? (
+            <NewFolderButton
+              kind="location"
+              projectId={projectId}
+              parentId={openLocationFolderId ?? undefined}
+              onCreated={(folder) => setOpenLocationFolderId(folder.id)}
+            />
+          ) : (
+            <NewFolderButton
+              kind="lore"
+              projectId={projectId}
+              parentId={openLoreFolderId ?? undefined}
+              onCreated={(folder) => setOpenLoreFolderId(folder.id)}
+            />
+          )
+        ) : null}
         {projectId !== null ? (
           worldTab === "locations" ? (
             <Button onClick={() => setLocationDialog({ open: true })}>

@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useTheme } from "next-themes";
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Moon, Search, Sun } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import {
@@ -15,6 +16,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
@@ -257,6 +259,42 @@ export function SidebarNav({
         </div>
       ))}
     </nav>
+  );}
+
+/**Ícones da topbar mobile que agora moram dentro do menu (FIT: tela cheia). */
+function MobileMenuControls({ onOpenSearch }: { onOpenSearch: () => void }) {
+  const { resolvedTheme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isDark = mounted && resolvedTheme === "dark";
+  return (
+    <div
+      aria-label="Controles rápidos"
+      className="flex items-center gap-2 border-t border-border px-3 py-3"
+      role="group"
+    >
+      <SprintTimer compact />
+      <span className="min-w-0 flex-1" />
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label="Abrir a busca"
+        onClick={() => {
+          useUiStore.getState().openSearch();
+          onOpenSearch();
+        }}
+      >
+        <Search aria-hidden />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+      >
+        {isDark ? <Sun aria-hidden /> : <Moon aria-hidden />}
+      </Button>
+    </div>
   );
 }
 
@@ -270,7 +308,14 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
       style={{ width: collapsed ? SIDEBAR_WIDTH_COLLAPSED : SIDEBAR_WIDTH }}
       className="sticky top-0 hidden h-svh shrink-0 flex-col border-r bg-sidebar transition-[width] duration-200 ease-out motion-reduce:transition-none md:flex"
     >
-      <div className="flex h-14 items-center gap-2 overflow-hidden border-b border-sidebar-border px-4">
+      {/* Tela cheia no iPhone: altura da barra + área segura do topo. */}
+      <div
+        style={{
+          height: "calc(3.5rem + env(safe-area-inset-top))",
+          paddingTop: "env(safe-area-inset-top)",
+        }}
+        className="flex shrink-0 items-center gap-2 overflow-hidden border-b border-sidebar-border px-4"
+      >
         <Link
           href="/"
           aria-label="Autor — painel"
@@ -317,6 +362,9 @@ export function MobileNav({
           <SidebarNav onNavigate={() => onOpenChange(false)} />
           <div className="border-t border-border px-3 py-3">
             <ProjectPicker />
+          </div>
+          <div className="border-t border-border">
+            <MobileMenuControls onOpenSearch={() => onOpenChange(false)} />
           </div>
         </div>
       </SheetContent>

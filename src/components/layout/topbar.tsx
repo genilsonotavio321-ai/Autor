@@ -22,7 +22,15 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const isDark = mounted && resolvedTheme === "dark";
 
   return (
-    <header className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-4">
+    <header
+      // Tela cheia no iPhone (viewport-fit=cover): a barra desenha sob o
+      // status bar e empurra o conteúdo com env(safe-area-inset-top).
+      style={{
+        height: "calc(3.5rem + env(safe-area-inset-top))",
+        paddingTop: "env(safe-area-inset-top)",
+      }}
+      className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur supports-[backdrop-filter]:bg-background/60 md:px-4"
+    >
       <Button
         variant="ghost"
         size="icon"
@@ -32,40 +40,37 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         <Menu aria-hidden="true" />
       </Button>
 
-      <span className="font-heading text-sm font-semibold md:hidden">Autor</span>
+      <span className="font-heading text-sm font-semibold md:hidden">
+        Autor
+      </span>
 
       <div className="ml-auto flex items-center gap-1.5">
-        <SprintTimer compact />
-        <Button
-          variant="outline"
-          size="sm"
-          className="hidden text-muted-foreground md:flex"
-          onClick={openSearch}
-        >
-          <Search aria-hidden="true" />
-          <span>Buscar</span>
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          className="md:hidden"
-          onClick={openSearch}
-          aria-label="Abrir a busca"
-        >
-          <Search aria-hidden="true" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(isDark ? "light" : "dark")}
-          aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
-        >
-          {isDark ? (
-            <Sun aria-hidden="true" />
-          ) : (
-            <Moon aria-hidden="true" />
-          )}
-        </Button>
+        {/* Buscar, sprint e tema agora vivem no menu do app (MobileNav) no
+            celular — a topbar mobile mantém só o menu e o título. */}
+        <div className="hidden md:flex md:items-center md:gap-1.5">
+          <SprintTimer compact />
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-muted-foreground"
+            onClick={openSearch}
+          >
+            <Search aria-hidden="true" />
+            <span>Buscar</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(isDark ? "light" : "dark")}
+            aria-label={isDark ? "Ativar tema claro" : "Ativar tema escuro"}
+          >
+            {isDark ? (
+              <Sun aria-hidden="true" />
+            ) : (
+              <Moon aria-hidden="true" />
+            )}
+          </Button>
+        </div>
       </div>
     </header>
   );

@@ -1,11 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { Frame } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -61,7 +58,6 @@ export function ProjectCard({
   project: Project;
   stats?: ProjectStats;
 }) {
-  const router = useRouter();
   const setSelectedProjectId = useUiStore(
     (state) => state.setSelectedProjectId,
   );
@@ -74,23 +70,8 @@ export function ProjectCard({
       className="group block h-full"
     >
       <Card className="relative h-full transition-colors group-hover:border-primary/40">
-        <Button
-          variant="ghost"
-          size="icon"
-          className="absolute top-2 right-2 z-10 size-7 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-          aria-label={`Abrir canvas de ${project.title}`}
-          title="Abrir canvas"
-          onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setSelectedProjectId(project.id);
-            router.push("/canvas");
-          }}
-        >
-          <Frame aria-hidden className="size-4" />
-        </Button>
         <CardHeader>
-          <div className="flex items-start justify-between gap-2 pr-8">
+          <div className="flex items-start justify-between gap-2">
             <div
               aria-hidden
               className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 font-serif text-lg text-primary"

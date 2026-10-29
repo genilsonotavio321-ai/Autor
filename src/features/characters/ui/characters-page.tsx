@@ -58,6 +58,7 @@ import { folderRepository } from "@/features/folders/infra/dexie-folder-reposito
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
 import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
 import { FolderCard } from "@/features/folders/ui/folder-card";
+import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type {
   Character,
   CharacterRole,
@@ -347,6 +348,12 @@ export function CharactersPage() {
             : undefined
         }
       >
+        <NewFolderButton
+          kind="character"
+          projectId={projectId}
+          parentId={openFolderId ?? undefined}
+          onCreated={(folder) => setOpenFolderId(folder.id)}
+        />
         <Button
           variant="outline"
           onClick={() => void createRandomCharacter()}
@@ -411,12 +418,6 @@ export function CharactersPage() {
           Nenhum personagem ainda. Registre protagonistas, antagonistas e
           personagens de apoio com seus objetivos e relações.
         </EmptyState>
-      ) : visible.length === 0 && viewFolders.length === 0 ? (
-        <EmptyState>
-          {openFolderId !== null
-            ? "Pasta vazia. Arraste personagens até aqui."
-            : "Nenhum personagem corresponde aos filtros."}
-        </EmptyState>
       ) : (
         <DndContext
           sensors={sensors}
@@ -440,6 +441,15 @@ export function CharactersPage() {
           {currentFolder ? (
             <FolderBackBar title={currentFolder.name} onBack={exitFolder} />
           ) : null}
+          {/* O EmptyState continua dentro do DndContext: o botão "Voltar"
+              (FolderBackBar) não pode sumir quando a pasta fica vazia. */}
+          {viewIds.length === 0 ? (
+            <EmptyState>
+              {openFolderId !== null
+                ? "Pasta vazia. Arraste personagens até aqui."
+                : "Nenhum personagem corresponde aos filtros."}
+            </EmptyState>
+          ) : (
           <SortableContext items={viewIds} strategy={rectSortingStrategy}>
             <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
               {viewFolders.map((folder) => (
@@ -466,6 +476,7 @@ export function CharactersPage() {
               ))}
             </ul>
           </SortableContext>
+          )}
           {folderHint.hint}
         </DndContext>
       )}

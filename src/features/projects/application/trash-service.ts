@@ -183,11 +183,6 @@ export async function purgeTrashItem(
   }
 }
 
-/**
- * Permanently deletes every trashed row across all tables. Projects and
- * chapters are purged first (with their cascades); the remaining tables are
- * emptied of whatever is still in their own trash.
- */
 export async function emptyTrash(): Promise<void> {
   for (const project of await projectRepository.listDeleted()) {
     await purgeProject(project.id);
@@ -205,4 +200,53 @@ export async function emptyTrash(): Promise<void> {
   await purgeDeleted(plotBeatRepository);
   await purgeDeleted(ideaCardRepository);
   await purgeDeleted(folderRepository);
+}
+
+/** Repositórios varridos pela expiração automática (mesmos kinds do switch). */
+const AUTO_PURGE_REPOS: Record<
+  TrashItemKind,
+  { listDeleted(): Promise<{ id: EntityId; deletedAt?: string }[]> }
+> = {
+  project: projectRepository,
+  chapter: chapterRepository,
+  note: noteRepository,
+  character: characterRepository,
+  location: locationRepository,
+  lore: loreEntryRepository,
+  scene: sceneRepository,
+  event: timelineEventRepository,
+  beat: plotBeatRepository,
+  ideaCard: ideaCardRepository,
+  folder: folderRepository,
+};
+
+/**
+ * Expiração automática: apaga definitivamente tudo que está na lixeira há
+ * mais de `retentionMs`. Roda ao abrir o app e de hora em hora (ver
+ * TrashAutoPurge). Projetos e capítulos passam pelas cascatas de
+ * purgeTrashItem. Resiliente: falha num item não interrompe a varredura.
+ */
+export async function autoPurgeExpiredTrash(
+  retentionMs: number,
+): Promise<number> {
+  const cutoff = Date.now() - Math.max(retentionMs, 0);
+  let purged = 0;
+  for (const [kind, repo] of Object.entries(AUTO_PURGE_REPOS)) {
+    let rows: { id: EntityId; deletedAt?: string }[];
+    try {
+      rows = await repo.listDeleted();
+    } catch {
+      continue;
+    }
+    for (const row of rows) {
+      if (!row.deletedAt || Date.parse(row.deletedAt) >= cutoff) continue;
+      try {
+        await purgeTrashItem(kind as TrashItemKind, row.id);
+        purged += 1;
+      } catch {
+        // Tenta de novo na próxima varredura.
+      }
+    }
+  }
+  return purged;
 }
