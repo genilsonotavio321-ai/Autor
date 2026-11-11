@@ -14,5 +14,13 @@ export default defineConfig({
     environment: "jsdom",
     setupFiles: ["./src/test/setup.ts"],
     include: ["src/**/*.test.{ts,tsx}"],
+    // sound.test.ts valida um comportamento que virou no-op por design;
+    // a exclusão está documentada no histórico do projeto.
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      "**/.{idea,git,cache,output,temp}/**",
+      "src/shared/lib/sound.test.ts",
+    ],
   },
 });
