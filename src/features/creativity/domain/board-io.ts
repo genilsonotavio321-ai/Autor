@@ -43,7 +43,9 @@ export function parseBoardExport(json: unknown): IdeaBoardItem[] {
       (item.h !== undefined && !Number.isFinite(item.h)) ||
       (item.refType !== undefined &&
         item.refType !== "character" &&
-        item.refType !== "location") ||
+        item.refType !== "location" &&
+        item.refType !== "chapter" &&
+        item.refType !== "scene") ||
       (item.refId !== undefined && typeof item.refId !== "string") ||
       (item.doc !== undefined && typeof item.doc !== "object")
     ) {

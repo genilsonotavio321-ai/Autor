@@ -20,7 +20,7 @@ export interface IdeaCardCreateInput {
   /** Conexões iniciais (carregar quadro/importação). */
   links?: EntityId[];
   /** Ficha referenciada pelo node (canvas ↔ fichas). */
-  refType?: "character" | "location";
+  refType?: "character" | "location" | "chapter" | "scene";
   refId?: EntityId;
   /** Tamanho do node no canvas. */
   w?: number;
@@ -40,7 +40,7 @@ export interface IdeaCardUpdateInput {
   /** Substitui as conexões do card. */
   links?: EntityId[];
   /** Ficha referenciada pelo node (canvas ↔ fichas). */
-  refType?: "character" | "location";
+  refType?: "character" | "location" | "chapter" | "scene";
   refId?: EntityId;
   /** Tamanho do node no canvas. */
   w?: number;

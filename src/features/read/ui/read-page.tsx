@@ -44,7 +44,12 @@ export function ReadPage() {
     () => (projectId ? chapterRepository.listByProject(projectId) : []),
     [projectId],
   );
-  const chapters = useMemo(() => liveChapters ?? [], [liveChapters]);
+  // Capítulos arquivados ficam fora da leitura: saem do seletor, da
+  // navegação anterior/próxima e das estatísticas.
+  const chapters = useMemo(
+    () => (liveChapters ?? []).filter((chapter) => !chapter.archived),
+    [liveChapters],
+  );
   const [chapterId, setChapterId] = useState<string | null>(null);
   // Destaque ampliado dos trechos grifados (toggle visual, sem navegação).
   const [grifarReveal, setGrifarReveal] = useState(false);

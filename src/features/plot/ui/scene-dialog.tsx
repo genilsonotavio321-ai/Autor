@@ -44,7 +44,7 @@ interface SceneDialogProps {
 }
 
 /**
- * Create/edit dialog for scenes (corkboard, kanban and outline all reuse it).
+ * Create/edit dialog for scenes (list, kanban and outline all reuse it).
  * Moving to another chapter re-appends the scene at the end of the target.
  */
 export function SceneDialog({

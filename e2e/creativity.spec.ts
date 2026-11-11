@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test";
 
 import {
   createProject,
-  openCanvasMenu,
   openCanvasMenuButton,
   waitForToastCycle,
 } from "./helpers";
@@ -16,10 +15,10 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   await page.goto("/outline");
   await page.getByRole("button", { name: "Adicionar capítulo" }).click();
 
-  // Desbloqueio: agora é uma opção do menu flutuante do canvas.
-  await page.goto("/canvas");
-  await openCanvasMenu(page);
-  await page.getByRole("menuitem", { name: "Desbloqueio" }).click();
+  // Desbloqueio: agora vive na aba Roteiro da Estrutura.
+  await page.goto("/outline");
+  await page.getByRole("tab", { name: "Roteiro" }).click();
+  await page.getByRole("button", { name: "Desbloqueio" }).click();
   await expect(
     page.getByRole("heading", { name: "Desbloqueio" }),
   ).toBeVisible();
@@ -34,7 +33,8 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toBeHidden();
 
-  // Card guardado aparece; setas movem o card focado.
+  // Card guardado aparece no canvas; setas movem o card focado.
+  await page.goto("/canvas");
   const card = page
     .locator("div[data-card-id]")
     .filter({ hasText: "Desbloqueio · Enredo" })
@@ -62,9 +62,10 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   await waitForToastCycle(page);
   await expect(page.getByRole("link", { name: "→ Cena" })).toBeVisible();
 
-  // Construtor de cena: opção do menu, formulário guiado.
-  await openCanvasMenu(page);
-  await page.getByRole("menuitem", { name: "Construtor de cena" }).click();
+  // Construtor de cena: agora vive na aba Cenas da Estrutura.
+  await page.goto("/outline");
+  await page.getByRole("tab", { name: "Cenas" }).click();
+  await page.getByRole("button", { name: "Construtor de cena" }).click();
   await expect(
     page.getByRole("heading", { name: "Construtor de cena" }),
   ).toBeVisible();
@@ -82,8 +83,12 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   await page.getByRole("tab", { name: "Roteiro" }).click();
   await expect(page.getByText("Perseguição").first()).toBeVisible();
   await page.getByRole("tab", { name: "Cenas" }).click();
-  await page.getByRole("button", { name: "Corkboard" }).click();
-  await expect(
-    page.getByText("Objetivo: Fugir do castelo").first(),
-  ).toBeVisible();
+  await page.getByRole("button", { name: "Perseguição" }).click();
+  const sceneDialog = page.getByRole("dialog");
+  await expect(sceneDialog.getByLabel("Resumo")).toHaveValue(
+    /Objetivo: Fugir do castelo/,
+  );
+  await expect(sceneDialog.getByLabel("Capítulo da cena")).toContainText(
+    "Capítulo 1",
+  );
 });

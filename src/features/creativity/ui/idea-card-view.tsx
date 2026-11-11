@@ -15,7 +15,7 @@ import { generateHTML, type JSONContent } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
-import { Link2, MapPin, User } from "lucide-react";
+import { BookOpen, Clapperboard, Link2, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
@@ -299,11 +299,21 @@ export function IdeaCardView({
             <div className="mb-1 flex items-center gap-1 text-muted-foreground">
               {card.refType === "character" ? (
                 <User aria-hidden className="size-3.5" />
-              ) : (
+              ) : card.refType === "location" ? (
                 <MapPin aria-hidden className="size-3.5" />
+              ) : card.refType === "chapter" ? (
+                <BookOpen aria-hidden className="size-3.5" />
+              ) : (
+                <Clapperboard aria-hidden className="size-3.5" />
               )}
               <Badge variant="outline" className="text-[10px]">
-                {card.refType === "character" ? "Personagem" : "Local"}
+                {card.refType === "character"
+                  ? "Personagem"
+                  : card.refType === "location"
+                    ? "Local"
+                    : card.refType === "chapter"
+                      ? "Capítulo"
+                      : "Cena"}
               </Badge>
             </div>
           ) : null}

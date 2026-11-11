@@ -35,9 +35,8 @@ test("outline: beats, cenas e reordenação por teclado", async ({ page }) => {
     .click();
   await expect(page.getByText("Cena 1").first()).toBeVisible();
 
-  // Corkboard mostra a carta da cena com o capítulo.
+  // A visão Lista mostra a cena com o capítulo.
   await page.getByRole("tab", { name: "Cenas" }).click();
-  await page.getByRole("button", { name: "Corkboard" }).click();
   const card = page.getByRole("button", { name: "Cena 1", exact: true });
   await expect(card).toBeVisible();
   await expect(page.getByText("Capítulo 1").first()).toBeVisible();

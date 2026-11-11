@@ -34,8 +34,9 @@ describe("DexieChapterRepository", () => {
     const first = await repository.create({ projectId });
     const second = await repository.create({ projectId });
     expect(first.order).toBe(1);
-    expect(first.title).toBe("Capítulo 1");
+    expect(first.title).toBe("Novo capítulo");
     expect(second.order).toBe(2);
+    expect(second.title).toBe("Novo capítulo");
   });
 
   it("creates a chapter with initial content and counts its words", async () => {
@@ -60,8 +61,19 @@ describe("DexieChapterRepository", () => {
 
     const next = await repository.create({ projectId });
     expect(next.order).toBe(3);
-    expect(next.title).toBe("Capítulo 3");
+    expect(next.title).toBe("Novo capítulo");
     expect(first.order).toBe(1);
+  });
+
+  it("does not reuse the order of an archived chapter", async () => {
+    const projectId = await seedProject();
+    const first = await repository.create({ projectId });
+    await repository.update(first.id, { archived: true });
+
+    const next = await repository.create({ projectId });
+    expect(next.title).toBe("Novo capítulo");
+    // O arquivado ainda ocupa a order 1: a nova não empata com ele.
+    expect(next.order).toBe(2);
   });
 
   it("soft-deletes, lists trash and restores a chapter", async () => {

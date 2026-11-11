@@ -41,7 +41,10 @@ export interface ChapterCreateInput {
 }
 
 export type ChapterUpdateInput = Partial<
-  Pick<Chapter, "title" | "status" | "content" | "wordCount" | "order">
+  Pick<
+    Chapter,
+    "title" | "status" | "content" | "wordCount" | "order" | "archived"
+  >
 >;
 
 export interface ChapterRepository {

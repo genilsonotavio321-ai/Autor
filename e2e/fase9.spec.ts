@@ -47,15 +47,15 @@ test.describe("Fase 9 — celular e PDF", () => {
     ).toHaveCSS("touch-action", "none");
 
     await page.getByRole("tab", { name: "Cenas" }).click();
-    await page.getByRole("button", { name: "Corkboard" }).click();
-    const card = page.getByRole("button", { name: "Cena 1", exact: true });
+    await page.getByRole("button", { name: "Kanban" }).click();
+    const card = page.getByRole("button", { name: "Editar Cena 1" });
     await expect(card).toBeVisible();
     await expect(
-      page.getByRole("button", { name: "Reordenar Cena 1" }),
+      page.getByRole("button", { name: "Mover Cena 1" }),
     ).toHaveCSS("touch-action", "none");
 
     // Arrastar (pega) não abre o diálogo de edição...
-    const handle = page.getByRole("button", { name: "Reordenar Cena 1" });
+    const handle = page.getByRole("button", { name: "Mover Cena 1" });
     const box = await handle.boundingBox();
     expect(box).not.toBeNull();
     await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);

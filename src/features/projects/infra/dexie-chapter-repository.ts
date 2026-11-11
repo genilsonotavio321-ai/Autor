@@ -20,7 +20,7 @@ export class DexieChapterRepository implements ChapterRepository {
     await ensureDbReady();
     const db = getDatabase();
     // Ignora capítulos na lixeira: sem isso, excluir o cap. 6 faria o próximo
-    // ser criado como "Capítulo 7" mesmo com 5 capítulos visíveis.
+    // receber a order 7 mesmo com 5 capítulos visíveis.
     const existing = await db.chapters
       .filter(
         (chapter) => chapter.projectId === input.projectId && !chapter.deletedAt,
@@ -35,7 +35,9 @@ export class DexieChapterRepository implements ChapterRepository {
     const chapter: Chapter = {
       id: createId(),
       projectId: input.projectId,
-      title: input.title?.trim() || `Capítulo ${order}`,
+      // Título padrão único: a numeração visível fica a cargo da lista
+      // (posição do capítulo), não do nome.
+      title: input.title?.trim() || "Novo capítulo",
       order,
       status: "todo",
       wordCount: countDocWords(content),

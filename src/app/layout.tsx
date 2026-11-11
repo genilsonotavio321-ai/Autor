@@ -63,7 +63,9 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-          <Toaster />
+          {/* Notificações no topo: a barra inferior de navegação (mobile)
+              não pode ser coberta pelo toast. */}
+          <Toaster position="top-center" />
         </ThemeProvider>
       </body>
     </html>

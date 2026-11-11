@@ -77,6 +77,9 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
     );
   }
 
+  const activeChapters = chapters.filter((chapter) => !chapter.archived);
+  const archivedChapters = chapters.filter((chapter) => chapter.archived);
+
   const archive = async () => {
     const next = project.status === "archived" ? "active" : "archived";
     await projectRepository.update(project.id, { status: next });
@@ -189,8 +192,24 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
             Novo capítulo
           </Button>
         </div>
-        <ChapterList chapters={chapters} />
+        <ChapterList chapters={activeChapters} />
       </section>
+
+      {archivedChapters.length > 0 ? (
+        <section className="space-y-3">
+          <div className="flex items-center gap-2">
+            <h2 className="font-serif text-2xl font-semibold tracking-tight">
+              Arquivados
+            </h2>
+            <Badge variant="outline">{archivedChapters.length}</Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            Capítulos guardados dentro do projeto — fora da escrita, mas sempre
+            à mão.
+          </p>
+          <ChapterList chapters={archivedChapters} />
+        </section>
+      ) : null}
 
       <ProjectFormDialog
         open={editOpen}

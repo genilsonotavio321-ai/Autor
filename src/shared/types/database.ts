@@ -123,6 +123,8 @@ export interface Chapter extends BaseEntity {
   wordCount: number;
   /** Tiptap document JSON. */
   content: Json;
+  /** Arquivado dentro do projeto: sai da escrita, mas não vai para a lixeira. */
+  archived?: boolean;
 }
 
 export interface Scene extends BaseEntity {
@@ -337,7 +339,7 @@ export interface IdeaCard extends BaseEntity {
   /** Grupo persistente: arrastar um membro move todos os do grupo. */
   groupId?: EntityId;
   /** Ficha referenciada pelo node (canvas ligado às fichas — fase 4). */
-  refType?: "character" | "location";
+  refType?: "character" | "location" | "chapter" | "scene";
   refId?: EntityId;
   /** Tamanho do node (resize); padrão do layout do canvas. */
   w?: number;
@@ -363,7 +365,7 @@ export interface IdeaBoardItem {
   /** Chaves dos itens conectados (remapeadas para ids no load). */
   links?: string[];
   /** Ficha referenciada, quando o node é um node de ficha. */
-  refType?: "character" | "location";
+  refType?: "character" | "location" | "chapter" | "scene";
   refId?: EntityId;
   /** Tamanho do node no momento do snapshot. */
   w?: number;

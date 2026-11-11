@@ -20,10 +20,11 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { GripVertical, MoreHorizontal, Trash2 } from "lucide-react";
+import { Archive, GripVertical, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -126,8 +127,12 @@ export function ChapterList({ chapters }: ChapterListProps) {
         strategy={verticalListSortingStrategy}
       >
         <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl bg-card/40 ring-1 ring-border/70">
-          {chapters.map((chapter) => (
-            <ChapterRow key={chapter.id} chapter={chapter} />
+          {chapters.map((chapter, index) => (
+            <ChapterRow
+              key={chapter.id}
+              chapter={chapter}
+              number={index + 1}
+            />
           ))}
         </ul>
       </SortableContext>
@@ -135,7 +140,14 @@ export function ChapterList({ chapters }: ChapterListProps) {
   );
 }
 
-function ChapterRow({ chapter }: { chapter: Chapter }) {
+function ChapterRow({
+  chapter,
+  number,
+}: {
+  chapter: Chapter;
+  /** Posição na lista (não a `order` bruta: arquivados no meio deixam buracos). */
+  number: number;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: chapter.id });
 
@@ -149,6 +161,31 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
       await chapterRepository.update(chapter.id, { status });
     } catch {
       toast.error("Falha ao atualizar o status");
+    }
+  }
+
+  /** Arquiva/desarquiva: o capítulo continua dentro do projeto. */
+  async function toggleArchive() {
+    const archived = !chapter.archived;
+    try {
+      await chapterRepository.update(chapter.id, { archived });
+      toast.success(
+        archived
+          ? `"${chapter.title}" arquivado`
+          : `"${chapter.title}" desarquivado`,
+        {
+          action: {
+            label: "Desfazer",
+            onClick: () => {
+              void chapterRepository.update(chapter.id, {
+                archived: !archived,
+              });
+            },
+          },
+        },
+      );
+    } catch {
+      toast.error("Falha ao arquivar o capítulo");
     }
   }
 
@@ -188,9 +225,17 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
             className="block font-serif text-base font-medium tracking-tight after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
           >
             <span className="mr-2 font-serif text-sm text-muted-foreground">
-              {chapter.order}.{" "}
+              {number}.{" "}
             </span>
             {chapter.title}
+            {chapter.archived ? (
+              <Badge
+                variant="outline"
+                className="ml-2 align-middle text-[10px] font-normal"
+              >
+                Arquivado
+              </Badge>
+            ) : null}
           </Link>
           <p className="text-xs text-muted-foreground">
             {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
@@ -238,6 +283,10 @@ function ChapterRow({ chapter }: { chapter: Chapter }) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => void toggleArchive()}>
+              <Archive aria-hidden />
+              {chapter.archived ? "Desarquivar" : "Arquivar"}
+            </DropdownMenuItem>
             <DropdownMenuItem
               variant="destructive"
               onClick={() => void remove()}

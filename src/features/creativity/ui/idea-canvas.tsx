@@ -17,12 +17,11 @@ import {
   AlignStartVertical,
   AlignVerticalJustifyCenter,
   BookOpen,
+  Clapperboard,
   Copy,
   Download,
   FolderOpen,
   Group,
-  Hammer,
-  Lightbulb,
   MapPin,
   Menu,
   Palette,
@@ -94,6 +93,7 @@ import type {
   IdeaCard,
   IdeaGroup,
   Location,
+  Scene,
 } from "@/shared/types/database";
 
 import { sendSceneToOutline } from "../application/send-to-outline";
@@ -113,6 +113,7 @@ import {
   type LayoutMove,
 } from "../domain/canvas-layout";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
 import { MentionSheet, type MentionSheetTarget } from "@/features/editor/ui/mention-sheet";
 import { downloadBlob } from "@/features/export/infra/download";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
@@ -121,8 +122,6 @@ import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
 
 import { IdeaCardView, removeCard } from "./idea-card-view";
-import { SceneBuilder } from "./scene-builder";
-import { UnblockPanel } from "./unblock-panel";
 
 interface IdeaCanvasProps {
   projectId: EntityId;
@@ -136,6 +135,7 @@ const NO_GROUPS: IdeaGroup[] = [];
 const NO_BOARDS: IdeaBoard[] = [];
 const NO_CHARACTERS: Character[] = [];
 const NO_LOCATIONS: Location[] = [];
+const NO_SCENES: Scene[] = [];
 
 /** Uma mudança de posição (desfazer/refazer de movimento). */
 type MoveOp = {
@@ -172,9 +172,15 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     useLiveQuery(() => locationRepository.listByProject(projectId), [
       projectId,
     ]) ?? NO_LOCATIONS;
+  const scenes =
+    useLiveQuery(() => sceneRepository.listByProject(projectId), [
+      projectId,
+    ]) ?? NO_SCENES;
   const router = useRouter();
   const [editingId, setEditingId] = useState<EntityId | null>(null);
   const [fichaDialogOpen, setFichaDialogOpen] = useState(false);
+  /** Seletor aberto de capítulo/cena para virar node do canvas. */
+  const [refPicker, setRefPicker] = useState<"chapter" | "scene" | null>(null);
   const [fichaTarget, setFichaTarget] = useState<MentionSheetTarget | null>(
     null,
   );
@@ -218,7 +224,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     x: number;
     y: number;
   } | null>(null);
-  const [panel, setPanel] = useState<"unblock" | "builder" | null>(null);
   /** Quadro ativo: o canvas salva nele até que outro seja criado/carregado. */
   // shortcut: quadro ativo vive em memória; ao recarregar a página, o
   // autosave retoma quando um quadro for criado ou carregado de novo.
@@ -1113,35 +1118,55 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     }
   }
 
-  /** Cria um node de ficha (personagem/local) no canto do canvas. */
-  async function createFichaCard(
-    refType: "character" | "location",
-    entity: { id: string; name: string; description?: string | null },
+  /**
+   * Cria um node ligado a uma ficha, capítulo ou cena no canto do canvas.
+   * Nada é criado na Estrutura: o node apenas representa o item aqui.
+   */
+  async function createRefCard(
+    refType: NonNullable<IdeaCard["refType"]>,
+    entity: { id: string; title: string; content?: string | null },
   ) {
-    // Mesma cascata da "Nova ideia", cor fixa por tipo de ficha.
+    // Mesma cascata da "Nova ideia", cor fixa por tipo de node.
     const n = cards.length;
+    const color =
+      refType === "character"
+        ? "purple"
+        : refType === "location"
+          ? "blue"
+          : refType === "chapter"
+            ? "green"
+            : "yellow";
     try {
       await ideaCardRepository.create({
         projectId,
         refType,
         refId: entity.id,
-        title: entity.name,
-        content: entity.description ?? "",
-        color: refType === "character" ? "purple" : "blue",
+        title: entity.title,
+        content: entity.content ?? "",
+        color,
         x: 16 + (n % 5) * 24,
         y: 16 + (n % 5) * 40,
       });
       playUiSound("create");
-      toast.success("Ficha adicionada ao canvas");
+      toast.success("Node adicionado ao canvas");
       setFichaDialogOpen(false);
+      setRefPicker(null);
     } catch {
-      toast.error("Falha ao adicionar a ficha");
+      toast.error("Falha ao adicionar o node");
     }
   }
 
-  /** Abre a ficha do node; a ficha pode ter sido excluída desde a criação. */
+  /** Abre o alvo do node: ficha (personagem/local) ou a seção do capítulo/cena. */
   async function openFicha(card: IdeaCard) {
     if (!card.refType || !card.refId) return;
+    if (card.refType === "chapter") {
+      router.push(`/write/${card.refId}`);
+      return;
+    }
+    if (card.refType === "scene") {
+      router.push(`/outline?scene=${card.refId}`);
+      return;
+    }
     const found =
       card.refType === "character"
         ? await characterRepository.getById(card.refId)
@@ -1416,8 +1441,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   }
 
   // Conteúdo com tamanho explícito: o SVG cobre todo o espaço scrollável
-  // até o último card (largura padrão 224px + folga).
+  // até o último card (largura padrão 224px + folga). O piso evita
+  // `Math.max()` vazio, que devolve -Infinity e quebra o `width` no CSS.
   const boardWidth = Math.max(
+    480,
     ...cards.map((card) => card.x + (card.w ?? 224) + 56),
   );
   const boardHeight = Math.max(
@@ -1593,11 +1620,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
             <DropdownMenuItem onClick={() => setFichaDialogOpen(true)}>
               <Users aria-hidden className="size-4" /> Adicionar ficha
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPanel("unblock")}>
-              <Lightbulb aria-hidden className="size-4" /> Desbloqueio
+            <DropdownMenuItem onClick={() => setRefPicker("chapter")}>
+              <BookOpen aria-hidden className="size-4" /> Adicionar capítulo
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => setPanel("builder")}>
-              <Hammer aria-hidden className="size-4" /> Construtor de cena
+            <DropdownMenuItem onClick={() => setRefPicker("scene")}>
+              <Clapperboard aria-hidden className="size-4" /> Adicionar cena
             </DropdownMenuItem>
             {canvasButtonsHidden ? (
               <>
@@ -1784,7 +1811,8 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                   <DropdownMenuItem
                     onClick={() => void openFicha(selectedCards[0]!)}
                   >
-                    <BookOpen aria-hidden className="size-4" /> Abrir ficha
+                    <BookOpen aria-hidden className="size-4" />{" "}
+                    {refOpenLabel(selectedCards[0]!.refType)}
                   </DropdownMenuItem>
                 ) : (
                   <DropdownMenuItem
@@ -1864,7 +1892,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         >
           {cardMenu.card.refType ? (
             <CardMenuButton
-              label="Abrir ficha"
+              label={refOpenLabel(cardMenu.card.refType)}
               icon={BookOpen}
               onClick={() => {
                 const card = cardMenu.card;
@@ -2042,31 +2070,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      <Dialog
-        open={panel !== null}
-        onOpenChange={(open) => {
-          if (!open) setPanel(null);
-        }}
-      >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>
-              {panel === "unblock" ? "Desbloqueio" : "Construtor de cena"}
-            </DialogTitle>
-          </DialogHeader>
-          {panel === "unblock" ? (
-            <UnblockPanel
-              projectId={projectId}
-              onSaved={() => {
-                // Configuração decide se guardar já fecha o popup.
-                if (useUiStore.getState().unblockCloseOnSave) setPanel(null);
-              }}
-            />
-          ) : (
-            <SceneBuilder projectId={projectId} chapters={chapters} />
-          )}
-        </DialogContent>
-      </Dialog>
       <Dialog open={fichaDialogOpen} onOpenChange={setFichaDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -2088,7 +2091,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                     key={character.id}
                     variant="outline"
                     onClick={() =>
-                      void createFichaCard("character", character)
+                      void createRefCard("character", {
+                        id: character.id,
+                        title: character.name,
+                        content: character.description,
+                      })
                     }
                   >
                     <User aria-hidden />
@@ -2108,7 +2115,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
                   <Button
                     key={location.id}
                     variant="outline"
-                    onClick={() => void createFichaCard("location", location)}
+                    onClick={() => void createRefCard("location", {
+                        id: location.id,
+                        title: location.name,
+                        content: location.description,
+                      })}
                   >
                     <MapPin aria-hidden />
                     {location.name}
@@ -2117,6 +2128,70 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
               </div>
             </div>
           ) : null}
+        </DialogContent>
+      </Dialog>
+      <Dialog
+        open={refPicker !== null}
+        onOpenChange={(open) => {
+          if (!open) setRefPicker(null);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {refPicker === "chapter"
+                ? "Adicionar capítulo ao canvas"
+                : "Adicionar cena ao canvas"}
+            </DialogTitle>
+          </DialogHeader>
+          {refPicker === "chapter" ? (
+            chapters.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Crie capítulos no Roteiro da Estrutura primeiro.
+              </p>
+            ) : (
+              <div className="grid max-h-80 gap-2 overflow-y-auto">
+                {chapters.map((chapter) => (
+                  <Button
+                    key={chapter.id}
+                    variant="outline"
+                    onClick={() =>
+                      void createRefCard("chapter", {
+                        id: chapter.id,
+                        title: chapter.title,
+                      })
+                    }
+                  >
+                    <BookOpen aria-hidden />
+                    {chapter.title}
+                  </Button>
+                ))}
+              </div>
+            )
+          ) : scenes.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma cena ainda. Crie cenas na aba Cenas da Estrutura.
+            </p>
+          ) : (
+            <div className="grid max-h-80 gap-2 overflow-y-auto">
+              {scenes.map((scene) => (
+                <Button
+                  key={scene.id}
+                  variant="outline"
+                  onClick={() =>
+                    void createRefCard("scene", {
+                      id: scene.id,
+                      title: scene.title,
+                      content: scene.summary,
+                    })
+                  }
+                >
+                  <Clapperboard aria-hidden />
+                  {scene.title}
+                </Button>
+              ))}
+            </div>
+          )}
         </DialogContent>
       </Dialog>
       <MentionSheet
@@ -2170,6 +2245,13 @@ function sameRects(
       a[key]?.width === b[key]?.width &&
       a[key]?.height === b[key]?.height,
   );
+}
+
+/** Rótulo do item que abre o alvo do node (ficha, capítulo ou cena). */
+function refOpenLabel(refType: NonNullable<IdeaCard["refType"]>): string {
+  if (refType === "chapter") return "Abrir capítulo";
+  if (refType === "scene") return "Abrir cena";
+  return "Abrir ficha";
 }
 
 function clampZoom(value: number): number {

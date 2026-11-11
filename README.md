@@ -109,7 +109,7 @@ src/
 
 ## Recursos (Fase 2)
 
-- Estrutura (`/outline`): roteiro de capítulos e cenas reordenáveis por arrasto **e teclado** (dnd-kit), cenas em lista/corkboard/kanban e beats — tudo filtrado pelo projeto selecionado.
+- Estrutura (`/outline`): roteiro de capítulos e cenas reordenáveis por arrasto **e teclado** (dnd-kit), cenas em lista ou kanban e beats — tudo filtrado pelo projeto selecionado.
 - Linha do tempo (`/timeline`): eventos ordenados por data, vínculo com capítulos.
 - Notas (`/notes`): criar, editar, fixar (aparecem primeiro), exclusão suave com "Desfazer"; restauração na lixeira.
 - Seletor de projeto global persistido (usado em Estrutura, Linha do tempo, Notas e Lixeira).
@@ -183,7 +183,7 @@ src/
 - **Arcos como tramas paralelas**: escolha o escopo (Trama principal ou um arco narrativo) para dar beats próprios a cada subtrama; os arcos continuam aparecendo como faixas na linha do tempo.
 - **Catálogos dramáticos classificatórios**: as 36 situações de Georges Polti e as 6 funções dramáticas de Etienne Souriau nomeiam a situação de um beat (não são esqueletos de atos). Souriau permite atribuir personagens às seis funções (Leão, Sol, Terra, Marte, Balança, Lua).
 - **Cena como ponte**: cada cena pode pertencer a um beat (`Scene.beatId`), e é isso que conecta estrutura e linha do tempo — o beat mostra as cenas vinculadas e quantos eventos elas têm; o evento mostra o beat correspondente com link "Estrutura".
-- Aba **Cenas**: lista, corkboard e kanban viraram visões alternáveis da mesma coleção (antes eram abas separadas). A aba **Roteiro** mantém a árvore de capítulos/cenas.
+- Aba **Cenas**: lista e kanban viraram visões alternáveis da mesma coleção (antes eram abas separadas). A aba **Roteiro** mantém a árvore de capítulos/cenas.
 - **Migração automática**: os beats antigos viram seções do template equivalente (com vínculo de capítulo preservado e `linkedSceneId` migrado para `scene.beatId`), com backup pré-migração de praxe (`dataVersion`).
 
 ## Notas
