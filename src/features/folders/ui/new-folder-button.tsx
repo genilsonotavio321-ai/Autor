@@ -4,7 +4,6 @@ import { Folder as FolderIcon } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId, Folder, FolderKind } from "@/shared/types/database";
 
 import { folderRepository } from "../infra/dexie-folder-repository";
@@ -38,7 +37,6 @@ export function NewFolderButton({
         kind,
         ...(parentId ? { parentId } : {}),
       });
-      playUiSound("create");
       onCreated?.(folder);
     } catch {
       toast.error("Falha ao criar a pasta");

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import {
@@ -12,7 +12,6 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command";
-import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 import { createSearchIndex, searchDocs } from "../application/search-service";
@@ -28,18 +27,9 @@ export function SearchDialog() {
   const open = useUiStore((state) => state.searchOpen);
   const closeSearch = useUiStore((state) => state.closeSearch);
   const [query, setQuery] = useState("");
-  const docs = useSearchDocs();
+  const docs = useSearchDocs(open);
   const index = useMemo(() => createSearchIndex(docs), [docs]);
   const results = query.trim() ? searchDocs(index, query) : [];
-
-  // Abre/fecha por estado externo (botão, Ctrl+K, select) — Radix não emite
-  // onOpenChange nessas transições, então observamos o próprio `open`.
-  const prevOpen = useRef(open);
-  useEffect(() => {
-    if (prevOpen.current === open) return;
-    prevOpen.current = open;
-    playUiSound(open ? "open" : "close");
-  }, [open]);
 
   const select = (doc: SearchDoc) => {
     if (doc.projectId) {

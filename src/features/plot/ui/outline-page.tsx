@@ -57,7 +57,9 @@ export function OutlinePage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        eyebrow="Produção"
         title="Estrutura"
+        description="Atos, cenas e o roteiro do projeto."
         count={
           projectId && chapters.length > 0
             ? `${chapters.length} ${chapters.length === 1 ? "capítulo" : "capítulos"}`
@@ -67,10 +69,10 @@ export function OutlinePage() {
       </PageHeader>
 
       {projectId === null ? (
-        <EmptyState>
-          <p className="mb-4">
-            Crie um projeto para começar a planejar a estrutura.
-          </p>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para começar a planejar a estrutura."
+        >
           <Button asChild>
             <Link href="/projects">Ir para Projetos</Link>
           </Button>

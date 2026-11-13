@@ -23,6 +23,7 @@ import { BookOpen, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +34,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +58,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import type {
   Chapter,
   Character,
@@ -347,7 +348,6 @@ export function StructurePanel({
 
   async function remove(beat: PlotBeat) {
     await plotBeatRepository.softDelete(beat.id);
-    playUiSound("delete");
     toast(`"${beat.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -462,11 +462,13 @@ export function StructurePanel({
       )}
 
       {columns.every((column) => column.beats.length === 0) && (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          {isMain
-            ? "Nenhum beat ainda. Aplique uma teoria ou adicione beats à mão."
-            : "Nenhum beat neste arco ainda. Adicione o primeiro."}
-        </div>
+        <EmptyState
+          hint={
+            isMain
+              ? "Nenhum beat ainda. Aplique uma teoria ou adicione beats à mão."
+              : "Nenhum beat neste arco ainda. Adicione o primeiro."
+          }
+        />
       )}
 
       <DndContext

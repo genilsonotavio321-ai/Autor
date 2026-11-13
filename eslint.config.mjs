@@ -12,6 +12,11 @@ const eslintConfig = [
     "next-env.d.ts",
     "playwright-report/**",
     "test-results/**",
+    // Rascunhos locais (não versionados).
+    "scratchpad/**",
+    // Scripts CommonJS de ferramentas de apoio (skills e GitNexus).
+    ".claude/**",
+    ".gitnexus/**",
     // Gerado pelo Serwist no build.
     "public/sw.js",
     "public/swe-worker-*.js",

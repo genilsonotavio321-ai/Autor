@@ -15,7 +15,7 @@ export function PagePlaceholder({
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-4 pt-6">
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="font-heading text-3xl font-semibold tracking-tight">
+        <h1 className="display-title">
           {title}
         </h1>
         <Badge variant="outline">{phase}</Badge>

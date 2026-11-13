@@ -25,11 +25,11 @@ export function Topbar() {
         height: "calc(3.25rem + env(safe-area-inset-top))",
         paddingTop: "env(safe-area-inset-top)",
       }}
-      className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b border-border/70 bg-background/85 px-4 backdrop-blur-xl md:px-8"
+      className="sticky top-0 z-30 flex shrink-0 items-center gap-2 border-b border-border/60 bg-background/80 px-4 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60 md:px-8"
     >
       <span className="flex items-center gap-2 md:hidden">
         <BrandIcon className="size-4 text-primary" aria-hidden="true" />
-        <span className="font-serif text-base font-semibold tracking-tight">
+        <span className="font-serif text-[1.0625rem] font-medium tracking-tight">
           Autor
         </span>
       </span>

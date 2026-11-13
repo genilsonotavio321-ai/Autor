@@ -97,10 +97,9 @@ export function NarrativeTimeline({
       </div>
 
       {events.length === 0 && arcs.length === 0 ? (
-        <EmptyState>
-          Registre eventos e vincule cada um a um arco para montar a visão
-          multicamada.
-        </EmptyState>
+        <EmptyState
+          hint="Registre eventos e vincule cada um a um arco para montar a visão multicamada."
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border">
           <table className="w-full min-w-max table-fixed border-collapse">

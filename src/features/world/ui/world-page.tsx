@@ -31,7 +31,6 @@ import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatRelativeTime } from "@/shared/lib/dates";
-import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
@@ -420,7 +419,6 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          playUiSound("create");
           toast.success("Pasta criada com os dois locais");
         } else if (outcome === "reorder") {
           reorderLocations(activeId, overId);
@@ -450,7 +448,6 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          playUiSound("create");
           toast.success("Pasta criada com as duas entradas");
         } else if (outcome === "reorder") {
           reorderLoreEntries(activeId, overId);
@@ -480,7 +477,6 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          playUiSound("create");
           toast.success("Pasta criada com os dois objetos");
         } else if (outcome === "reorder") {
           reorderItems(activeId, overId);
@@ -531,7 +527,6 @@ export function WorldPage() {
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);
-    playUiSound("delete");
     toast(`"${location.name}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -544,7 +539,6 @@ export function WorldPage() {
 
   async function removeLore(entry: LoreEntry) {
     await loreEntryRepository.softDelete(entry.id);
-    playUiSound("delete");
     toast(
       entry.isTrackableItem
         ? `Objeto "${entry.title}" removido para a lixeira`
@@ -562,7 +556,6 @@ export function WorldPage() {
 
   async function removeFolder(folder: Folder) {
     await deleteFolderCascade(folder);
-    playUiSound("delete");
     toast(`Pasta "${folder.name}" movida para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -608,7 +601,9 @@ export function WorldPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        eyebrow="Planejamento"
         title="Mundo"
+        description="Locais, lore e objetos do universo da história."
         count={
           locations.length + allLoreEntries.length > 0
             ? `${locations.length} ${locations.length === 1 ? "local" : "locais"} · ${allLoreEntries.length} ${allLoreEntries.length === 1 ? "entrada" : "entradas"}`
@@ -664,9 +659,10 @@ export function WorldPage() {
       </PageHeader>
 
       {projectId === null ? (
-        <EmptyState className="p-10">
-          <p>Crie um projeto para mapear locais e o lore da sua história.</p>
-        </EmptyState>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para mapear locais e o lore da sua história."
+        />
       ) : (
         <Tabs value={worldTab} onValueChange={setWorldTab}>
           <TabsList>
@@ -677,10 +673,10 @@ export function WorldPage() {
 
           <TabsContent value="locations" className="mt-6 grid gap-3">
             {locations.length === 0 ? (
-              <EmptyState>
-                Nenhum local ainda. Registre cidades, castelos e paisagens do
-                seu universo.
-              </EmptyState>
+              <EmptyState
+                title="Nenhum local ainda"
+                hint="Registre cidades, castelos e paisagens do seu universo."
+              />
             ) : (
               <DndContext
                 sensors={sensors}
@@ -745,7 +741,7 @@ export function WorldPage() {
                 {openLocationFolderId !== null &&
                 viewLocationFolders.length === 0 &&
                 visibleLocations.length === 0 ? (
-                  <EmptyState>Pasta vazia. Arraste locais até aqui.</EmptyState>
+                  <EmptyState hint="Pasta vazia. Arraste locais até aqui." />
                 ) : null}
                 {locationHint.hint}
               </DndContext>
@@ -754,10 +750,10 @@ export function WorldPage() {
 
           <TabsContent value="lore" className="mt-6 grid gap-3">
             {loreEntries.length === 0 ? (
-              <EmptyState>
-                Nenhuma entrada de lore. Documente história, mitologia e regras
-                do seu mundo.
-              </EmptyState>
+              <EmptyState
+                title="Nenhuma entrada de lore"
+                hint="Documente história, mitologia e regras do seu mundo."
+              />
             ) : (
               <DndContext
                 sensors={sensors}
@@ -815,9 +811,7 @@ export function WorldPage() {
                 {openLoreFolderId !== null &&
                 viewLoreFolders.length === 0 &&
                 visibleLoreEntries.length === 0 ? (
-                  <EmptyState>
-                    Pasta vazia. Arraste entradas até aqui.
-                  </EmptyState>
+                  <EmptyState hint="Pasta vazia. Arraste entradas até aqui." />
                 ) : null}
                 {loreHint.hint}
               </DndContext>
@@ -826,10 +820,10 @@ export function WorldPage() {
 
           <TabsContent value="items" className="mt-6 grid gap-3">
             {trackableItems.length === 0 && itemFolders.length === 0 ? (
-              <EmptyState>
-                Nenhum objeto rastreável. Cadastre objetos para acompanhar posse
-                e estado na linha do tempo.
-              </EmptyState>
+              <EmptyState
+                title="Nenhum objeto rastreável"
+                hint="Cadastre objetos para acompanhar posse e estado na linha do tempo."
+              />
             ) : (
               <DndContext
                 sensors={sensors}
@@ -894,7 +888,7 @@ export function WorldPage() {
                 {currentItemFolder &&
                 viewItemFolders.length === 0 &&
                 visibleTrackableItems.length === 0 ? (
-                  <EmptyState>Pasta vazia. Arraste objetos até aqui.</EmptyState>
+                  <EmptyState hint="Pasta vazia. Arraste objetos até aqui." />
                 ) : null}
                 {itemHint.hint}
               </DndContext>

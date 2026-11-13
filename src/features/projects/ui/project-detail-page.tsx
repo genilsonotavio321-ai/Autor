@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/shared/lib/dates";
-import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 import { PROJECT_STATUS_LABELS } from "../domain/repository";
@@ -65,15 +65,18 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
 
   if (!project || project.deletedAt) {
     return (
-      <div className="mx-auto max-w-3xl rounded-2xl border border-dashed border-border/80 p-10 text-center">
-        <p className="font-serif text-lg">Projeto não encontrado</p>
-        <Button asChild className="mt-4" variant="outline">
+      <EmptyState
+        className="mx-auto max-w-md"
+        title="Projeto não encontrado"
+        hint="Ele pode ter sido excluído ou estar na lixeira."
+      >
+        <Button asChild variant="outline">
           <Link href="/projects">
             <ArrowLeft aria-hidden />
             Voltar para projetos
           </Link>
         </Button>
-      </div>
+      </EmptyState>
     );
   }
 
@@ -90,7 +93,6 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
 
   const remove = async () => {
     await projectRepository.softDelete(project.id);
-    playUiSound("delete");
     toast(`"${project.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -113,7 +115,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
   };
 
   return (
-    <div className="mx-auto max-w-3xl space-y-8">
+    <div className="space-y-8">
       <Link
         href="/projects"
         className="inline-flex items-center gap-1.5 text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase hover:text-foreground"
@@ -125,7 +127,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
           <div className="flex items-center gap-3">
-            <h1 className="font-serif text-4xl font-semibold tracking-tight">
+            <h1 className="display-title">
               {project.title}
             </h1>
             <Badge variant="outline">
@@ -133,7 +135,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
             </Badge>
           </div>
           {project.subtitle ? (
-            <p className="text-muted-foreground">{project.subtitle}</p>
+            <p className="lead mt-1">{project.subtitle}</p>
           ) : null}
           <p className="text-sm text-muted-foreground">
             {project.author ? `${project.author} · ` : ""}

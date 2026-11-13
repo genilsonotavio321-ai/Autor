@@ -1,10 +1,12 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { LayoutGrid, List, Plus } from "lucide-react";
+import { Archive, LayoutGrid, List, Plus } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, type CSSProperties } from "react";
 
+import { EmptyState } from "@/components/layout/empty-state";
+import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -67,19 +69,12 @@ export function ProjectsPage() {
   );
 
   return (
-    <div className="mx-auto w-full max-w-5xl space-y-8">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="space-y-2">
-          <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-            Biblioteca
-          </p>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight">
-            Projetos
-          </h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Seus romances, contos e rascunhos.
-          </p>
-        </div>
+    <div className="w-full space-y-8">
+      <PageHeader
+        eyebrow="Biblioteca"
+        title="Projetos"
+        description="Seus romances, contos e rascunhos."
+      >
         <Button
           className="rounded-full px-5"
           onClick={() => setDialogOpen(true)}
@@ -87,9 +82,9 @@ export function ProjectsPage() {
           <Plus aria-hidden />
           Novo projeto
         </Button>
-      </header>
+      </PageHeader>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/70 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 pb-3">
         <Tabs
           value={tab}
           onValueChange={(value) => setTab(value as ProjectsTab)}
@@ -161,34 +156,39 @@ export function ProjectsPage() {
         </div>
       ) : visible.length === 0 ? (
         tab === "archived" ? (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-card/30 p-10 text-center">
-            <p className="font-serif text-xl tracking-tight">Nenhum projeto arquivado</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Projetos arquivados ficam guardados aqui.
-            </p>
-          </div>
+          <EmptyState
+            icon={<Archive aria-hidden className="size-5" />}
+            title="Nenhum projeto arquivado"
+            hint="Projetos arquivados ficam guardados aqui."
+          />
         ) : (
-          <div className="rounded-2xl border border-dashed border-border/80 bg-card/30 p-10 text-center">
-            <p className="font-serif text-xl tracking-tight">Nenhum projeto ainda</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Crie seu primeiro projeto e comece a escrever.
-            </p>
-            <Button className="mt-4 rounded-full" onClick={() => setDialogOpen(true)}>
+          <EmptyState
+            icon={<Plus aria-hidden className="size-5" />}
+            title="Nenhum projeto ainda"
+            hint="Crie seu primeiro projeto e comece a escrever."
+          >
+            <Button className="rounded-full" onClick={() => setDialogOpen(true)}>
               <Plus aria-hidden />
               Novo projeto
             </Button>
-          </div>
+          </EmptyState>
         )
       ) : projectsLayout === "list" ? (
-        <div className="divide-y divide-border/70 overflow-hidden rounded-2xl bg-card/40 ring-1 ring-border/70">
+        <div className="surface divide-y divide-border/60 overflow-hidden">
           {visible.map(({ project, ...stats }) => (
             <ProjectRow key={project.id} project={project} stats={stats} />
           ))}
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {visible.map(({ project, ...stats }) => (
-            <ProjectCard key={project.id} project={project} stats={stats} />
+          {visible.map(({ project, ...stats }, index) => (
+            <div
+              key={project.id}
+              style={{ "--i": index } as CSSProperties}
+              className="reveal"
+            >
+              <ProjectCard project={project} stats={stats} />
+            </div>
           ))}
         </div>
       )}

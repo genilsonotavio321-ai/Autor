@@ -6,7 +6,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +66,6 @@ export function SceneDialog({
   useEffect(() => {
     if (prevOpen.current === open) return;
     prevOpen.current = open;
-    playUiSound(open ? "open" : "close");
   }, [open]);
 
   useEffect(() => {
@@ -118,7 +116,6 @@ export function SceneDialog({
   async function remove() {
     if (!scene) return;
     await sceneRepository.softDelete(scene.id);
-    playUiSound("delete");
     toast(`"${scene.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

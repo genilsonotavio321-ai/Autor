@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -469,15 +470,18 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
 
   if (!chapter || chapter.deletedAt) {
     return (
-      <div className="mx-auto max-w-3xl rounded-lg border border-dashed p-10 text-center">
-        <p className="font-serif text-lg">Capítulo não encontrado</p>
-        <Button asChild className="mt-4" variant="outline">
+      <EmptyState
+        className="mx-auto max-w-3xl"
+        title="Capítulo não encontrado"
+        hint="Ele pode ter sido excluído ou estar na lixeira."
+      >
+        <Button asChild variant="outline">
           <Link href="/projects">
             <ArrowLeft aria-hidden />
             Voltar para projetos
           </Link>
         </Button>
-      </div>
+      </EmptyState>
     );
   }
 
@@ -582,10 +586,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             setTitle(event.target.value);
             scheduleSave(event.target.value);
           }}
-          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-1 font-serif text-3xl font-semibold tracking-tight shadow-none focus-visible:border-border focus-visible:ring-0 sm:text-4xl"
+          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-1 font-serif text-[2.1rem] font-medium tracking-[-0.015em] shadow-none focus-visible:border-border focus-visible:ring-0 dark:bg-transparent md:text-[2.6rem]"
           aria-label="Título do capítulo"
         />
       </div>
+      <div aria-hidden className="hairline" />
       {!editorSimplified ? (
         <div className="flex flex-wrap items-center gap-2">
           <Select

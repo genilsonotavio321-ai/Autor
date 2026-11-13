@@ -618,3 +618,89 @@ html[data-theme-variant="musgo"] {
 .no-scrollbar::-webkit-scrollbar {
   display: none;
 }
+
+/* ------------------------------------------------------------------ */
+/* Design system v2 — hierarquia tipográfica, superfícies e movimento.  */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --dur-base: 200ms;
+  --dur-slow: 340ms;
+  --ease-out: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --elev-1: 0 1px 2px rgb(24 18 10 / 0.06), 0 1px 1px rgb(24 18 10 / 0.04);
+  --elev-2: 0 3px 10px -3px rgb(24 18 10 / 0.12), 0 1px 2px rgb(24 18 10 / 0.06);
+}
+
+.dark {
+  --elev-1: 0 1px 2px rgb(0 0 0 / 0.45);
+  --elev-2: 0 6px 18px -8px rgb(0 0 0 / 0.55);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+  p {
+    text-wrap: pretty;
+  }
+}
+
+@layer components {
+  .eyebrow {
+    @apply text-[11px] font-medium tracking-[0.2em] text-muted-foreground uppercase;
+  }
+  .display-title {
+    @apply font-serif text-[2.6rem] leading-[0.98] tracking-[-0.015em] md:text-[3.4rem];
+  }
+  .lead {
+    @apply max-w-prose text-[0.95rem] leading-relaxed text-muted-foreground;
+  }
+  .meta {
+    @apply text-xs text-muted-foreground;
+  }
+  .hairline {
+    height: 1px;
+    background: linear-gradient(to right, var(--border), transparent);
+  }
+  .surface {
+    @apply rounded-2xl bg-card/70 ring-1 ring-border;
+    box-shadow: var(--elev-1);
+  }
+  .surface-lift {
+    transition:
+      transform var(--dur-base) var(--ease-out),
+      box-shadow var(--dur-base) var(--ease-out),
+      background-color var(--dur-base) var(--ease-out),
+      border-color var(--dur-base) var(--ease-out);
+  }
+  .surface-lift:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--elev-2);
+  }
+  .reveal {
+    animation: reveal-in var(--dur-slow) var(--ease-out) both;
+    animation-delay: calc(var(--i, 0) * 40ms);
+  }
+}
+
+@keyframes reveal-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .reveal {
+    animation: none;
+  }
+  .surface-lift:hover {
+    transform: none;
+  }
+}

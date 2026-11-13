@@ -37,7 +37,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRelativeTime } from "@/shared/lib/dates";
-import { playUiSound } from "@/shared/lib/sound";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
@@ -227,7 +226,6 @@ export function CharactersPage() {
 
   async function remove(character: Character) {
     await characterRepository.softDelete(character.id);
-    playUiSound("delete");
     toast(`"${character.name}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -240,7 +238,6 @@ export function CharactersPage() {
 
   async function removeFolder(folder: Folder) {
     await deleteFolderCascade(folder);
-    playUiSound("delete");
     toast(`Pasta "${folder.name}" movida para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -272,7 +269,6 @@ export function CharactersPage() {
     try {
       const input = buildRandomCharacter(characters);
       await characterRepository.create({ ...input, projectId });
-      playUiSound("create");
       toast.success(`Ficha aleatória "${input.name}" criada`);
     } catch {
       toast.error("Falha ao criar a ficha aleatória");
@@ -304,7 +300,6 @@ export function CharactersPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          playUiSound("create");
           toast.success("Pasta criada com os dois personagens");
         } else if (outcome === "reorder") {
           reorderCharacters(activeId, overId);
@@ -341,7 +336,9 @@ export function CharactersPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        eyebrow="Planejamento"
         title="Personagens"
+        description="Objetivos, relações e arcos de quem move a história."
         count={
           characters.length > 0
             ? `${characters.length} ${characters.length === 1 ? "personagem" : "personagens"}`
@@ -410,14 +407,15 @@ export function CharactersPage() {
       ) : null}
 
       {projectId === null ? (
-        <EmptyState className="p-10">
-          <p>Crie um projeto para cadastrar seus personagens.</p>
-        </EmptyState>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para cadastrar seus personagens."
+        />
       ) : characters.length === 0 ? (
-        <EmptyState>
-          Nenhum personagem ainda. Registre protagonistas, antagonistas e
-          personagens de apoio com seus objetivos e relações.
-        </EmptyState>
+        <EmptyState
+          title="Nenhum personagem ainda"
+          hint="Registre protagonistas, antagonistas e personagens de apoio com seus objetivos e relações."
+        />
       ) : (
         <DndContext
           sensors={sensors}
@@ -444,11 +442,13 @@ export function CharactersPage() {
           {/* O EmptyState continua dentro do DndContext: o botão "Voltar"
               (FolderBackBar) não pode sumir quando a pasta fica vazia. */}
           {viewIds.length === 0 ? (
-            <EmptyState>
-              {openFolderId !== null
-                ? "Pasta vazia. Arraste personagens até aqui."
-                : "Nenhum personagem corresponde aos filtros."}
-            </EmptyState>
+            <EmptyState
+              hint={
+                openFolderId !== null
+                  ? "Pasta vazia. Arraste personagens até aqui."
+                  : "Nenhum personagem corresponde aos filtros."
+              }
+            />
           ) : (
           <SortableContext items={viewIds} strategy={rectSortingStrategy}>
             <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">

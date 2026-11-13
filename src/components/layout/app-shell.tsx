@@ -109,7 +109,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               : "flex-1 px-4 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:px-8 md:py-8"
           }
         >
-          {children}
+          {pathname === "/canvas" ? (
+            children
+          ) : (
+            <div className="mx-auto w-full max-w-6xl">{children}</div>
+          )}
         </main>
       </div>
       <BottomNav />

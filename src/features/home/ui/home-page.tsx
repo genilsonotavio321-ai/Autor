@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { Database, FolderKanban, Frame, LayoutDashboard } from "lucide-react";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { SearchTool } from "@/features/search/ui/search-tool";
 import { ResumeWritingCard } from "@/features/projects/ui/resume-writing-card";
 import { useUiStore, type HomeSection } from "@/shared/store/ui-store";
@@ -45,25 +47,22 @@ export function HomePage() {
   );
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
-      <header className="space-y-2">
-        <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
-          Seu ateliê de escrita
-        </p>
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">
-          Início
-        </h1>
-        <p className="max-w-md text-sm leading-relaxed text-muted-foreground">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-9 pt-2">
+      <header className="space-y-4">
+        <p className="eyebrow">Seu ateliê de escrita</p>
+        <h1 className="display-title">Início</h1>
+        <p className="lead">
           Escolha por onde começar. As seções desta página podem ser
           personalizadas nas Configurações.
         </p>
+        <div aria-hidden className="hairline" />
       </header>
 
       {showSearch && (
         <section
           id="inicio-busca"
           aria-label="Buscar"
-          className="rounded-2xl bg-card/70 p-4 ring-1 ring-border/70"
+          className="surface reveal p-4"
         >
           <SearchTool />
         </section>
@@ -73,25 +72,29 @@ export function HomePage() {
 
       {cards.length > 0 && (
         <div className="grid gap-3 sm:grid-cols-2">
-          {cards.map((section) => {
-            const {
-              title,
-              description,
-              href,
-              icon: Icon,
-            } = SECTION_CARDS[section];
+          {cards.map((section, index) => {
+            const { title, description, href, icon: Icon } = SECTION_CARDS[section];
             return (
               <Link
                 key={section}
                 href={href}
-                className="group rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+                style={{ "--i": index } as CSSProperties}
+                className="group reveal rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
               >
-                <div className="flex h-full flex-col gap-4 rounded-2xl bg-card/60 p-5 ring-1 ring-border/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:bg-accent/60 group-hover:ring-border">
-                  <span className="flex size-9 items-center justify-center rounded-full bg-muted text-foreground/80">
-                    <Icon aria-hidden className="size-4" />
-                  </span>
-                  <span className="space-y-1">
-                    <span className="block font-serif text-lg font-semibold tracking-tight">
+                <div className="surface surface-lift flex h-full flex-col gap-4 p-5 group-hover:bg-card">
+                  <div className="flex items-start justify-between">
+                    <span className="grid size-10 place-items-center rounded-xl bg-muted/70 text-foreground/75 ring-1 ring-border/60">
+                      <Icon aria-hidden className="size-[1.15rem]" />
+                    </span>
+                    <span
+                      aria-hidden
+                      className="text-muted-foreground/60 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
+                    >
+                      →
+                    </span>
+                  </div>
+                  <span className="space-y-1.5">
+                    <span className="block font-serif text-[1.3rem] leading-tight font-medium tracking-tight">
                       {title}
                     </span>
                     <span className="block text-sm leading-relaxed text-muted-foreground">
@@ -105,14 +108,13 @@ export function HomePage() {
         </div>
       )}
 
-      {!showSearch &&
-        cards.length === 0 &&
-        !homeSections.includes("continue") && (
-          <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
-            Nenhuma seção selecionada. Escolha as seções em Configurações →
-            Página inicial.
-          </div>
-        )}
+      {!showSearch && cards.length === 0 && !homeSections.includes("continue") && (
+        <EmptyState
+          icon={<LayoutDashboard aria-hidden className="size-5" />}
+          title="Página em branco"
+          hint="Nenhuma seção selecionada. Escolha as seções em Configurações → Página inicial."
+        />
+      )}
     </div>
   );
 }

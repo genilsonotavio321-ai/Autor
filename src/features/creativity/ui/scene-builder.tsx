@@ -6,6 +6,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { Send } from "lucide-react";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -100,9 +101,10 @@ export function SceneBuilder({ projectId, chapters }: SceneBuilderProps) {
 
   if (chapters.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/80 p-8 text-center text-sm text-muted-foreground">
-        Crie capítulos na Estrutura para poder montar cenas aqui.
-      </div>
+      <EmptyState
+        title="Nenhum capítulo ainda"
+        hint="Crie capítulos na Estrutura para poder montar cenas aqui."
+      />
     );
   }
 

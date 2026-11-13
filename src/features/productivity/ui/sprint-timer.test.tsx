@@ -10,11 +10,6 @@ vi.mock("../infra/writing-log-repository", () => ({
   recordSprint: vi.fn(async () => undefined),
 }));
 
-vi.mock("@/shared/lib/sound", () => ({
-  playSound: vi.fn(),
-  playUiSound: vi.fn(),
-}));
-
 function clock(): string {
   return screen.getByTestId("sprint-timer").textContent ?? "";
 }

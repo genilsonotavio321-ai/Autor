@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { Search, SearchX } from "lucide-react";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { useUiStore } from "@/shared/store/ui-store";
@@ -58,13 +59,12 @@ export function SearchTool({ autoFocus, onSelect }: SearchToolProps) {
       </p>
 
       {trimmed.length > 0 && results.length === 0 && (
-        <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed p-8 text-center">
-          <SearchX aria-hidden="true" className="size-8 text-muted-foreground" />
-          <p className="font-medium">Nenhum resultado encontrado.</p>
-          <p className="text-sm text-muted-foreground">
-            Tente outras palavras — a busca ignora acentos e maiúsculas.
-          </p>
-        </div>
+        <EmptyState
+          className="py-8"
+          icon={<SearchX aria-hidden className="size-5" />}
+          title="Nenhum resultado encontrado"
+          hint="Tente outras palavras — a busca ignora acentos e maiúsculas."
+        />
       )}
 
       <ul className="flex flex-col gap-2">

@@ -26,7 +26,6 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { downloadBlob } from "@/features/export/infra/download";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import type {
   CustomPrompt,
   CustomPromptCategory,
@@ -134,7 +133,6 @@ export function PromptManager() {
         });
         toast.success("Prompt criado");
       }
-      playUiSound("save");
       closeDialog();
     } catch {
       toast.error("Falha ao salvar o prompt");
@@ -142,14 +140,12 @@ export function PromptManager() {
   }
 
   async function toggleEnabled(prompt: CustomPrompt, enabled: boolean) {
-    playUiSound("toggle");
     await customPromptRepository.update(prompt.id, { enabled });
   }
 
   async function removePrompt(id: EntityId) {
     const prompt = prompts.find((item) => item.id === id);
     if (!prompt) return;
-    playUiSound("delete");
     await customPromptRepository.hardDelete(id);
     toast("Prompt excluído", {
       action: {
@@ -170,7 +166,6 @@ export function PromptManager() {
       toast.error("Nenhum prompt para exportar");
       return;
     }
-    playUiSound("backup");
     const blob = new Blob([JSON.stringify(buildPromptExport(prompts), null, 2)], {
       type: "application/json",
     });
@@ -188,7 +183,6 @@ export function PromptManager() {
         });
       }
       // atalho: imports chegam sempre ativados; desligue na lista se quiser
-      playUiSound("restore");
       toast.success(`${items.length} prompt(s) importado(s)`);
     } catch (error) {
       toast.error(

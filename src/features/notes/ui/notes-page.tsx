@@ -74,7 +74,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
 import { ExportFormatDialog, type ExportFormat } from "@/features/export/ui/export-format-dialog";
@@ -287,7 +286,6 @@ export function NotesPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          playUiSound("create");
           toast.success("Pasta criada com as duas notas");
         } else if (outcome === "reorder") {
           reorderNotes(activeId, overId);
@@ -342,7 +340,6 @@ export function NotesPage() {
 
   async function remove(note: Note) {
     await noteRepository.softDelete(note.id);
-    playUiSound("delete");
     toast(`"${note.title}" movida para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -355,7 +352,6 @@ export function NotesPage() {
 
   async function removeFolder(folder: Folder) {
     await deleteFolderCascade(folder);
-    playUiSound("delete");
     toast(`Pasta "${folder.name}" movida para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -386,7 +382,6 @@ export function NotesPage() {
     if (!projectId) return;
     const ids = await noteRepository.softDeleteByProject(projectId);
     if (ids.length === 0) return;
-    playUiSound("delete");
     toast(
       `${ids.length} ${ids.length === 1 ? "nota movida" : "notas movidas"} para a lixeira`,
       {
@@ -463,7 +458,9 @@ export function NotesPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        eyebrow="Planejamento"
         title="Notas"
+        description="Ideias soltas, pesquisas e lembretes do projeto."
         count={
           notes.length > 0
             ? `${notes.length} ${notes.length === 1 ? "nota" : "notas"}`
@@ -561,14 +558,15 @@ export function NotesPage() {
       </PageHeader>
 
       {projectId === null ? (
-        <EmptyState className="p-10">
-          <p>Crie um projeto para anotar ideias e lembretes.</p>
-        </EmptyState>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para anotar ideias e lembretes."
+        />
       ) : notes.length === 0 ? (
-        <EmptyState>
-          Nenhuma nota ainda. Use notas para ideias soltas, pesquisas e
-          lembretes.
-        </EmptyState>
+        <EmptyState
+          title="Nenhuma nota ainda"
+          hint="Use notas para ideias soltas, pesquisas e lembretes."
+        />
       ) : (
         <DndContext
           sensors={sensors}
@@ -685,7 +683,7 @@ export function NotesPage() {
                     </ul>
                   </SortableContext>
                 ) : viewFolders.length === 0 ? (
-                  <EmptyState>Pasta vazia. Arraste notas até aqui.</EmptyState>
+                  <EmptyState hint="Pasta vazia. Arraste notas até aqui." />
                 ) : null}
               </section>
             )}

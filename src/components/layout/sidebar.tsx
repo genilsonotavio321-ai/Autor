@@ -55,11 +55,11 @@ function NavItemLink({
       aria-current={active ? "page" : undefined}
       title={collapsed ? item.title : undefined}
       className={cn(
-        "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium outline-none transition-colors",
+        "flex items-center gap-3 rounded-lg px-3 py-2 text-[0.9rem] outline-none transition-[background-color,color,box-shadow] duration-150",
         "focus-visible:ring-3 focus-visible:ring-ring/50",
         active
-          ? "bg-sidebar-accent text-sidebar-accent-foreground"
-          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
+          ? "bg-sidebar-accent font-medium text-sidebar-accent-foreground shadow-[inset_2px_0_0_var(--sidebar-primary)]"
+          : "font-normal text-sidebar-foreground/65 hover:bg-sidebar-accent/70 hover:text-sidebar-accent-foreground",
         collapsed && "justify-center px-0",
       )}
     >
@@ -202,7 +202,7 @@ export function SidebarNav({
       {navGroups.map((group) => (
         <div key={group.label ?? "primary"} className="flex flex-col gap-1">
           {group.label && !collapsed && (
-            <p className="px-3 pb-1 text-xs font-medium tracking-wide text-sidebar-foreground/50 uppercase">
+            <p className="px-3 pb-1.5 text-[10px] font-semibold tracking-[0.18em] text-sidebar-foreground/45 uppercase">
               {group.label}
             </p>
           )}
@@ -323,13 +323,13 @@ export function Sidebar({ collapsed }: { collapsed: boolean }) {
         >
           <BrandIcon className="size-5 shrink-0 text-sidebar-primary" aria-hidden="true" />
           {!collapsed && (
-            <span className="font-heading text-sm font-semibold whitespace-nowrap">
+            <span className="font-serif text-lg leading-none font-medium tracking-tight whitespace-nowrap">
               Autor
             </span>
           )}
         </Link>
       </div>
-      <div className="flex-1 overflow-x-hidden overflow-y-auto py-3">
+      <div className="flex-1 overflow-x-hidden overflow-y-auto px-2 py-3">
         <SidebarNav collapsed={collapsed} />
       </div>
       {!collapsed ? (

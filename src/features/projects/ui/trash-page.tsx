@@ -4,6 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -15,6 +16,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
@@ -26,7 +28,6 @@ import { narrativeArcRepository } from "@/features/plot/infra/dexie-narrative-ar
 import { sceneRepository } from "@/features/plot/infra/dexie-scene-repository";
 import { timelineEventRepository } from "@/features/plot/infra/dexie-timeline-event-repository";
 import { formatDateTime } from "@/shared/lib/dates";
-import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId } from "@/shared/types/database";
 import { ideaCardRepository } from "@/features/creativity/infra/dexie-idea-card-repository";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
@@ -183,12 +184,10 @@ export function TrashPage() {
       purgeCascades: true,
       onRestore: async (item: TrashItem) => {
         await restoreProject(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("project", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -198,12 +197,10 @@ export function TrashPage() {
       items: (deletedNotes ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await noteRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("note", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -217,12 +214,10 @@ export function TrashPage() {
       })),
       onRestore: async (item: TrashItem) => {
         await characterRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("character", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -236,12 +231,10 @@ export function TrashPage() {
       })),
       onRestore: async (item: TrashItem) => {
         await locationRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("location", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -251,12 +244,10 @@ export function TrashPage() {
       items: (deletedLore ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await loreEntryRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("lore", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -267,12 +258,10 @@ export function TrashPage() {
       purgeCascades: true,
       onRestore: async (item: TrashItem) => {
         await chapterRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("chapter", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -291,18 +280,15 @@ export function TrashPage() {
             : undefined;
         if (chapter?.deletedAt) {
           await chapterRepository.restore(chapter.id);
-          playUiSound("restore");
           toast.success(
             `"${item.title}" restaurada com o capítulo "${chapter.title}"`,
           );
           return;
         }
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("scene", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -312,12 +298,10 @@ export function TrashPage() {
       items: (deletedEvents ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await timelineEventRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("event", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -327,12 +311,10 @@ export function TrashPage() {
       items: (deletedBeats ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await plotBeatRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("beat", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -346,12 +328,10 @@ export function TrashPage() {
       })),
       onRestore: async (item: TrashItem) => {
         await narrativeArcRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurado`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("arc", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluído permanentemente`);
       },
     },
@@ -361,12 +341,10 @@ export function TrashPage() {
       items: (deletedIdeaCards ?? []) as TrashItem[],
       onRestore: async (item: TrashItem) => {
         await ideaCardRepository.restore(item.id);
-        playUiSound("restore");
         toast.success(`"${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("ideaCard", item.id);
-        playUiSound("delete");
         toast.success(`"${item.title}" excluída permanentemente`);
       },
     },
@@ -382,12 +360,10 @@ export function TrashPage() {
         // Restaurar a pasta traz de volta as pastas internas e as fichas
         // que foram apagadas junto com ela.
         await restoreFolderCascade(item.id);
-        playUiSound("restore");
         toast.success(`Pasta "${item.title}" restaurada`);
       },
       onPurge: async (item: TrashItem) => {
         await purgeTrashItem("folder", item.id);
-        playUiSound("delete");
         toast.success(`Pasta "${item.title}" excluída permanentemente`);
       },
     },
@@ -421,13 +397,13 @@ export function TrashPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-2">
-          <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="eyebrow">
             Sistema
           </p>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight">
+          <h1 className="display-title">
             Lixeira
           </h1>
-          <p className="text-sm text-muted-foreground">
+          <p className="lead">
             Itens excluídos ficam aqui: restaure-os ou exclua-os
             permanentemente.
           </p>
@@ -452,7 +428,6 @@ export function TrashPage() {
                 <AlertDialogCancel>Cancelar</AlertDialogCancel>
                 <AlertDialogAction
                   onClick={() => {
-                    playUiSound("warn");
                     void handleEmptyTrash();
                   }}
                 >
@@ -471,9 +446,10 @@ export function TrashPage() {
           ))}
         </div>
       ) : empty ? (
-        <div className="rounded-2xl border border-dashed border-border/80 bg-card/30 p-10 text-center text-sm text-muted-foreground">
-          A lixeira está vazia.
-        </div>
+        <EmptyState
+          title="A lixeira está vazia"
+          hint="Itens excluídos aparecem aqui e podem ser restaurados."
+        />
       ) : (
         sections.map((section) => (
           <TrashSection

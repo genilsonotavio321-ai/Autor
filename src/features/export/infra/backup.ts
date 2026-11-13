@@ -24,6 +24,48 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
 }
 
+function invalidBackup(): never {
+  throw new Error("Arquivo de backup inválido.");
+}
+
+/** Campo que identifica a linha em cada tabela (settings usa `key`). */
+const ID_FIELD: Record<string, string> = { settings: "key" };
+
+/** Campos obrigatórios por tabela — o resto o app tolera ausente. */
+const REQUIRED_STRING_FIELDS: Record<string, readonly string[]> = {
+  projects: ["title"],
+  chapters: ["projectId", "title"],
+  scenes: ["chapterId", "title"],
+  characters: ["projectId", "name"],
+  locations: ["projectId", "name"],
+  loreEntries: ["projectId", "title"],
+  plotBeats: ["projectId"],
+  notes: ["projectId", "title"],
+  storyArcs: ["projectId", "name"],
+  structureSections: ["projectId", "title"],
+  tags: ["projectId", "name"],
+  versions: ["entityType", "entityId"],
+  folders: ["projectId", "kind"],
+};
+
+/**
+ * Rejeita linhas que não têm cara de registro da tabela antes que o restore
+ * destrutivo apague o banco atual.
+ */
+function validateRows(table: string, rows: unknown[]): void {
+  const idField = ID_FIELD[table] ?? "id";
+  const required = REQUIRED_STRING_FIELDS[table] ?? [];
+  for (const row of rows) {
+    if (!isRecord(row)) invalidBackup();
+    const id = row[idField];
+    if (typeof id !== "string" || id.trim() === "") invalidBackup();
+    if (table === "settings" && !("value" in row)) invalidBackup();
+    for (const field of required) {
+      if (typeof row[field] !== "string") invalidBackup();
+    }
+  }
+}
+
 async function serializeBlobField(
   rows: unknown[],
   field: string,
@@ -83,20 +125,29 @@ export async function buildBackupBlob(): Promise<{ blob: Blob; filename: string 
   return { blob, filename: `autor-backup-${todayIsoDate()}.json` };
 }
 
-/** Validates untrusted JSON as a backup file (throws a pt-BR error). */
+/**
+ * Valida JSON não confiável como backup do Autor (lança erro pt-BR).
+ * Confere o envelope, exige todas as tabelas e valida cada linha.
+ */
 export function parseBackup(raw: unknown): BackupFile {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
-    throw new Error("Arquivo de backup inválido.");
+    invalidBackup();
   }
   const candidate = raw as Record<string, unknown>;
+  if (candidate.app !== "autor" || candidate.formatVersion !== 1) {
+    invalidBackup();
+  }
   const tables = candidate.tables;
   if (tables === null || typeof tables !== "object" || Array.isArray(tables)) {
-    throw new Error("Arquivo de backup inválido.");
+    invalidBackup();
   }
-  for (const value of Object.values(tables)) {
-    if (!Array.isArray(value)) throw new Error("Arquivo de backup inválido.");
+  const rawTables = tables as Record<string, unknown>;
+  for (const name of TABLE_NAMES) {
+    const rows = rawTables[name];
+    if (!Array.isArray(rows)) invalidBackup();
+    validateRows(name, rows);
   }
-  const parsedTables = { ...(tables as Record<string, unknown[]>) };
+  const parsedTables = { ...rawTables };
   if (Array.isArray(parsedTables.projects)) {
     parsedTables.projects = deserializeBlobField(parsedTables.projects, "coverBlob");
   }
@@ -113,7 +164,7 @@ export function parseBackup(raw: unknown): BackupFile {
       typeof candidate.exportedAt === "string"
         ? candidate.exportedAt
         : new Date().toISOString(),
-    tables: parsedTables,
+    tables: parsedTables as Record<string, unknown[]>,
   };
 }
 

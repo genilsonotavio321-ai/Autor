@@ -22,8 +22,10 @@ export function CreativityPage() {
   if (projectId === null) {
     return (
       <div className="p-4 md:p-6">
-        <EmptyState>
-          <p className="mb-4">Crie um projeto para começar a gerar ideias.</p>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para começar a gerar ideias."
+        >
           <Button asChild>
             <Link href="/projects">Ir para Projetos</Link>
           </Button>

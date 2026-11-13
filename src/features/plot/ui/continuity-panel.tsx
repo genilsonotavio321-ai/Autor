@@ -165,7 +165,7 @@ export function ContinuityPanel({
           Estado dos personagens
         </h2>
         {characters.length === 0 ? (
-          <EmptyState>Cadastre personagens para acompanhar seus estados.</EmptyState>
+          <EmptyState hint="Cadastre personagens para acompanhar seus estados." />
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
             {characters.map((character) => {

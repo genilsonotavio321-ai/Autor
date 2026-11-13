@@ -40,99 +40,119 @@ export const migrations: Migration[] = [
       const projects = await db.projects.toArray();
 
       for (const project of projects) {
-        const beats = (
-          await db.plotBeats.where("projectId").equals(project.id).toArray()
-        ).sort((a, b) => a.order - b.order);
-        const legacyBeats = beats.filter(
-          (beat) => legacyStructure(beat) !== undefined,
-        );
-        if (legacyBeats.length === 0) continue;
+        // Transação por projeto: um crash no meio deixa o projeto intacto, e
+        // uma nova execução reaproveita as seções já criadas em vez de duplicar.
+        await db.transaction(
+          "rw",
+          [db.projects, db.plotBeats, db.structureSections, db.scenes],
+          async () => {
+            const beats = (
+              await db.plotBeats.where("projectId").equals(project.id).toArray()
+            ).sort((a, b) => a.order - b.order);
+            const legacyBeats = beats.filter(
+              (beat) => legacyStructure(beat) !== undefined,
+            );
+            if (legacyBeats.length === 0) return;
 
-        // Estrutura dominante do projeto (a que a maioria dos beats usava).
-        const counts = new Map<string, number>();
-        for (const beat of beats) {
-          const structure = legacyStructure(beat);
-          if (structure) {
-            counts.set(structure, (counts.get(structure) ?? 0) + 1);
-          }
-        }
-        let dominant: string | undefined;
-        let max = 0;
-        for (const [structure, count] of counts) {
-          if (count > max) {
-            max = count;
-            dominant = structure;
-          }
-        }
-        const template = dominant
-          ? getStructureTemplate(dominant as StructureTemplateId)
-          : undefined;
+            // Estrutura dominante do projeto (a que a maioria dos beats usava).
+            const counts = new Map<string, number>();
+            for (const beat of beats) {
+              const structure = legacyStructure(beat);
+              if (structure) {
+                counts.set(structure, (counts.get(structure) ?? 0) + 1);
+              }
+            }
+            let dominant: string | undefined;
+            let max = 0;
+            for (const [structure, count] of counts) {
+              if (count > max) {
+                max = count;
+                dominant = structure;
+              }
+            }
+            const template = dominant
+              ? getStructureTemplate(dominant as StructureTemplateId)
+              : undefined;
 
-        const sections: StructureSection[] = template
-          ? template.sections.map((section, index) => ({
-              id: createId(),
-              projectId: project.id,
-              scope: "main",
-              templateKey: section.key,
-              title: section.title,
-              description: section.description,
-              order: index + 1,
-              createdAt: now,
-              updatedAt: now,
-            }))
-          : [
-              {
-                id: createId(),
-                projectId: project.id,
-                scope: "main",
-                title: "Beats",
-                order: 1,
-                createdAt: now,
-                updatedAt: now,
-              },
-            ];
-        const fallbackSection = sections[0];
-        if (!fallbackSection) continue;
-        await db.structureSections.bulkAdd(sections);
+            const existing = (
+              await db.structureSections
+                .where("projectId")
+                .equals(project.id)
+                .toArray()
+            ).sort((a, b) => a.order - b.order);
+            const sections: StructureSection[] =
+              existing.length > 0
+                ? existing
+                : template
+                  ? template.sections.map((section, index) => ({
+                      id: createId(),
+                      projectId: project.id,
+                      scope: "main",
+                      templateKey: section.key,
+                      title: section.title,
+                      description: section.description,
+                      order: index + 1,
+                      createdAt: now,
+                      updatedAt: now,
+                    }))
+                  : [
+                      {
+                        id: createId(),
+                        projectId: project.id,
+                        scope: "main",
+                        title: "Beats",
+                        order: 1,
+                        createdAt: now,
+                        updatedAt: now,
+                      },
+                    ];
+            const fallbackSection = sections[0];
+            if (!fallbackSection) return;
+            if (existing.length === 0) {
+              await db.structureSections.bulkAdd(sections);
+            }
 
-        for (const [index, beat] of beats.entries()) {
-          const sectionKey = template
-            ? sectionKeyForBeatIndex(template, index)
-            : undefined;
-          const section =
-            sections.find((item) => item.templateKey === sectionKey) ??
-            fallbackSection;
+            for (const [index, beat] of beats.entries()) {
+              const sectionKey = template
+                ? sectionKeyForBeatIndex(template, index)
+                : undefined;
+              const section =
+                sections.find((item) => item.templateKey === sectionKey) ??
+                fallbackSection;
 
-          const linkedSceneId = (
-            beat as PlotBeat & { linkedSceneId?: string }
-          ).linkedSceneId;
-          if (linkedSceneId) {
-            await db.scenes
+              const linkedSceneId = (
+                beat as PlotBeat & { linkedSceneId?: string }
+              ).linkedSceneId;
+              if (linkedSceneId) {
+                await db.scenes
+                  .where("id")
+                  .equals(linkedSceneId)
+                  .modify({ beatId: beat.id });
+              }
+
+              await db.plotBeats
+                .where("id")
+                .equals(beat.id)
+                .modify((row) => {
+                  row.scope = "main";
+                  row.sectionId = section.id;
+                  delete (row as PlotBeat & { structure?: string }).structure;
+                  delete (row as PlotBeat & { linkedSceneId?: string })
+                    .linkedSceneId;
+                });
+            }
+
+            await db.projects
               .where("id")
-              .equals(linkedSceneId)
-              .modify({ beatId: beat.id });
-          }
-
-          await db.plotBeats
-            .where("id")
-            .equals(beat.id)
-            .modify((row) => {
-              row.scope = "main";
-              row.sectionId = section.id;
-              delete (row as PlotBeat & { structure?: string }).structure;
-              delete (row as PlotBeat & { linkedSceneId?: string }).linkedSceneId;
-            });
-        }
-
-        await db.projects
-          .where("id")
-          .equals(project.id)
-          .modify((row) => {
-            row.settings = {
-              ...row.settings,
-              structureTemplateId: template ? template.id : "custom",
-            };
-          });
+              .equals(project.id)
+              .modify((row) => {
+                row.settings = {
+                  ...row.settings,
+                  structureTemplateId: template ? template.id : "custom",
+                };
+              });
+          },
+        );
       }
     },
   },
@@ -166,7 +186,7 @@ export const TABLE_NAMES = [
   "folders",
 ] as const;
 
-/** Full JSON dump of every table — stored before any migration runs. */
+/** Full JSON dump of every table (used by the backup feature). */
 export async function dumpDatabase(): Promise<Record<string, unknown[]>> {
   const db = getDatabase();
 
@@ -191,7 +211,8 @@ async function writeDataVersion(
 }
 
 /**
- * Applies pending data migrations, taking a full JSON backup first.
+ * Applies pending data migrations. Each migration is atomic per project and
+ * marks its version only after finishing, so a crash re-runs it safely.
  * Returns the list of migration descriptions that ran.
  */
 export async function runMigrations(): Promise<string[]> {
@@ -202,8 +223,6 @@ export async function runMigrations(): Promise<string[]> {
     .sort((a, b) => a.version - b.version);
 
   if (pending.length === 0) return [];
-
-  await dumpDatabase(); // pre-migration backup (kept in memory; persisted by Fase 4 backup feature)
 
   const applied: string[] = [];
   for (const migration of pending) {

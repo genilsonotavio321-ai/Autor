@@ -6,6 +6,7 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Select,
@@ -114,10 +115,10 @@ export function ReadPage() {
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div className="space-y-1">
-          <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+          <p className="eyebrow">
             Manuscrito
           </p>
-          <h1 className="font-serif text-4xl font-semibold tracking-tight">
+          <h1 className="display-title">
             Ler
           </h1>
         </div>
@@ -142,13 +143,15 @@ export function ReadPage() {
       </header>
 
       {projectId === null ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Selecione ou crie um projeto para ler o manuscrito.
-        </div>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Selecione ou crie um projeto para ler o manuscrito."
+        />
       ) : chapters.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-10 text-center text-sm text-muted-foreground">
-          Este projeto ainda não tem capítulos. Escreva algo para ler aqui.
-        </div>
+        <EmptyState
+          title="Nenhum capítulo ainda"
+          hint="Este projeto ainda não tem capítulos. Escreva algo para ler aqui."
+        />
       ) : (
         <>
           <div className="flex items-center gap-2 rounded-2xl bg-card/50 p-2 ring-1 ring-border/70 print:hidden">

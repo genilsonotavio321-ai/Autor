@@ -1,36 +1,41 @@
 import { cn } from "cn";
 
-/** Cabeçalho padrão das seções: título, contagem opcional e ações à direita. */
+/** Cabeçalho padrão das seções: sobrancelha, título display, apoio e ações. */
 export function PageHeader({
+  eyebrow,
   title,
+  description,
   count,
   children,
   className,
 }: {
+  /** Rótulo curto em caixa alta acima do título (ex.: "Biblioteca"). */
+  eyebrow?: string;
   title: string;
-  /** Ex.: "12 personagens". Omitido enquanto não há dados. */
+  /** Linha de apoio abaixo do título. */
+  description?: string;
+  /** Ex.: "12 personagens". Entra na mesma linha de apoio. */
   count?: string;
   children?: React.ReactNode;
   className?: string;
 }) {
   return (
-    <header
-      className={cn(
-        "flex flex-wrap items-end justify-between gap-3",
-        className,
-      )}
-    >
-      <div className="space-y-1">
-        <h1 className="font-serif text-[2rem] leading-none font-semibold tracking-tight md:text-4xl">
-          {title}
-        </h1>
-        {count ? (
-          <p className="text-[11px] font-medium tracking-[0.18em] text-muted-foreground uppercase">
-            {count}
-          </p>
-        ) : null}
+    <header className={cn("space-y-5", className)}>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0 space-y-2">
+          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+          <h1 className="display-title">{title}</h1>
+          {description || count ? (
+            <p className="lead">
+              {description}
+              {description && count ? " · " : null}
+              {count}
+            </p>
+          ) : null}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">{children}</div>
       </div>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
+      <div aria-hidden className="hairline" />
     </header>
   );
 }

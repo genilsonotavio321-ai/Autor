@@ -367,13 +367,13 @@ export function SettingsPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
       <header className="space-y-2">
-        <p className="text-[11px] font-medium tracking-[0.22em] text-muted-foreground uppercase">
+        <p className="eyebrow">
           Ajustes
         </p>
-        <h1 className="font-serif text-4xl font-semibold tracking-tight">
+        <h1 className="display-title">
           Configurações
         </h1>
-        <p className="text-sm leading-relaxed text-muted-foreground">
+        <p className="lead">
           O essencial para escrever bem — o resto fica em Avançado.
         </p>
       </header>
@@ -638,8 +638,8 @@ export function SettingsPage() {
             </CardContent>
           </Card>
 
-          <details className="group rounded-2xl bg-card/40 ring-1 ring-border/70">
-            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-sm font-medium">
+          <details className="group surface rounded-2xl">
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 text-[11px] font-semibold tracking-[0.18em] uppercase">
               Avançado
               <ChevronDown
                 aria-hidden
@@ -649,7 +649,7 @@ export function SettingsPage() {
 
             <div className="grid gap-6 border-t border-border/60 px-5 py-5">
               <section className="space-y-3">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Destaques e leitura
                 </h3>
                 <SettingRow
@@ -745,7 +745,7 @@ export function SettingsPage() {
               </section>
 
               <section className="space-y-3 border-t border-border/60 pt-5">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Notificações
                 </h3>
                 <p className="text-xs leading-relaxed text-muted-foreground">
@@ -832,7 +832,7 @@ export function SettingsPage() {
               </section>
 
               <section className="space-y-3 border-t border-border/60 pt-5">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Página inicial
                 </h3>
                 {HOME_SECTION_OPTIONS.map((option) => (
@@ -873,7 +873,7 @@ export function SettingsPage() {
               </section>
 
               <section className="space-y-3 border-t border-border/60 pt-5">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Canvas e criatividade
                 </h3>
                 <SettingRow
@@ -933,14 +933,14 @@ export function SettingsPage() {
               </section>
 
               <section className="space-y-3 border-t border-border/60 pt-5">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Tags
                 </h3>
                 <TagsManager projectId={projectId} />
               </section>
 
               <section className="space-y-3 border-t border-border/60 pt-5">
-                <h3 className="font-serif text-lg font-semibold tracking-tight">
+                <h3 className="font-serif text-base font-medium tracking-tight">
                   Atalhos
                 </h3>
                 <dl className="grid gap-2 text-sm">

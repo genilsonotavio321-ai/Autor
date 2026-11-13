@@ -3,7 +3,6 @@
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 import { toDayKey } from "../domain/writing-log";
@@ -29,15 +28,6 @@ export function SprintTicker() {
     }
   }, [duration]);
 
-  // Som de início apenas na transição false → true (não no mount nem ao
-  // navegar com o sprint já rodando).
-  const prevRunning = useRef(running);
-  useEffect(() => {
-    if (prevRunning.current === running) return;
-    prevRunning.current = running;
-    if (running) playUiSound("sprintStart");
-  }, [running]);
-
   useEffect(() => {
     if (!running) return;
     const id = window.setInterval(() => {
@@ -51,7 +41,6 @@ export function SprintTicker() {
   useEffect(() => {
     if (remaining > 0) return;
     useUiStore.getState().completeSprint();
-    playUiSound("sprintEnd");
     toast.success("Sprint concluído!", {
       description: "Boa escrita. Faça uma pausa antes do próximo.",
     });

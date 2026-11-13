@@ -1,7 +1,7 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Clock, Flame, Plus, Target } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,7 @@ export function DashboardPage() {
 
   if (!stats) {
     return (
-      <div className="mx-auto flex max-w-5xl flex-col gap-6">
+      <div className="flex flex-col gap-8">
         <Skeleton className="h-9 w-48" />
         <Skeleton className="h-32 rounded-xl" />
         <div className="grid gap-3 sm:grid-cols-3">
@@ -125,13 +125,17 @@ export function DashboardPage() {
   const activityDays = buildActivityDays(stats.log, new Date(), 12, dailyWordGoal);
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <div className="flex flex-col gap-1">
-        <h1 className="font-serif text-3xl font-semibold">Painel</h1>
-        <p className="text-muted-foreground">
-          Bem-vindo ao Autor. Retome um projeto ou comece um novo.
-        </p>
-      </div>
+    <div className="flex flex-col gap-8">
+      <header className="space-y-5">
+        <div className="space-y-2">
+          <p className="eyebrow">Progresso</p>
+          <h1 className="display-title">Painel</h1>
+          <p className="lead">
+            Retome um projeto ou comece um novo capítulo.
+          </p>
+        </div>
+        <div aria-hidden className="hairline" />
+      </header>
 
       {stats.projectCount === 0 ? (
         <Card>
@@ -169,7 +173,6 @@ export function DashboardPage() {
         <StatCard
           label="Tempo de leitura"
           value={formatDuration(stats.readingMinutes)}
-          icon={<Clock aria-hidden className="size-3.5" />}
         />
       </section>
 
@@ -177,12 +180,9 @@ export function DashboardPage() {
         aria-label="Progresso"
         className="grid grid-cols-2 gap-3 sm:grid-cols-3"
       >
-        <div className="rounded-xl border bg-card p-4">
-          <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-            <Target aria-hidden className="size-3.5" />
-            Meta diária
-          </p>
-          <p className="mt-1 font-serif text-2xl font-semibold">
+        <div className="surface rounded-xl p-4">
+          <p className="text-xs text-muted-foreground">Meta diária</p>
+          <p className="mt-1.5 font-serif text-2xl leading-none font-medium tracking-tight tabular-nums">
             {stats.wordsToday.toLocaleString("pt-BR")}
             <span className="text-sm font-normal text-muted-foreground">
               {" / "}
@@ -207,7 +207,6 @@ export function DashboardPage() {
         <StatCard
           label="Sequência"
           value={`${stats.streak} ${stats.streak === 1 ? "dia" : "dias"}`}
-          icon={<Flame aria-hidden className="size-3.5" />}
         />
         <div className="col-span-2 sm:col-span-3">
           <ActivityHeatmap days={activityDays} />
@@ -216,10 +215,11 @@ export function DashboardPage() {
 
       {stats.byProject.length > 0 ? (
         <section aria-label="Estatísticas por projeto">
-          <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-            Estatísticas por projeto
-          </h2>
-          <div className="overflow-hidden rounded-lg border">
+          <div className="mb-3 flex items-center gap-3">
+            <h2 className="eyebrow">Estatísticas por projeto</h2>
+            <div aria-hidden className="hairline flex-1" />
+          </div>
+          <div className="surface overflow-hidden rounded-xl">
             <table className="w-full text-sm">
               <caption className="sr-only">
                 Capítulos, palavras e tempo de leitura por projeto
@@ -278,22 +278,13 @@ export function DashboardPage() {
   );
 }
 
-function StatCard({
-  label,
-  value,
-  icon,
-}: {
-  label: string;
-  value: string;
-  icon?: React.ReactNode;
-}) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border bg-card p-3 sm:p-4">
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        {icon}
+    <div className="surface rounded-xl p-3 sm:p-4">
+      <p className="text-[11px] font-medium tracking-[0.14em] text-muted-foreground uppercase">
         {label}
       </p>
-      <p className="mt-1 font-serif text-xl font-semibold sm:text-2xl">
+      <p className="mt-1.5 font-serif text-2xl leading-none font-medium tracking-tight tabular-nums sm:text-[2rem]">
         {value}
       </p>
     </div>

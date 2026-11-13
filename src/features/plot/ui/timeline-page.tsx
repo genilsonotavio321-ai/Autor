@@ -11,7 +11,6 @@ import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -177,7 +176,6 @@ export function TimelinePage() {
 
   async function remove(event: TimelineEvent) {
     await timelineEventRepository.softDelete(event.id);
-    playUiSound("delete");
     toast(`"${event.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -190,7 +188,6 @@ export function TimelinePage() {
 
   async function removeArc(arc: NarrativeArc) {
     await narrativeArcRepository.softDelete(arc.id);
-    playUiSound("delete");
     toast(`"${arc.name}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -204,7 +201,9 @@ export function TimelinePage() {
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
+        eyebrow="Planejamento"
         title="Linha do tempo"
+        description="Marcos da história em ordem cronológica."
         count={
           events.length > 0
             ? `${events.length} ${events.length === 1 ? "evento" : "eventos"}`
@@ -221,7 +220,10 @@ export function TimelinePage() {
       </PageHeader>
 
       {projectId === null ? (
-        <EmptyState>Crie um projeto para montar a linha do tempo.</EmptyState>
+        <EmptyState
+          title="Nenhum projeto ativo"
+          hint="Crie um projeto para montar a linha do tempo."
+        />
       ) : (
         <Tabs value={activeTab} onValueChange={setActiveTab}>
           <TabsList aria-label="Visualizações da linha do tempo">
@@ -253,10 +255,10 @@ export function TimelinePage() {
             ) : null}
 
             {visible.length === 0 ? (
-              <EmptyState>
-                Nenhum evento ainda. Registre marcos da história em ordem
-                cronológica.
-              </EmptyState>
+              <EmptyState
+                title="Nenhum evento ainda"
+                hint="Registre marcos da história em ordem cronológica."
+              />
             ) : (
               <ol className="relative grid gap-3 border-l border-border/60 pl-6">
                 {visible.map((event) => (

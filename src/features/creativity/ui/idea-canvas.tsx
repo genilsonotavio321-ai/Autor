@@ -82,7 +82,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
@@ -1147,7 +1146,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         x: 16 + (n % 5) * 24,
         y: 16 + (n % 5) * 40,
       });
-      playUiSound("create");
       toast.success("Node adicionado ao canvas");
       setFichaDialogOpen(false);
       setRefPicker(null);
@@ -1248,7 +1246,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           ideaCardRepository.update(card.id, { groupId: group.id }),
         ),
       );
-      playUiSound("create");
       toast.success(`Grupo "${name}" criado`);
       setGroupDialogOpen(false);
       setSelection(new Set());
@@ -1294,7 +1291,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       await Promise.all(
         members.map((card) => ideaCardRepository.softDelete(card.id)),
       );
-      playUiSound("delete");
       setSelection(new Set());
       toast(`${members.length} ideia(s) movidas para a lixeira`, {
         action: {
@@ -1326,7 +1322,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       // Quadro novo vira o "arquivo" ativo: o canvas passa a salvar nele
       // até que outro quadro seja criado ou carregado.
       setActiveBoardId(board.id);
-      playUiSound("save");
       toast.success(`Quadro "${name}" criado — salvando automaticamente`);
       setSaveDialogOpen(false);
       setBoardName("");
@@ -1343,7 +1338,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       }),
       `quadro-${board.name}.json`,
     );
-    playUiSound("backup");
   }
 
   /** Cria cards de um snapshot remapeando `key` → novo id (links incluso). */
@@ -1421,7 +1415,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     try {
       await ideaBoardRepository.hardDelete(board.id);
       if (activeBoardId === board.id) setActiveBoardId(null);
-      playUiSound("delete");
       toast(`Quadro "${board.name}" excluído`, {
         action: {
           label: "Desfazer",

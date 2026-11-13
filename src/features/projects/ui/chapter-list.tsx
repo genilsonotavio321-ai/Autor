@@ -24,6 +24,7 @@ import { Archive, GripVertical, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +41,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { formatRelativeTime } from "@/shared/lib/dates";
-import { playUiSound } from "@/shared/lib/sound";
 import type { Chapter, ChapterStatus } from "@/shared/types/database";
 
 import { computeChapterOrder } from "@/features/plot/domain/ordering";
@@ -108,9 +108,10 @@ export function ChapterList({ chapters }: ChapterListProps) {
 
   if (chapters.length === 0) {
     return (
-      <div className="rounded-2xl border border-dashed border-border/80 bg-card/30 p-8 text-center text-sm text-muted-foreground">
-        Nenhum capítulo ainda. Crie o primeiro e comece a escrever.
-      </div>
+      <EmptyState
+        title="Nenhum capítulo ainda"
+        hint="Crie o primeiro e comece a escrever."
+      />
     );
   }
 
@@ -126,7 +127,7 @@ export function ChapterList({ chapters }: ChapterListProps) {
         items={chapters.map((chapter) => chapter.id)}
         strategy={verticalListSortingStrategy}
       >
-        <ul className="divide-y divide-border/70 overflow-hidden rounded-2xl bg-card/40 ring-1 ring-border/70">
+        <ul className="surface divide-y divide-border/60 overflow-hidden">
           {chapters.map((chapter, index) => (
             <ChapterRow
               key={chapter.id}
@@ -191,7 +192,6 @@ function ChapterRow({
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
-    playUiSound("delete");
     toast(`"${chapter.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",
@@ -219,32 +219,25 @@ function ChapterRow({
         >
           <GripVertical aria-hidden />
         </button>
-        <div className="min-w-0 flex-1 space-y-1">
-          <Link
-            href={`/write/${chapter.id}`}
-            className="block font-serif text-base font-medium tracking-tight after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
-          >
-            <span className="mr-2 font-serif text-sm text-muted-foreground">
-              {number}.{" "}
-            </span>
-            {chapter.title}
-            {chapter.archived ? (
-              <Badge
-                variant="outline"
-                className="ml-2 align-middle text-[10px] font-normal"
-              >
-                Arquivado
-              </Badge>
-            ) : null}
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
-            {estimateReadingMinutes(chapter.wordCount)} min
-          </p>
+        <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <span className="text-xs text-muted-foreground">
-              atualizado {formatRelativeTime(chapter.updatedAt)}
-            </span>
+            <Link
+              href={`/write/${chapter.id}`}
+              className="block min-w-0 flex-1 font-serif text-base font-medium tracking-tight after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
+            >
+              <span className="mr-2 font-serif text-sm text-muted-foreground">
+                {number}.{" "}
+              </span>
+              {chapter.title}
+              {chapter.archived ? (
+                <Badge
+                  variant="outline"
+                  className="ml-2 align-middle text-[10px] font-normal"
+                >
+                  Arquivado
+                </Badge>
+              ) : null}
+            </Link>
             <Select
               value={chapter.status}
               onValueChange={(value) =>
@@ -270,6 +263,11 @@ function ChapterRow({
               </SelectContent>
             </Select>
           </div>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
+            {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
+            {formatRelativeTime(chapter.updatedAt)}
+          </p>
         </div>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>

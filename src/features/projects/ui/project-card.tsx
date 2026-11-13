@@ -53,24 +53,27 @@ export function ProjectCard({
       onClick={() => setSelectedProjectId(project.id)}
       className="group block h-full rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
     >
-      <article className="relative flex h-full flex-col gap-5 rounded-2xl bg-card/60 p-5 ring-1 ring-border/70 transition-all duration-200 group-hover:-translate-y-0.5 group-hover:bg-accent/40 group-hover:ring-border">
+      <article className="surface surface-lift relative flex h-full flex-col gap-5 p-5 group-hover:bg-card">
         <div className="flex items-start justify-between gap-3">
           <span
             aria-hidden
-            className="grid size-10 shrink-0 place-items-center rounded-full bg-muted font-serif text-lg text-foreground/80"
+            className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted/70 font-serif text-xl text-foreground/85 ring-1 ring-border/60"
           >
             {project.title.charAt(0).toUpperCase()}
           </span>
           <Badge
             variant="outline"
-            className={cn("rounded-full text-[11px] font-normal", STATUS_CLASS[project.status])}
+            className={cn(
+              "rounded-full text-[11px] font-normal",
+              STATUS_CLASS[project.status],
+            )}
           >
             {PROJECT_STATUS_LABELS[project.status]}
           </Badge>
         </div>
 
-        <div className="space-y-1">
-          <h3 className="font-serif text-xl leading-snug font-semibold tracking-tight">
+        <div className="space-y-1.5">
+          <h3 className="font-serif text-[1.35rem] leading-tight font-medium tracking-tight">
             {project.title}
           </h3>
           {project.subtitle ? (
@@ -80,8 +83,8 @@ export function ProjectCard({
           ) : null}
         </div>
 
-        <div className="mt-auto space-y-1 text-xs text-muted-foreground">
-          {stats ? <p>{statsLine(stats, project)}</p> : null}
+        <div className="mt-auto space-y-1 border-t border-border/50 pt-3 text-xs text-muted-foreground">
+          {stats ? <p className="tabular-nums">{statsLine(stats, project)}</p> : null}
           <p>atualizado {formatRelativeTime(project.updatedAt)}</p>
         </div>
       </article>
@@ -109,18 +112,19 @@ export function ProjectRow({
     >
       <span
         aria-hidden
-        className="grid size-9 shrink-0 place-items-center rounded-full bg-muted font-serif text-base text-foreground/80"
+        className="grid size-9 shrink-0 place-items-center rounded-lg bg-muted/70 font-serif text-base text-foreground/85 ring-1 ring-border/60"
       >
         {project.title.charAt(0).toUpperCase()}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate font-serif text-base font-medium tracking-tight">
+        <p className="truncate font-serif text-[1.05rem] font-medium tracking-tight">
           {project.title}
         </p>
         <p className="truncate text-xs text-muted-foreground">
           {stats
             ? statsLine(stats, project)
-            : project.subtitle || `atualizado ${formatRelativeTime(project.updatedAt)}`}
+            : project.subtitle ||
+              `atualizado ${formatRelativeTime(project.updatedAt)}`}
         </p>
       </div>
       <span className="hidden shrink-0 text-xs text-muted-foreground sm:inline">
@@ -128,7 +132,10 @@ export function ProjectRow({
       </span>
       <Badge
         variant="outline"
-        className={cn("shrink-0 rounded-full text-[11px] font-normal", STATUS_CLASS[project.status])}
+        className={cn(
+          "shrink-0 rounded-full text-[11px] font-normal",
+          STATUS_CLASS[project.status],
+        )}
       >
         {PROJECT_STATUS_LABELS[project.status]}
       </Badge>

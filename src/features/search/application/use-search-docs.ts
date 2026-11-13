@@ -23,12 +23,19 @@ const OPTIONAL_SECTION_HREFS = navGroups
   .filter((item) => item.optional === true)
   .map((item) => item.href);
 
-/** Carrega todas as entidades indexáveis (compartilhado por popup e home). */
-export function useSearchDocs(): SearchDoc[] {
+/**
+ * Carrega todas as entidades indexáveis (compartilhado por popup e home).
+ *
+ * `enabled` evita a leitura do acervo inteiro quando ninguém está buscando: o
+ * popup fica montado no shell em toda página e, sem isso, cada autosave
+ * re-executaria a consulta (e o índice) sobre todos os capítulos do projeto.
+ */
+export function useSearchDocs(enabled = true): SearchDoc[] {
   const searchGlobalEnabled = useUiStore((state) => state.searchGlobalEnabled);
   const panelTabVisible = useUiStore((state) => state.panelTabVisible);
 
-  const source = useLiveQuery(async (): Promise<SearchDocSource> => {
+  const source = useLiveQuery(async (): Promise<SearchDocSource | undefined> => {
+    if (!enabled) return undefined;
     await ensureDbReady();
     const projects = await projectRepository.listActive();
     const empty: SearchDocSource = {
@@ -58,7 +65,7 @@ export function useSearchDocs(): SearchDoc[] {
       empty.notes.push(...notes);
     }
     return empty;
-  }, []);
+  }, [enabled]);
 
   const docs = useMemo(() => (source ? buildSearchDocs(source) : []), [source]);
 

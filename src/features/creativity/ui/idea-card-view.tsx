@@ -19,7 +19,6 @@ import { BookOpen, Clapperboard, Link2, MapPin, User } from "lucide-react";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
-import { playUiSound } from "@/shared/lib/sound";
 import type { IdeaCard, Json } from "@/shared/types/database";
 
 import { GrifarMark } from "@/features/editor/domain/grifar-mark";
@@ -52,7 +51,6 @@ const DISPLAY_EXTENSIONS = [
 /** Exclui o card para a lixeira com toast de Desfazer. */
 export async function removeCard(card: IdeaCard) {
   await ideaCardRepository.softDelete(card.id);
-  playUiSound("delete");
   toast(`"${card.title}" movido para a lixeira`, {
     action: {
       label: "Desfazer",

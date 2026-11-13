@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Inter } from "next/font/google";
+import { Geist, Newsreader } from "next/font/google";
 
 import "./globals.css";
 import { cn } from "@/lib/utils";
@@ -7,13 +7,16 @@ import { ThemeProvider } from "@/shared/ui/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
 
-const inter = Inter({
+// Newsreader: serifa editorial com pesos reais (Instrument Serif só tem 400,
+// o que obrigaria a sintetizar negrito nos títulos).
+const geist = Geist({
   subsets: ["latin"],
   variable: "--font-sans",
   display: "swap",
 });
-const fraunces = Fraunces({
+const newsreader = Newsreader({
   subsets: ["latin"],
+  style: ["normal", "italic"],
   variable: "--font-serif",
   display: "swap",
 });
@@ -58,7 +61,7 @@ export default function RootLayout({
     <html
       lang="pt-BR"
       suppressHydrationWarning
-      className={cn("font-sans", inter.variable, fraunces.variable)}
+      className={cn("font-sans", geist.variable, newsreader.variable)}
     >
       <body className="antialiased">
         <ThemeProvider>

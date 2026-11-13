@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
-import { playUiSound } from "@/shared/lib/sound";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +76,6 @@ export function ProjectFormDialog({
   useEffect(() => {
     if (prevOpen.current === open) return;
     prevOpen.current = open;
-    playUiSound(open ? "open" : "close");
   }, [open]);
 
   const isEditing = Boolean(project);
@@ -87,7 +85,6 @@ export function ProjectFormDialog({
       const saved = project
         ? await updateProject(project.id, values)
         : await createProject(values);
-      playUiSound(project ? "save" : "create");
       toast.success(isEditing ? "Projeto atualizado" : "Projeto criado");
       onOpenChange(false);
       onSaved?.(saved);

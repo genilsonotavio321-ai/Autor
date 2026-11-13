@@ -33,11 +33,20 @@ export async function getWritingLog(): Promise<WritingLog> {
   return parseLog(row?.value);
 }
 
-async function persist(log: WritingLog): Promise<void> {
+/**
+ * Read-modify-write inside a transaction: o navegador serializa escritas na
+ * mesma tabela, então chamadas concorrentes (autosave do editor + ticker do
+ * sprint) não apagam os deltas umas das outras.
+ */
+async function updateLog(apply: (log: WritingLog) => WritingLog): Promise<void> {
   await ensureDbReady();
-  await getDatabase().settings.put({
-    key: WRITING_LOG_KEY,
-    value: log as unknown as Json,
+  const db = getDatabase();
+  await db.transaction("rw", db.settings, async () => {
+    const row = await db.settings.get(WRITING_LOG_KEY);
+    await db.settings.put({
+      key: WRITING_LOG_KEY,
+      value: apply(parseLog(row?.value)) as unknown as Json,
+    });
   });
 }
 
@@ -47,12 +56,10 @@ export async function recordWords(
   words: number,
 ): Promise<void> {
   if (words <= 0) return;
-  const log = await getWritingLog();
-  await persist(addWords(log, dayKey, words));
+  await updateLog((log) => addWords(log, dayKey, words));
 }
 
 /** Registra a conclusão de uma sessão de sprint. */
 export async function recordSprint(dayKey: string): Promise<void> {
-  const log = await getWritingLog();
-  await persist(addSprint(log, dayKey));
+  await updateLog((log) => addSprint(log, dayKey));
 }

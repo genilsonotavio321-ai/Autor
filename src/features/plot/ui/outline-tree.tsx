@@ -25,10 +25,10 @@ import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
-import { playUiSound } from "@/shared/lib/sound";
 import type { Chapter, EntityId, Scene } from "@/shared/types/database";
 
 import { computeChapterOrder, computeSceneMove } from "../domain/ordering";
@@ -237,9 +237,10 @@ export function OutlineTree({
           </ul>
         </SortableContext>
         {chapters.length === 0 ? (
-          <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-            Nenhum capítulo. Adicione o primeiro para esboçar a história.
-          </div>
+          <EmptyState
+            title="Nenhum capítulo ainda"
+            hint="Adicione o primeiro para esboçar a história."
+          />
         ) : null}
       </DndContext>
 
@@ -286,7 +287,6 @@ function ChapterRow({
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
-    playUiSound("delete");
     toast(`"${chapter.title}" movido para a lixeira`, {
       action: {
         label: "Desfazer",

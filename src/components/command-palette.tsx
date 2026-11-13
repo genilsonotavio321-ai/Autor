@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Search as SearchIcon } from "lucide-react";
@@ -16,7 +16,6 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { navGroups } from "@/components/layout/nav-items";
-import { playUiSound } from "@/shared/lib/sound";
 import { useUiStore } from "@/shared/store/ui-store";
 
 export function CommandPalette() {
@@ -33,14 +32,6 @@ export function CommandPalette() {
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
   const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
   const panelTabVisible = useUiStore((state) => state.panelTabVisible);
-
-  // Ctrl+K e botões mudam o estado direto; Radix não emite onOpenChange.
-  const prevOpen = useRef(open);
-  useEffect(() => {
-    if (prevOpen.current === open) return;
-    prevOpen.current = open;
-    playUiSound(open ? "open" : "close");
-  }, [open]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {

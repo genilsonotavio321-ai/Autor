@@ -59,10 +59,10 @@ export function BottomNav() {
                   href={tab.href}
                   aria-current={active ? "page" : undefined}
                   className={cn(
-                    "flex h-full flex-col items-center justify-center gap-0.5 text-[11px] font-medium tracking-wide outline-none transition-colors",
+                    "relative flex h-full flex-col items-center justify-center gap-0.5 text-[11px] tracking-wide outline-none transition-colors",
                     active
-                      ? "text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
+                      ? "font-semibold text-foreground after:absolute after:inset-x-6 after:top-0 after:h-0.5 after:rounded-b-full after:bg-primary"
+                      : "font-medium text-muted-foreground hover:text-foreground",
                   )}
                 >
                   <tab.icon

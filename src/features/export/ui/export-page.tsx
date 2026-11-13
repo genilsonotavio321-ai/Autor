@@ -55,7 +55,6 @@ import {
   ExportFormatDialog,
   type ExportFormat,
 } from "./export-format-dialog";
-import { playUiSound } from "@/shared/lib/sound";
 import type { EntityId, Scene } from "@/shared/types/database";
 
 type BusyAction =
@@ -304,7 +303,6 @@ export function DataSection() {
     try {
       const { blob, filename } = await buildBackupBlob();
       downloadBlob(blob, filename);
-      playUiSound("backup");
       toast.success("Backup completo baixado.");
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Falha ao gerar backup.");
@@ -324,7 +322,6 @@ export function DataSection() {
       const imported = await importProjectPackageJson(await file.text());
       useUiStore.getState().setSelectedProjectId(imported.id);
       setProjectIdOverride(imported.id);
-      playUiSound("restore");
       toast.success(`Projeto “${imported.title}” importado como novo projeto.`);
       router.push(`/projects/${imported.id}`);
     } catch (error) {

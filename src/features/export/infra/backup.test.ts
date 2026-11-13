@@ -3,6 +3,7 @@ import "fake-indexeddb/auto";
 import { beforeEach, describe, expect, it } from "vitest";
 
 import { getDatabase } from "@/infra/db";
+import { TABLE_NAMES } from "@/infra/db/migrations";
 import { DexieProjectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { DexieNarrativeArcRepository } from "@/features/plot/infra/dexie-narrative-arc-repository";
 
@@ -14,6 +15,10 @@ import {
 
 const projectRepository = new DexieProjectRepository();
 const arcRepository = new DexieNarrativeArcRepository();
+
+function emptyTables(): Record<string, unknown[]> {
+  return Object.fromEntries(TABLE_NAMES.map((name) => [name, []]));
+}
 
 beforeEach(async () => {
   const db = getDatabase();
@@ -43,6 +48,45 @@ describe("parseBackup", () => {
     expect(() => parseBackup({ tables: { projects: {} } })).toThrow(
       "Arquivo de backup inválido.",
     );
+  });
+
+  it("rejects files that are not Autor backups", () => {
+    expect(() => parseBackup({ tables: emptyTables() })).toThrow(
+      "Arquivo de backup inválido.",
+    );
+    expect(() =>
+      parseBackup({ app: "autor", formatVersion: 2, tables: emptyTables() }),
+    ).toThrow("Arquivo de backup inválido.");
+  });
+
+  it("rejects backups missing a table or carrying malformed rows", () => {
+    expect(() =>
+      parseBackup({ app: "autor", formatVersion: 1, tables: {} }),
+    ).toThrow("Arquivo de backup inválido.");
+
+    const tables = emptyTables();
+    tables.projects = [{ title: "Sem id" }];
+    expect(() =>
+      parseBackup({ app: "autor", formatVersion: 1, tables }),
+    ).toThrow("Arquivo de backup inválido.");
+
+    const badRows = emptyTables();
+    badRows.chapters = [{ id: "chapter-1" }];
+    expect(() =>
+      parseBackup({ app: "autor", formatVersion: 1, tables: badRows }),
+    ).toThrow("Arquivo de backup inválido.");
+  });
+
+  it("accepts a well-formed backup", () => {
+    const tables = emptyTables();
+    tables.projects = [{ id: "project-1", title: "Projeto" }];
+    const parsed = parseBackup({
+      app: "autor",
+      formatVersion: 1,
+      exportedAt: "2026-01-01T00:00:00.000Z",
+      tables,
+    });
+    expect(parsed.tables.projects).toHaveLength(1);
   });
 });
 

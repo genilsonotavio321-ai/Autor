@@ -5,6 +5,7 @@ import { ArrowRight, PenLine, Plus } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -115,22 +116,24 @@ export function ResumeWritingCard() {
 
   return (
     <section aria-label="Continuar de onde parou">
-      <h2 className="mb-3 text-sm font-medium tracking-wide text-muted-foreground uppercase">
-        Continuar de onde parou
-      </h2>
-      <div className="rounded-xl border border-dashed p-8 text-center">
-        <p className="text-sm text-muted-foreground">
-          {data.projectCount === 0
+      <div className="mb-3 flex items-center gap-3">
+        <h2 className="eyebrow">Continuar de onde parou</h2>
+        <div aria-hidden className="hairline flex-1" />
+      </div>
+      <EmptyState
+        hint={
+          data.projectCount === 0
             ? "Crie um projeto para começar a escrever."
-            : "Abra um capítulo para retomar de onde parou."}
-        </p>
-        <Button asChild className="mt-4">
+            : "Abra um capítulo para retomar de onde parou."
+        }
+      >
+        <Button asChild>
           <Link href="/projects">
             <Plus aria-hidden />
             Ir para projetos
           </Link>
         </Button>
-      </div>
+      </EmptyState>
     </section>
   );
 }

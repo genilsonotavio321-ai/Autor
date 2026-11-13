@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { Columns3, Hammer, List, Plus } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 
+import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,11 +130,12 @@ function SceneList({ projectId, chapters }: ScenesPanelProps) {
       </div>
 
       {scenes.length === 0 ? (
-        <div className="rounded-lg border border-dashed p-8 text-center text-sm text-muted-foreground">
-          Nenhuma cena ainda. Crie capítulos no Roteiro e adicione cenas.
-        </div>
+        <EmptyState
+          title="Nenhuma cena ainda"
+          hint="Crie capítulos no Roteiro e adicione cenas."
+        />
       ) : (
-        <ul className="divide-y rounded-lg border">
+        <ul className="surface divide-y divide-border/60 overflow-hidden">
           {scenes.map((scene) => {
             const beat = scene.beatId ? beatById.get(scene.beatId) : undefined;
             return (
