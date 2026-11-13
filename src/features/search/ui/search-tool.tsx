@@ -22,10 +22,12 @@ interface SearchToolProps {
 /** Ferramenta de busca embutível (página inicial). */
 export function SearchTool({ autoFocus, onSelect }: SearchToolProps) {
   const [query, setQuery] = useState("");
-  const docs = useSearchDocs();
+  const trimmed = query.trim();
+  // Consulta (e índice do acervo) só ligam quando há busca — mesmo gate do
+  // popup: sem isso, a home indexava toda a biblioteca a cada montagem.
+  const docs = useSearchDocs(trimmed.length > 0);
   const index = useMemo(() => createSearchIndex(docs), [docs]);
   const results = searchDocs(index, query);
-  const trimmed = query.trim();
 
   const handleSelect = (projectId: string) => {
     if (projectId) {

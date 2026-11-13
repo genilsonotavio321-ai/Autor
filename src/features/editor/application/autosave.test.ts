@@ -36,6 +36,30 @@ describe("createAutosave", () => {
     expect(save).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps saving after a failed save", async () => {
+    const save = vi.fn(async (payload: string) => {
+      if (payload === "first") throw new Error("quota");
+    });
+    const autosave = createAutosave(save, 100);
+
+    autosave.schedule("first");
+    await vi.advanceTimersByTimeAsync(100);
+    autosave.schedule("second");
+    await vi.advanceTimersByTimeAsync(100);
+
+    expect(save).toHaveBeenCalledTimes(2);
+    expect(save).toHaveBeenLastCalledWith("second");
+  });
+
+  it("flush surfaces the save failure to the caller", async () => {
+    const autosave = createAutosave(async () => {
+      throw new Error("quota");
+    }, 100);
+
+    autosave.schedule("pending");
+    await expect(autosave.flush()).rejects.toThrow("quota");
+  });
+
   it("cancel drops the pending payload", async () => {
     const save = vi.fn(async () => undefined);
     const autosave = createAutosave(save, 800);

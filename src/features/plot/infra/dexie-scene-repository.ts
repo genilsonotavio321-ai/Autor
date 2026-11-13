@@ -20,10 +20,11 @@ export class DexieSceneRepository implements SceneRepository {
     await ensureDbReady();
     const db = getDatabase();
     // Ignora cenas na lixeira (mesmo critério dos capítulos — A0).
+    // Índice `chapterId` (schema v8): varredura deixou de ser tabela inteira.
     const existing = await db.scenes
-      .filter(
-        (scene) => scene.chapterId === input.chapterId && !scene.deletedAt,
-      )
+      .where("chapterId")
+      .equals(input.chapterId)
+      .filter((scene) => !scene.deletedAt)
       .toArray();
     const order =
       existing.reduce((max, scene) => Math.max(max, scene.order), 0) + 1;
@@ -53,9 +54,9 @@ export class DexieSceneRepository implements SceneRepository {
   async listByChapter(chapterId: EntityId): Promise<Scene[]> {
     await ensureDbReady();
     const all = await getDatabase()
-      .scenes.filter(
-        (scene) => scene.chapterId === chapterId && !scene.deletedAt,
-      )
+      .scenes.where("chapterId")
+      .equals(chapterId)
+      .filter((scene) => !scene.deletedAt)
       .toArray();
     return all.sort((a, b) => a.order - b.order);
   }
@@ -64,17 +65,20 @@ export class DexieSceneRepository implements SceneRepository {
     await ensureDbReady();
     const db = getDatabase();
     const chapters = await db.chapters
-      .filter((chapter) => chapter.projectId === projectId && !chapter.deletedAt)
+      .where("projectId")
+      .equals(projectId)
+      .filter((chapter) => !chapter.deletedAt)
       .toArray();
     // Table scans come back in primary-key (UUID) order — sort by the
     // chapter's narrative order before building the rank map.
     chapters.sort((a, b) => a.order - b.order);
     const chapterOrder = new Map(chapters.map((c, i) => [c.id, i]));
     const chapterIds = new Set(chapters.map((c) => c.id));
+    if (chapterIds.size === 0) return [];
     const scenes = await db.scenes
-      .filter(
-        (scene) => chapterIds.has(scene.chapterId) && !scene.deletedAt,
-      )
+      .where("chapterId")
+      .anyOf([...chapterIds])
+      .filter((scene) => !scene.deletedAt)
       .toArray();
     return scenes.sort((a, b) => {
       const ca = chapterOrder.get(a.chapterId) ?? 0;

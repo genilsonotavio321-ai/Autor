@@ -53,3 +53,6 @@ next-env.d.ts
 
 # agent skills
 /.claude/
+
+# rascunhos locais (repos de referência, imagens de design)
+/scratchpad/

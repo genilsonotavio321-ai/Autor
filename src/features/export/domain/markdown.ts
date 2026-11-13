@@ -112,13 +112,18 @@ export function docToMarkdown(doc: Json): string {
 // ---------------------------------------------------------------------------
 
 function parseInline(line: string): Json[] {
-  const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|`[^`]+`)/g;
+  // `***negrito+itálico***` vem antes de `**`: a exportação emite assim e,
+  // sem esse ramo, o importe deixava asteriscos literais no texto.
+  const pattern = /(\*\*\*[^*]+\*\*\*|\*\*[^*]+\*\*|\*[^*]+\*|~~[^~]+~~|`[^`]+`)/g;
   const nodes: Json[] = [];
   for (const part of line.split(pattern)) {
     if (!part) continue;
     let marks: Array<{ type: string }> | undefined;
     let text = part;
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+    if (part.startsWith("***") && part.endsWith("***") && part.length > 6) {
+      marks = [{ type: "bold" }, { type: "italic" }];
+      text = part.slice(3, -3);
+    } else if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
       marks = [{ type: "bold" }];
       text = part.slice(2, -2);
     } else if (part.startsWith("~~") && part.endsWith("~~") && part.length > 4) {

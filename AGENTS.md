@@ -1,7 +1,7 @@
 <!-- gitnexus:start -->
 # GitNexus — Code Intelligence
 
-This project is indexed by GitNexus as **Autor - Rework** (5702 symbols, 16414 relationships, 472 execution flows).
+This project is indexed by GitNexus as **Autor-Rework** (41213 symbols, 130434 relationships, 983 execution flows).
 
 > Index stale? Run `node .gitnexus/run.cjs analyze --index-only` from the project root — it auto-selects an available runner. No `.gitnexus/run.cjs` yet? Bootstrap with `npx`, `bunx`, or `pnpm dlx` — e.g. `bunx gitnexus@latest analyze` (npm 11 npx crash; #1939).
 
@@ -25,10 +25,10 @@ This project is indexed by GitNexus as **Autor - Rework** (5702 symbols, 16414 r
 
 | Resource | Use for |
 | --- | --- |
-| `gitnexus://repo/Autor - Rework/context` | Codebase overview, check index freshness |
-| `gitnexus://repo/Autor - Rework/clusters` | All functional areas |
-| `gitnexus://repo/Autor - Rework/processes` | All execution flows |
-| `gitnexus://repo/Autor - Rework/process/{name}` | Step-by-step execution trace |
+| `gitnexus://repo/Autor-Rework/context` | Codebase overview, check index freshness |
+| `gitnexus://repo/Autor-Rework/clusters` | All functional areas |
+| `gitnexus://repo/Autor-Rework/processes` | All execution flows |
+| `gitnexus://repo/Autor-Rework/process/{name}` | Step-by-step execution trace |
 
 ## CLI
 

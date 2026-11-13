@@ -23,8 +23,11 @@ export function createAutosave<T>(
     const payload = pending;
     pending = null;
     if (payload === null) return;
-    inFlight = inFlight.then(() => save(payload));
-    await inFlight;
+    // Uma falha não pode envenenar a cadeia (rejeição persistente pulava
+    // todos os saves seguintes): o elo de erro fica resolvido.
+    const link = inFlight.then(() => save(payload));
+    inFlight = link.catch(() => undefined);
+    await link;
   }
 
   return {
@@ -33,7 +36,9 @@ export function createAutosave<T>(
       if (timer !== null) clearTimeout(timer);
       timer = setTimeout(() => {
         timer = null;
-        void runSave();
+        // O erro do save já é reportado pelo callback (toast no editor);
+        // aqui só evitamos unhandled rejection.
+        void runSave().catch(() => undefined);
       }, delayMs);
     },
     async flush(): Promise<void> {

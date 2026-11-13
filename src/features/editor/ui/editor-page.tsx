@@ -282,9 +282,14 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     const onVisibility = () => {
       if (document.visibilityState === "hidden") flush();
     };
+    // `pagehide` cobre fechar a aba/sair do navegador, onde
+    // `visibilitychange` não dispara de forma confiável.
+    const onPageHide = () => flush();
     document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
     return () => {
       document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
       flush();
     };
   }, [save]);

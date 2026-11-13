@@ -26,9 +26,9 @@ const OPTIONAL_SECTION_HREFS = navGroups
 /**
  * Carrega todas as entidades indexáveis (compartilhado por popup e home).
  *
- * `enabled` evita a leitura do acervo inteiro quando ninguém está buscando: o
- * popup fica montado no shell em toda página e, sem isso, cada autosave
- * re-executaria a consulta (e o índice) sobre todos os capítulos do projeto.
+ * `enabled` evita a leitura do acervo inteiro quando ninguém está buscando:
+ * o popup do shell e o SearchTool da home ficam montados o tempo todo e, sem
+ * isso, cada autosave re-executaria a consulta (e o índice) sobre o acervo.
  */
 export function useSearchDocs(enabled = true): SearchDoc[] {
   const searchGlobalEnabled = useUiStore((state) => state.searchGlobalEnabled);

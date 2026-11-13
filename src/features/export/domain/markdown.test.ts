@@ -67,6 +67,22 @@ describe("docToMarkdown", () => {
     expect(output).toBe("- um\n- dois\n\n1. primeiro");
   });
 
+  it("serializes bold+italic as triple asterisks", () => {
+    const output = docToMarkdown(
+      doc({
+        type: "paragraph",
+        content: [
+          {
+            type: "text",
+            text: "Ênfase",
+            marks: [{ type: "bold" }, { type: "italic" }],
+          },
+        ],
+      }),
+    );
+    expect(output).toBe("***Ênfase***");
+  });
+
   it("serializes blockquotes and code blocks", () => {
     const output = docToMarkdown(
       doc(
@@ -90,6 +106,19 @@ describe("markdownToDoc", () => {
     const blocks = (parsed as Record<string, Json>).content as Json[];
     expect(blocks[0]).toMatchObject({ type: "heading", attrs: { level: 1 } });
     expect(blocks[2]).toMatchObject({ type: "bulletList" });
+  });
+
+  it("parses ***bold+italic*** as both marks", () => {
+    const parsed = markdownToDoc("Um ***trecho marcado*** no meio.");
+    const blocks = (parsed as Record<string, Json>).content as Json[];
+    const runs = (blocks[0] as Record<string, Json>).content as Array<
+      Record<string, Json>
+    >;
+    const marked = runs.find(
+      (run) => Array.isArray(run.marks) && run.marks.length > 0,
+    );
+    expect(marked?.text).toBe("trecho marcado");
+    expect(marked?.marks).toEqual([{ type: "bold" }, { type: "italic" }]);
   });
 
   it("round-trips doc → markdown → doc preserving text", () => {

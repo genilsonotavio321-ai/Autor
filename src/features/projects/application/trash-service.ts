@@ -1,3 +1,4 @@
+import { getDatabase } from "@/infra/db";
 import { versionRepository } from "@/features/editor/infra/dexie-version-repository";
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
@@ -53,12 +54,18 @@ async function purgeEntity(
   repo: HardDeletable,
   id: EntityId,
 ): Promise<void> {
-  const versions = await versionRepository.listByEntity(id);
-  for (const version of versions) {
-    await versionRepository.delete(version.id);
-  }
-  await attachmentRepository.removeByEntityId(id);
-  await repo.hardDelete(id);
+  // Uma transação só: versões + anexos + entidade caem num commit (antes,
+  // eram ~1 await por linha). Se falhar no meio, a Dexie reverte e a próxima
+  // varredura reprocessa — a entidade é apagada por último.
+  const db = getDatabase();
+  await db.transaction("rw", db.tables, async () => {
+    const versions = await versionRepository.listByEntity(id);
+    for (const version of versions) {
+      await versionRepository.delete(version.id);
+    }
+    await attachmentRepository.removeByEntityId(id);
+    await repo.hardDelete(id);
+  });
 }
 
 async function purgeRows(

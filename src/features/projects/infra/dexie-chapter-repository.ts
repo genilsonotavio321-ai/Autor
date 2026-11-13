@@ -21,10 +21,11 @@ export class DexieChapterRepository implements ChapterRepository {
     const db = getDatabase();
     // Ignora capítulos na lixeira: sem isso, excluir o cap. 6 faria o próximo
     // receber a order 7 mesmo com 5 capítulos visíveis.
+    // Índice `projectId` (schema v8): varredura deixou de ser tabela inteira.
     const existing = await db.chapters
-      .filter(
-        (chapter) => chapter.projectId === input.projectId && !chapter.deletedAt,
-      )
+      .where("projectId")
+      .equals(input.projectId)
+      .filter((chapter) => !chapter.deletedAt)
       .toArray();
     const order =
       existing.reduce((max, chapter) => Math.max(max, chapter.order), 0) + 1;
@@ -57,9 +58,9 @@ export class DexieChapterRepository implements ChapterRepository {
   async listByProject(projectId: EntityId): Promise<Chapter[]> {
     await ensureDbReady();
     const all = await getDatabase()
-      .chapters.filter(
-        (chapter) => chapter.projectId === projectId && !chapter.deletedAt,
-      )
+      .chapters.where("projectId")
+      .equals(projectId)
+      .filter((chapter) => !chapter.deletedAt)
       .toArray();
     return all.sort((a, b) => a.order - b.order);
   }
