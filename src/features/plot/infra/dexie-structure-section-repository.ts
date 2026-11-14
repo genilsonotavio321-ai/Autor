@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { nextOrder } from "@/shared/lib/dexie-order";
+import { nowIso } from "@/shared/lib/dexie-trash";
 import { createId } from "@/shared/lib/id";
 import type {
   EntityId,
@@ -13,10 +14,6 @@ import type {
   StructureSectionRepository,
   StructureSectionUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieStructureSectionRepository
   implements StructureSectionRepository

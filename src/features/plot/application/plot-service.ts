@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { nowIso } from "@/shared/lib/dexie-trash";
 import type {
   EntityId,
   PlotBeat,
@@ -24,10 +25,6 @@ export interface ApplyStructureResult {
 export interface CustomSectionInput {
   title: string;
   description?: string;
-}
-
-function nowIso(): string {
-  return new Date().toISOString();
 }
 
 async function setMainTemplateId(

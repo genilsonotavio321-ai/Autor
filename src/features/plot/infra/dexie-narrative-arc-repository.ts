@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { nowIso, softDeleteRow } from "@/shared/lib/dexie-trash";
 import { nextOrder } from "@/shared/lib/dexie-order";
 import type { EntityId, NarrativeArc } from "@/shared/types/database";
 
@@ -9,10 +10,6 @@ import type {
   NarrativeArcRepository,
   NarrativeArcUpdateInput,
 } from "../domain/narrative-arc-repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieNarrativeArcRepository implements NarrativeArcRepository {
   async create(input: NarrativeArcCreateInput): Promise<NarrativeArc> {
@@ -79,10 +76,7 @@ export class DexieNarrativeArcRepository implements NarrativeArcRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().storyArcs.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().storyArcs, id);
   }
 
   async restore(id: EntityId): Promise<void> {

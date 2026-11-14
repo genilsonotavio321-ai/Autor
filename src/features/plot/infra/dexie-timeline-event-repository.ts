@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, TimelineEvent } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   TimelineEventRepository,
   TimelineEventUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieTimelineEventRepository implements TimelineEventRepository {
   async create(input: TimelineEventCreateInput): Promise<TimelineEvent> {
@@ -102,19 +99,12 @@ export class DexieTimelineEventRepository implements TimelineEventRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().timelineEvents.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().timelineEvents, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .timelineEvents.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().timelineEvents, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {
@@ -124,12 +114,7 @@ export class DexieTimelineEventRepository implements TimelineEventRepository {
 
   async listDeleted(): Promise<TimelineEvent[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .timelineEvents.filter((event) => Boolean(event.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().timelineEvents);
   }
 }
 

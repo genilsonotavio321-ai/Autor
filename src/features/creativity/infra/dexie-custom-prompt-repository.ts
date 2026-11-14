@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { nowIso } from "@/shared/lib/dexie-trash";
 import type { CustomPrompt, EntityId } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   CustomPromptRepository,
   CustomPromptUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 /** Normaliza as variantes: limpa espaços e descarta linhas vazias. */
 function cleanVariants(variants: string[]): string[] {

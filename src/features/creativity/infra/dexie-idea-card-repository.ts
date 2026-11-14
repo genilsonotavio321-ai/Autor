@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, IdeaCard } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   IdeaCardRepository,
   IdeaCardUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieIdeaCardRepository implements IdeaCardRepository {
   async create(input: IdeaCardCreateInput): Promise<IdeaCard> {
@@ -85,19 +82,12 @@ export class DexieIdeaCardRepository implements IdeaCardRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().ideaCards.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().ideaCards, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .ideaCards.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().ideaCards, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {
@@ -107,12 +97,7 @@ export class DexieIdeaCardRepository implements IdeaCardRepository {
 
   async listDeleted(): Promise<IdeaCard[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .ideaCards.filter((card) => Boolean(card.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().ideaCards);
   }
 
   async link(aId: EntityId, bId: EntityId): Promise<void> {

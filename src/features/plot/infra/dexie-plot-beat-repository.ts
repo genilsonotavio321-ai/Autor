@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, PlotBeat, StructureScope } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   PlotBeatRepository,
   PlotBeatUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 function sameScope(
   beat: PlotBeat,
@@ -123,19 +120,12 @@ export class DexiePlotBeatRepository implements PlotBeatRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().plotBeats.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().plotBeats, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .plotBeats.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().plotBeats, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {
@@ -145,12 +135,7 @@ export class DexiePlotBeatRepository implements PlotBeatRepository {
 
   async listDeleted(): Promise<PlotBeat[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .plotBeats.filter((beat) => Boolean(beat.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().plotBeats);
   }
 }
 

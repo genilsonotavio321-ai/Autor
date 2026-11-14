@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, LastEdit, Project } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   ProjectRepository,
   ProjectUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieProjectRepository implements ProjectRepository {
   async create(input: ProjectCreateInput): Promise<Project> {
@@ -47,12 +44,7 @@ export class DexieProjectRepository implements ProjectRepository {
 
   async listDeleted(): Promise<Project[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .projects.filter((project) => Boolean(project.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().projects);
   }
 
   async update(id: EntityId, patch: ProjectUpdateInput): Promise<Project> {
@@ -70,19 +62,12 @@ export class DexieProjectRepository implements ProjectRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().projects.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().projects, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .projects.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().projects, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {

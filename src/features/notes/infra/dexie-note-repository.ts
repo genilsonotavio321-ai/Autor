@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, Note } from "@/shared/types/database";
 
 import type {
@@ -8,10 +9,6 @@ import type {
   NoteRepository,
   NoteUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieNoteRepository implements NoteRepository {
   async create(input: NoteCreateInput): Promise<Note> {
@@ -130,10 +127,7 @@ export class DexieNoteRepository implements NoteRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().notes.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().notes, id);
   }
 
   async softDeleteByProject(projectId: EntityId): Promise<EntityId[]> {
@@ -154,11 +148,7 @@ export class DexieNoteRepository implements NoteRepository {
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .notes.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().notes, id);
   }
 
   async restoreMany(ids: EntityId[]): Promise<void> {
@@ -179,12 +169,7 @@ export class DexieNoteRepository implements NoteRepository {
 
   async listDeleted(): Promise<Note[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .notes.filter((note) => Boolean(note.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().notes);
   }
 }
 

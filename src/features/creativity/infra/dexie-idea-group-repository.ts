@@ -1,16 +1,13 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { nowIso } from "@/shared/lib/dexie-trash";
 import type { EntityId, IdeaGroup } from "@/shared/types/database";
 
 import type {
   IdeaGroupCreateInput,
   IdeaGroupRepository,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieIdeaGroupRepository implements IdeaGroupRepository {
   async create(input: IdeaGroupCreateInput): Promise<IdeaGroup> {

@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, softDeleteRow } from "@/shared/lib/dexie-trash";
 import {
   applyOrderMoves,
   compareOrder,
@@ -12,10 +13,6 @@ import type {
   FolderCreateInput,
   FolderRepository,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 const KIND_TABLES: Record<FolderKind, string> = {
   character: "characters",
@@ -96,10 +93,7 @@ export class DexieFolderRepository implements FolderRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().folders.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().folders, id);
   }
 
   async restore(id: EntityId): Promise<void> {
@@ -117,12 +111,7 @@ export class DexieFolderRepository implements FolderRepository {
 
   async listDeleted(): Promise<Folder[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .folders.filter((folder) => Boolean(folder.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().folders);
   }
 }
 

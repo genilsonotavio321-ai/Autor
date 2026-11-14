@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import { applyOrderMoves, compareOrder, nextOrder } from "@/shared/lib/dexie-order";
 import type { EntityId, LoreEntry } from "@/shared/types/database";
 
@@ -10,10 +11,6 @@ import type {
   LoreEntryRepository,
   LoreEntryUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieLoreEntryRepository implements LoreEntryRepository {
   async create(input: LoreEntryCreateInput): Promise<LoreEntry> {
@@ -96,19 +93,12 @@ export class DexieLoreEntryRepository implements LoreEntryRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().loreEntries.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().loreEntries, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .loreEntries.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().loreEntries, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {
@@ -118,12 +108,7 @@ export class DexieLoreEntryRepository implements LoreEntryRepository {
 
   async listDeleted(): Promise<LoreEntry[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .loreEntries.filter((entry) => Boolean(entry.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().loreEntries);
   }
 }
 

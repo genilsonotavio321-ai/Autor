@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import { applyOrderMoves, compareOrder, nextOrder } from "@/shared/lib/dexie-order";
 import type { EntityId, Location } from "@/shared/types/database";
 
@@ -9,10 +10,6 @@ import type {
   LocationRepository,
   LocationUpdateInput,
 } from "../domain/repository";
-
-function nowIso(): string {
-  return new Date().toISOString();
-}
 
 export class DexieLocationRepository implements LocationRepository {
   async create(input: LocationCreateInput): Promise<Location> {
@@ -80,19 +77,12 @@ export class DexieLocationRepository implements LocationRepository {
 
   async softDelete(id: EntityId): Promise<void> {
     await ensureDbReady();
-    await getDatabase().locations.update(id, {
-      deletedAt: nowIso(),
-      updatedAt: nowIso(),
-    });
+    await softDeleteRow(getDatabase().locations, id);
   }
 
   async restore(id: EntityId): Promise<void> {
     await ensureDbReady();
-    // `modify` with undefined removes the property (Table.update would not).
-    await getDatabase()
-      .locations.where("id")
-      .equals(id)
-      .modify({ deletedAt: undefined });
+    await restoreRow(getDatabase().locations, id);
   }
 
   async hardDelete(id: EntityId): Promise<void> {
@@ -102,12 +92,7 @@ export class DexieLocationRepository implements LocationRepository {
 
   async listDeleted(): Promise<Location[]> {
     await ensureDbReady();
-    const all = await getDatabase()
-      .locations.filter((location) => Boolean(location.deletedAt))
-      .toArray();
-    return all.sort((a, b) =>
-      (b.deletedAt ?? "").localeCompare(a.deletedAt ?? ""),
-    );
+    return listDeletedRows(getDatabase().locations);
   }
 }
 
