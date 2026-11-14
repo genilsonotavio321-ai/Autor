@@ -1474,7 +1474,7 @@ describe("projects", () => {
         projectId: trashedProject.id,
         name: "arco",
       });
-      const beat = await beatRepository.create({
+      await beatRepository.create({
         projectId: trashedProject.id,
         scope: "main",
         title: "Ato I",
@@ -2916,9 +2916,7 @@ describe("infra", () => {
 
   describe("quota", () => {
     it("reconhece erros de quota e ignora os demais", async () => {
-      const { isQuotaExceededError, QUOTA_WARNING_THRESHOLD } = await import(
-        "@/infra/storage/quota"
-      );
+      const { isQuotaExceededError } = await import("@/infra/storage/quota");
       expect(isQuotaExceededError(new DOMException("quota", "QuotaExceededError"))).toBe(
         true,
       );
@@ -2927,8 +2925,6 @@ describe("infra", () => {
       expect(isQuotaExceededError(new Error("boom"))).toBe(false);
       expect(isQuotaExceededError(null)).toBe(false);
       expect(isQuotaExceededError("quota")).toBe(false);
-      expect(QUOTA_WARNING_THRESHOLD).toBeGreaterThan(0);
-      expect(QUOTA_WARNING_THRESHOLD).toBeLessThan(1);
     });
   });
 

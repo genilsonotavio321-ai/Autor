@@ -70,10 +70,6 @@ function estimate(text: string): number {
   return Math.ceil(text.length / 3);
 }
 
-export function estimateContextTokens(markdown: string): number {
-  return estimate(markdown);
-}
-
 function itemStatusLabel(status: "available" | "lost" | "destroyed"): string {
   if (status === "lost") return "perdido";
   if (status === "destroyed") return "destruído";

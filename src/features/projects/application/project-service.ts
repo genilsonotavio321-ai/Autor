@@ -26,10 +26,6 @@ export function updateProject(
   return projectRepository.update(id, toCreateInput(values));
 }
 
-export async function softDeleteProject(id: EntityId): Promise<void> {
-  await projectRepository.softDelete(id);
-}
-
 export async function restoreProject(id: EntityId): Promise<void> {
   await projectRepository.restore(id);
 }
