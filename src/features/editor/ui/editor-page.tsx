@@ -2,7 +2,7 @@
 
 import type { Content } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
-import { ArrowLeft, BookOpen, Cloud, History, ListTree, Maximize2, Minimize2, Share2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -11,24 +11,7 @@ import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { chapterToMd, chapterToTxt } from "@/features/export/domain/plain-text";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
@@ -36,7 +19,6 @@ import {
   ExportFormatDialog,
   type ExportFormat,
 } from "@/features/export/ui/export-format-dialog";
-import { CHAPTER_STATUS_COLORS, CHAPTER_STATUS_DOT, CHAPTER_STATUS_LABELS } from "@/features/projects/domain/repository";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { getTabCoordinator } from "@/infra/db/multi-tab";
@@ -44,7 +26,6 @@ import { isQuotaExceededError } from "@/infra/storage/quota";
 import type { MentionType } from "@/features/mentions/domain/entity-index";
 import type { MentionClickSource } from "@/features/mentions/domain/mention-click";
 import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
-import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
   Chapter,
@@ -54,6 +35,9 @@ import type {
 } from "@/shared/types/database";
 
 import { createAutosave } from "../application/autosave";
+import { EditorActionsCompact, EditorToolbar } from "./editor-toolbar";
+import { MentionConfirmDialog } from "./mention-confirm-dialog";
+import { SaveStatusIndicator, type SaveStatus } from "./save-status-indicator";
 import { ScenesDialog } from "./scenes-dialog";
 import {
   createManualVersion,
@@ -85,8 +69,6 @@ interface SavePayload {
   cursorOffset: number;
   scrollY: number;
 }
-
-type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export function EditorPage({ chapterId }: { chapterId: string }) {
   const router = useRouter();
@@ -492,81 +474,16 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
 
   // No layout simplificado os botões de ação ficam dentro do próprio editor.
   const editorActions = editorSimplified ? (
-    <>
-      <Select
-        value={status ?? chapter.status}
-        onValueChange={(value) => changeStatus(value as ChapterStatus)}
-      >
-        <SelectTrigger
-          className={`h-8 w-32 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
-          aria-label="Status do capítulo"
-        >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              <span
-                aria-hidden
-                className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
-              />
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        aria-label="Ler capítulo"
-        onClick={() => router.push(`/read?chapter=${chapterId}`)}
-      >
-        <BookOpen aria-hidden className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        aria-label="Ver cenas"
-        onClick={() => setScenesOpen(true)}
-      >
-        <ListTree aria-hidden className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        aria-label="Versões"
-        onClick={() => void saveManualVersion()}
-      >
-        <History aria-hidden className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        aria-label="Compartilhar"
-        onClick={() => setShareOpen(true)}
-      >
-        <Share2 aria-hidden className="size-4" />
-      </Button>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-8"
-        onClick={toggleFocusMode}
-        aria-label={
-          focusMode ? "Sair do modo foco" : "Ativar modo foco (Esc para sair)"
-        }
-      >
-        {focusMode ? (
-          <Minimize2 aria-hidden className="size-4" />
-        ) : (
-          <Maximize2 aria-hidden className="size-4" />
-        )}
-      </Button>
-    </>
+    <EditorActionsCompact
+      status={status ?? chapter.status}
+      onChangeStatus={changeStatus}
+      onRead={() => router.push(`/read?chapter=${chapterId}`)}
+      onScenes={() => setScenesOpen(true)}
+      onVersions={() => void saveManualVersion()}
+      onShare={() => setShareOpen(true)}
+      focusMode={focusMode}
+      onToggleFocus={toggleFocusMode}
+    />
   ) : null;
 
   return (
@@ -597,83 +514,16 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       </div>
       <div aria-hidden className="hairline" />
       {!editorSimplified ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={status ?? chapter.status}
-            onValueChange={(value) => changeStatus(value as ChapterStatus)}
-          >
-            <SelectTrigger
-              className={`h-9 w-36 gap-2 ${CHAPTER_STATUS_COLORS[status ?? chapter.status]}`}
-              aria-label="Status do capítulo"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  <span
-                    aria-hidden
-                    className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
-                  />
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={() => router.push(`/read?chapter=${chapterId}`)}
-          >
-            <BookOpen aria-hidden />
-            Ler
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={() => setScenesOpen(true)}
-          >
-            <ListTree aria-hidden />
-            Cenas
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={() => void saveManualVersion()}
-          >
-            <History aria-hidden />
-            Versões
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-9"
-            onClick={() => setShareOpen(true)}
-          >
-            <Share2 aria-hidden />
-            Compartilhar
-          </Button>
-          <Button
-            variant="outline"
-            size="icon"
-            className="size-9"
-            onClick={toggleFocusMode}
-            aria-label={
-              focusMode
-                ? "Sair do modo foco"
-                : "Ativar modo foco (Esc para sair)"
-            }
-          >
-            {focusMode ? (
-              <Minimize2 aria-hidden className="size-4" />
-            ) : (
-              <Maximize2 aria-hidden className="size-4" />
-            )}
-          </Button>
-        </div>
+        <EditorToolbar
+          status={status ?? chapter.status}
+          onChangeStatus={changeStatus}
+          onRead={() => router.push(`/read?chapter=${chapterId}`)}
+          onScenes={() => setScenesOpen(true)}
+          onVersions={() => void saveManualVersion()}
+          onShare={() => setShareOpen(true)}
+          focusMode={focusMode}
+          onToggleFocus={toggleFocusMode}
+        />
       ) : null}
 
       <div
@@ -694,33 +544,11 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           onUpdate={() => scheduleSave()}
           actions={editorActions}
         />
-        <span
-          data-testid="save-status"
-          aria-live="polite"
-          className="pointer-events-none absolute bottom-2 left-2 z-10 inline-flex items-center rounded-full bg-card/80 px-2 py-1 backdrop-blur-sm"
-        >
-          <Cloud
-            aria-hidden
-            className={`size-3.5 ${
-              saveStatus === "saving"
-                ? "animate-pulse text-foreground"
-                : saveStatus === "error"
-                  ? "text-destructive"
-                  : dirty || !savedAt
-                    ? "text-muted-foreground/50"
-                    : "text-foreground"
-            }`}
-          />
-          <span className="sr-only">
-            {saveStatus === "saving"
-              ? "Salvando…"
-              : saveStatus === "error"
-                ? "Erro ao salvar"
-                : savedAt
-                  ? `Salvo ${formatRelativeTime(savedAt)}`
-                  : "Nenhuma alteração ainda"}
-          </span>
-        </span>
+        <SaveStatusIndicator
+          status={saveStatus}
+          dirty={dirty}
+          savedAt={savedAt}
+        />
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] tracking-wide text-muted-foreground">
@@ -765,49 +593,25 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         }}
       />
 
-      <AlertDialog
+      <MentionConfirmDialog
         open={pendingMention !== null}
+        name={pendingMention?.name ?? ""}
         onOpenChange={(open) => {
           if (!open) setPendingMention(null);
         }}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>
-              Abrir a ficha de {pendingMention?.name || "destaque"}?
-            </AlertDialogTitle>
-            <AlertDialogDescription>
-              Toque no nome destacado para abrir. Você pode desativar este
-              aviso nas configurações.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => {
-                if (pendingMention) {
-                  openMentionSheet(pendingMention.type, pendingMention.id);
-                }
-              }}
-            >
-              Abrir
-            </AlertDialogAction>
-            <AlertDialogAction
-              onClick={() => {
-                setMentionConfirmOpen(false);
-                if (pendingMention) {
-                  openMentionSheet(pendingMention.type, pendingMention.id);
-                }
-                toast.info(
-                  "Aviso desativado. Você pode reativar nas Configurações.",
-                );
-              }}
-            >
-              Não perguntar de novo
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+        onConfirm={() => {
+          if (pendingMention) {
+            openMentionSheet(pendingMention.type, pendingMention.id);
+          }
+        }}
+        onDontAskAgain={() => {
+          setMentionConfirmOpen(false);
+          if (pendingMention) {
+            openMentionSheet(pendingMention.type, pendingMention.id);
+          }
+          toast.info("Aviso desativado. Você pode reativar nas Configurações.");
+        }}
+      />
     </div>
   );
 }

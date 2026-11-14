@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -19,60 +19,11 @@ import {
   rectSortingStrategy,
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
-import {
-  ArrowUpDown,
-  FileDown,
-  FileUp,
-  MoreHorizontal,
-  Pin,
-  PinOff,
-  Plus,
-  Share2,
-  Trash2,
-} from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
-import { useCardSortable } from "@/shared/lib/sortable";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
-import { formatRelativeTime } from "@/shared/lib/dates";
-import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
 import { ExportFormatDialog, type ExportFormat } from "@/features/export/ui/export-format-dialog";
@@ -93,16 +44,16 @@ import { folderRepository } from "@/features/folders/infra/dexie-folder-reposito
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
 import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
 import { FolderCard } from "@/features/folders/ui/folder-card";
-import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type { EntityId, Folder, Note } from "@/shared/types/database";
 
-import { NOTES_SORT_LABELS, sortNotes, type NotesSort } from "../domain/sort";
+import { sortNotes } from "../domain/sort";
 import { noteRepository } from "../infra/dexie-note-repository";
-import { importNotesFile } from "../infra/notes-import";
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
+import { NoteDialog } from "./note-dialog";
 import { NoteViewDialog } from "./note-view-dialog";
-
-const SORT_STORAGE_KEY = "autor.notes.sort";
+import { NotesGrid } from "./notes-grid";
+import { NotesToolbar } from "./notes-toolbar";
+import { useNotesSort } from "./use-notes-sort";
 
 export function NotesPage() {
   const { projectId } = useSelectedProject();
@@ -118,10 +69,7 @@ export function NotesPage() {
       [projectId],
     ) ?? null;
 
-  const [sort, setSort] = useState<NotesSort>("updated");
-  // Só persiste depois de ler: sem isso o efeito de escrita rodava antes de a
-  // leitura aplicar e o critério salvo era sobrescrito pelo default.
-  const [sortHydrated, setSortHydrated] = useState(false);
+  const { sort, setSort } = useNotesSort();
   const [dialog, setDialog] = useState<{
     open: boolean;
     note?: Note | null;
@@ -131,23 +79,10 @@ export function NotesPage() {
     open: boolean;
     note?: Note | null;
   }>({ open: false });
-  const [clearOpen, setClearOpen] = useState(false);
-  const importInputRef = useRef<HTMLInputElement>(null);
   // Deep link: /notes?note=<id> opens the note view (search result clicks).
   const [pendingId, setPendingId] = useState<string | null>(null);
   // Set while a drag is in flight so the trailing click doesn't open the view.
   const suppressClick = useRef(false);
-
-  useEffect(() => {
-    const stored = window.localStorage.getItem(SORT_STORAGE_KEY);
-    if (stored && stored in NOTES_SORT_LABELS) setSort(stored as NotesSort);
-    setSortHydrated(true);
-  }, []);
-
-  useEffect(() => {
-    if (!sortHydrated) return;
-    window.localStorage.setItem(SORT_STORAGE_KEY, sort);
-  }, [sort, sortHydrated]);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("note");
@@ -440,25 +375,6 @@ export function NotesPage() {
     }
   }
 
-  async function handleImportFile(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file || !projectId) return;
-    try {
-      const text = await file.text();
-      const { created } = await importNotesFile(projectId, file.name, text);
-      if (created === 0) {
-        toast.error("Nenhuma nota encontrada no arquivo.");
-        return;
-      }
-      toast.success(
-        created === 1 ? "1 nota importada" : `${created} notas importadas`,
-      );
-    } catch {
-      toast.error("Falha ao importar as notas.");
-    }
-  }
-
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -471,94 +387,17 @@ export function NotesPage() {
             : undefined
         }
       >
-          <NewFolderButton
-            kind="note"
-            projectId={projectId}
-            parentId={openFolderId ?? undefined}
-            onCreated={(folder) => setOpenFolderId(folder.id)}
-          />
-          <Select value={sort} onValueChange={(value) => setSort(value as NotesSort)}>
-            <SelectTrigger className="w-52" aria-label="Ordenar notas">
-              <ArrowUpDown aria-hidden className="size-4" />
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {Object.entries(NOTES_SORT_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                size="icon"
-                aria-label="Mais opções de notas"
-              >
-                <MoreHorizontal aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem
-                disabled={notes.length === 0}
-                onSelect={() => setExportTarget({ open: true })}
-              >
-                <FileDown aria-hidden />
-                Exportar notas
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                disabled={!projectId}
-                onSelect={() => {
-                  // Abre o seletor após o menu fechar (evita corrida de foco).
-                  window.setTimeout(() => importInputRef.current?.click(), 0);
-                }}
-              >
-                <FileUp aria-hidden />
-                Importar notas
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                variant="destructive"
-                disabled={notes.length === 0}
-                onSelect={() => setClearOpen(true)}
-              >
-                <Trash2 aria-hidden />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Excluir todas as notas?</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {notes.length}{" "}
-                  {notes.length === 1
-                    ? "nota será movida"
-                    : "notas serão movidas"}{" "}
-                  para a lixeira. Você pode restaurá-las na Lixeira.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={() => void clearNotes()}>
-                  Excluir todas
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-          <input
-            ref={importInputRef}
-            type="file"
-            accept=".md,.txt,text/markdown,text/plain"
-            className="hidden"
-            onChange={(event) => void handleImportFile(event)}
-          />
-          <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
-            <Plus aria-hidden />
-            Nova nota
-          </Button>
+        <NotesToolbar
+          projectId={projectId}
+          noteCount={notes.length}
+          sort={sort}
+          onSortChange={setSort}
+          openFolderId={openFolderId}
+          onFolderCreated={(folder) => setOpenFolderId(folder.id)}
+          onExportAll={() => setExportTarget({ open: true })}
+          onClearAll={() => void clearNotes()}
+          onNewNote={() => setDialog({ open: true })}
+        />
       </PageHeader>
 
       {projectId === null ? (
@@ -620,76 +459,43 @@ export function NotesPage() {
             {openFolderId === null ? (
               <>
                 {pinnedNotes.length > 0 ? (
-                  <section aria-label="Notas fixadas">
-                    <SortableContext
-                      items={pinnedNotes.map((note) => note.id)}
-                      strategy={rectSortingStrategy}
-                    >
-                      <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                        {pinnedNotes.map((note) => (
-                          <NoteCard
-                            key={note.id}
-                            note={note}
-                            suppressClick={suppressClick}
-                            folderDropActive={folderHint.mode === "create"}
-                            onOpenView={(target) => setViewNote(target)}
-                            onTogglePin={(target) => void togglePin(target)}
-                            onShare={(target) => setExportTarget({ open: true, note: target })}
-                            onRemove={(target) => void remove(target)}
-                          />
-                        ))}
-                      </ul>
-                    </SortableContext>
-                  </section>
+                  <NotesGrid
+                    label="Notas fixadas"
+                    notes={pinnedNotes}
+                    suppressClick={suppressClick}
+                    folderDropActive={folderHint.mode === "create"}
+                    onOpenView={(target) => setViewNote(target)}
+                    onTogglePin={(target) => void togglePin(target)}
+                    onShare={(target) => setExportTarget({ open: true, note: target })}
+                    onRemove={(target) => void remove(target)}
+                  />
                 ) : null}
-                <section aria-label="Notas">
-                  <SortableContext
-                    items={regularNotes.map((note) => note.id)}
-                    strategy={rectSortingStrategy}
-                  >
-                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                      {regularNotes.map((note) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          suppressClick={suppressClick}
-                          folderDropActive={folderHint.mode === "create"}
-                          onOpenView={(target) => setViewNote(target)}
-                          onTogglePin={(target) => void togglePin(target)}
-                          onShare={(target) => setExportTarget({ open: true, note: target })}
-                          onRemove={(target) => void remove(target)}
-                        />
-                      ))}
-                    </ul>
-                  </SortableContext>
-                </section>
+                <NotesGrid
+                  label="Notas"
+                  notes={regularNotes}
+                  suppressClick={suppressClick}
+                  folderDropActive={folderHint.mode === "create"}
+                  onOpenView={(target) => setViewNote(target)}
+                  onTogglePin={(target) => void togglePin(target)}
+                  onShare={(target) => setExportTarget({ open: true, note: target })}
+                  onRemove={(target) => void remove(target)}
+                />
               </>
             ) : (
-              <section aria-label="Notas da pasta">
-                {folderNotes.length > 0 ? (
-                  <SortableContext
-                    items={folderNoteIds}
-                    strategy={rectSortingStrategy}
-                  >
-                    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
-                      {folderNotes.map((note) => (
-                        <NoteCard
-                          key={note.id}
-                          note={note}
-                          suppressClick={suppressClick}
-                          folderDropActive={folderHint.mode === "create"}
-                          onOpenView={(target) => setViewNote(target)}
-                          onTogglePin={(target) => void togglePin(target)}
-                          onShare={(target) => setExportTarget({ open: true, note: target })}
-                          onRemove={(target) => void remove(target)}
-                        />
-                      ))}
-                    </ul>
-                  </SortableContext>
-                ) : viewFolders.length === 0 ? (
-                  <EmptyState hint="Pasta vazia. Arraste notas até aqui." />
-                ) : null}
-              </section>
+              folderNotes.length > 0 ? (
+                <NotesGrid
+                  label="Notas da pasta"
+                  notes={folderNotes}
+                  suppressClick={suppressClick}
+                  folderDropActive={folderHint.mode === "create"}
+                  onOpenView={(target) => setViewNote(target)}
+                  onTogglePin={(target) => void togglePin(target)}
+                  onShare={(target) => setExportTarget({ open: true, note: target })}
+                  onRemove={(target) => void remove(target)}
+                />
+              ) : viewFolders.length === 0 ? (
+                <EmptyState hint="Pasta vazia. Arraste notas até aqui." />
+              ) : null
             )}
           </div>
           {folderHint.hint}
@@ -733,207 +539,5 @@ export function NotesPage() {
         description="Escolha o formato do arquivo para baixar."
       />
     </div>
-  );
-}
-
-interface NoteCardProps {
-  note: Note;
-  suppressClick: React.RefObject<boolean>;
-  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
-  folderDropActive: boolean;
-  onOpenView: (note: Note) => void;
-  onTogglePin: (note: Note) => void;
-  onShare: (note: Note) => void;
-  onRemove: (note: Note) => void;
-}
-
-function NoteCard({
-  note,
-  suppressClick,
-  folderDropActive,
-  onOpenView,
-  onTogglePin,
-  onShare,
-  onRemove,
-}: NoteCardProps) {
-  const { setNodeRef, dragProps, style, isDragging, isOver } =
-    useCardSortable(note.id);
-
-  function openView() {
-    if (suppressClick.current) return;
-    onOpenView(note);
-  }
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      data-dragging={isDragging || undefined}
-      {...dragProps}
-      onClick={openView}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        // Espaço fica com o dnd-kit: é a tecla que "pega" o card para
-        // reordenar por teclado. Abrir a visualização é o Enter.
-        if (event.key === "Enter") {
-          event.preventDefault();
-          openView();
-        }
-      }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-        isDragging ? "z-10 opacity-60" : ""
-      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
-    >
-      <div className="mb-2 flex items-start gap-2">
-        <button
-          type="button"
-          aria-label={note.pinned ? `Desafixar ${note.title}` : `Fixar ${note.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onTogglePin(note);
-          }}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          {note.pinned ? (
-            <Pin aria-hidden className="text-primary" />
-          ) : (
-            <PinOff aria-hidden />
-          )}
-        </button>
-        <span className="min-w-0 flex-1 font-medium">{note.title}</span>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Compartilhar ${note.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onShare(note);
-          }}
-        >
-          <Share2 aria-hidden />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Excluir ${note.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(note);
-          }}
-        >
-          <Trash2 aria-hidden />
-        </Button>
-      </div>
-      {note.content ? (
-        <p className="mb-3 line-clamp-6 flex-1 whitespace-pre-wrap text-sm text-muted-foreground">
-          {note.content}
-        </p>
-      ) : (
-        <p className="mb-3 flex-1 text-sm italic text-muted-foreground/60">
-          Sem conteúdo
-        </p>
-      )}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-muted-foreground">
-          atualizada {formatRelativeTime(note.updatedAt)}
-        </span>
-        {note.pinned ? <Badge>Fixada</Badge> : null}
-      </div>
-    </li>
-  );
-}
-
-interface NoteDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  note: Note | null;
-  projectId: EntityId | null;
-}
-
-function NoteDialog({ open, onOpenChange, note, projectId }: NoteDialogProps) {
-  const [title, setTitle] = useState("");
-  const [content, setContent] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setTitle(note?.title === "Sem título" ? "" : (note?.title ?? ""));
-    setContent(note?.content ?? "");
-  }, [open, note]);
-
-  async function submit() {
-    if (!projectId) return;
-    setSaving(true);
-    try {
-      if (note) {
-        await noteRepository.update(note.id, {
-          title: title.trim() || "Sem título",
-          content,
-        });
-        toast.success("Nota atualizada");
-      } else {
-        await noteRepository.create({
-          projectId,
-          title: title.trim() || undefined,
-          content,
-        });
-        toast.success("Nota criada");
-      }
-      onOpenChange(false);
-    } catch {
-      toast.error("Falha ao salvar a nota");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-xl"
-        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
-      >
-        <DialogHeader>
-          <DialogTitle>{note ? "Editar nota" : "Nova nota"}</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <div className="grid gap-2">
-            <Label htmlFor="note-title">Título</Label>
-            <Input
-              id="note-title"
-              value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder="Título da nota"
-            />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="note-content">Conteúdo</Label>
-            <Textarea
-              id="note-content"
-              value={content}
-              onChange={(event) => setContent(event.target.value)}
-              rows={8}
-              placeholder="Escreva sua nota..."
-            />
-          </div>
-          <ImageAttachments
-            entityType="note"
-            entityId={note?.id}
-            projectId={projectId}
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button onClick={() => void submit()} disabled={saving}>
-            Salvar
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
   );
 }
