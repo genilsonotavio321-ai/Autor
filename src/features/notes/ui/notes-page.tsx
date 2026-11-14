@@ -18,9 +18,7 @@ import {
   arrayMove,
   rectSortingStrategy,
   sortableKeyboardCoordinates,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import {
   ArrowUpDown,
   FileDown,
@@ -36,6 +34,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { useCardSortable } from "@/shared/lib/sortable";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   AlertDialog,
@@ -757,22 +756,8 @@ function NoteCard({
   onShare,
   onRemove,
 }: NoteCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id: note.id });
-
-  const style = {
-    // Congela o "abre espaço" do sortable: só o card arrastado se move,
-    // o alvo não foge do ponteiro (soltar no centro vira fácil).
-    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
-    transition,
-  };
+  const { setNodeRef, dragProps, style, isDragging, isOver } =
+    useCardSortable(note.id);
 
   function openView() {
     if (suppressClick.current) return;
@@ -784,8 +769,7 @@ function NoteCard({
       ref={setNodeRef}
       style={style}
       data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
+      {...dragProps}
       onClick={openView}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;

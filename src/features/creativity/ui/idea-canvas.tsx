@@ -39,7 +39,6 @@ import {
   X,
   ZoomIn,
   ZoomOut,
-  type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -74,13 +73,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
@@ -95,7 +87,6 @@ import type {
   Scene,
 } from "@/shared/types/database";
 
-import { sendSceneToOutline } from "../application/send-to-outline";
 import { buildBoardExport, parseBoardExport } from "../domain/board-io";
 import {
   cardAtPoint,
@@ -120,7 +111,20 @@ import { ideaBoardRepository } from "../infra/dexie-idea-board-repository";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
 
+import { CardMenuButton } from "./card-menu-button";
+import {
+  clampZoom,
+  isCanvasBackground,
+  marqueeHits,
+  rectCenter,
+  refOpenLabel,
+  sameRects,
+  snapshotItems,
+  type CardRect,
+  type Marquee,
+} from "./canvas-geometry";
 import { IdeaCardView, removeCard } from "./idea-card-view";
+import { SendCardDialog } from "./send-card-dialog";
 
 interface IdeaCanvasProps {
   projectId: EntityId;
@@ -143,11 +147,6 @@ type MoveOp = {
   to: { x: number; y: number };
 };
 
-/** Retângulo de um card no espaço do conteúdo (pré-escala do zoom). */
-type CardRect = { x: number; y: number; width: number; height: number };
-
-/** Marquee de seleção em coordenadas do conteúdo. */
-type Marquee = { x0: number; y0: number; x1: number; y1: number };
 
 /** Board de cards com posição livre (x/y persistidos). */
 export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
@@ -2208,197 +2207,3 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
 }
 
 /** Snapshot dos cards atuais; `key` = id atual (remapeia links ao carregar). */
-function snapshotItems(cards: IdeaCard[]): IdeaBoardItem[] {
-  return cards.map((card) => ({
-    key: card.id,
-    title: card.title,
-    content: card.content,
-    color: card.color,
-    x: card.x,
-    y: card.y,
-    links: card.links,
-    refType: card.refType,
-    refId: card.refId,
-    w: card.w,
-    h: card.h,
-    doc: card.doc,
-  }));
-}
-
-function sameRects(
-  a: Record<EntityId, CardRect>,
-  b: Record<EntityId, CardRect>,
-): boolean {
-  const keys = Object.keys(b);
-  if (Object.keys(a).length !== keys.length) return false;
-  return keys.every(
-    (key) =>
-      a[key]?.x === b[key]?.x &&
-      a[key]?.y === b[key]?.y &&
-      a[key]?.width === b[key]?.width &&
-      a[key]?.height === b[key]?.height,
-  );
-}
-
-/** Rótulo do item que abre o alvo do node (ficha, capítulo ou cena). */
-function refOpenLabel(refType: NonNullable<IdeaCard["refType"]>): string {
-  if (refType === "chapter") return "Abrir capítulo";
-  if (refType === "scene") return "Abrir cena";
-  return "Abrir ficha";
-}
-
-function clampZoom(value: number): number {
-  return Math.min(2, Math.max(0.5, value));
-}
-
-/** Alvo é o fundo do canvas (não card, botão, alça nem linha de conexão). */
-function isCanvasBackground(target: EventTarget | null): boolean {
-  const element = target instanceof Element ? target : null;
-  if (!element) return false;
-  return !element.closest(
-    "[data-card-id], button, a, input, textarea, select, [role='button']",
-  );
-}
-
-function rectCenter(rect: CardRect): { x: number; y: number } {
-  return { x: rect.x + rect.width / 2, y: rect.y + rect.height / 2 };
-}
-
-/** Ids dos cards cujo retângulo cruza o marquee (coords do conteúdo). */
-function marqueeHits(
-  rects: Record<EntityId, CardRect>,
-  marquee: Marquee,
-): EntityId[] {
-  const x0 = Math.min(marquee.x0, marquee.x1);
-  const x1 = Math.max(marquee.x0, marquee.x1);
-  const y0 = Math.min(marquee.y0, marquee.y1);
-  const y1 = Math.max(marquee.y0, marquee.y1);
-  return Object.entries(rects)
-    .filter(
-      ([, rect]) =>
-        rect.x < x1 && rect.x + rect.width > x0 && rect.y < y1 && rect.y + rect.height > y0,
-    )
-    .map(([id]) => id as EntityId);
-}
-
-interface SendCardDialogProps {
-  card: IdeaCard | null;
-  chapters: Chapter[];
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}
-
-/** Transforma o card em cena: escolhe o capítulo e envia para a Estrutura. */
-function SendCardDialog({ card, chapters, open, onOpenChange }: SendCardDialogProps) {
-  const router = useRouter();
-  const [chapterId, setChapterId] = useState("");
-  const [sending, setSending] = useState(false);
-  const submitRef = useRef<HTMLButtonElement | null>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    setChapterId(chapters[0]?.id ?? "");
-  }, [open, chapters]);
-
-  async function submit() {
-    if (!card || !chapterId) return;
-    setSending(true);
-    try {
-      const scene = await sendSceneToOutline({
-        chapterId,
-        title: card.title,
-        summary: card.content || undefined,
-      });
-      await ideaCardRepository.update(card.id, { sentSceneId: scene.id });
-      toast.success(`Cena "${scene.title}" criada na Estrutura`, {
-        action: {
-          label: "Ver em Estrutura",
-          onClick: () => router.push("/outline"),
-        },
-      });
-      onOpenChange(false);
-    } catch {
-      toast.error("Falha ao criar a cena");
-    } finally {
-      setSending(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="sm:max-w-lg"
-        onOpenAutoFocus={(event) => {
-          // Foco no botão de criar: Enter nativo nele submete.
-          event.preventDefault();
-          submitRef.current?.focus();
-        }}
-        onKeyDown={(event) => handleDialogEnter(event, () => void submit())}
-      >
-        <DialogHeader>
-          <DialogTitle>Transformar em cena</DialogTitle>
-        </DialogHeader>
-        <div className="grid gap-4">
-          <p className="text-sm text-muted-foreground">
-            A ideia será enviada como cena para o capítulo escolhido na
-            Estrutura.
-          </p>
-          <div className="grid gap-2">
-            <Label>Capítulo</Label>
-            <Select value={chapterId} onValueChange={setChapterId}>
-              <SelectTrigger aria-label="Capítulo destino">
-                <SelectValue placeholder="Selecionar" />
-              </SelectTrigger>
-              <SelectContent>
-                {chapters.map((chapter) => (
-                  <SelectItem key={chapter.id} value={chapter.id}>
-                    {chapter.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancelar
-          </Button>
-          <Button
-            ref={submitRef}
-            onClick={() => void submit()}
-            disabled={sending || !chapterId}
-          >
-            Criar cena
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-interface CardMenuButtonProps {
-  label: string;
-  icon: LucideIcon;
-  destructive?: boolean;
-  onClick: () => void;
-}
-
-/** Botão do menu de contexto do card (hold 0,8s sobre o node). */
-function CardMenuButton({
-  label,
-  icon: Icon,
-  destructive,
-  onClick,
-}: CardMenuButtonProps) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      className={`flex w-full items-center justify-start gap-2 px-1.5 py-1 text-sm ${destructive ? "text-destructive hover:text-destructive" : ""}`}
-      onClick={onClick}
-    >
-      <Icon aria-hidden className="size-4" />
-      {label}
-    </Button>
-  );
-}

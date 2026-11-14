@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
@@ -18,14 +18,11 @@ import {
   arrayMove,
   rectSortingStrategy,
   sortableKeyboardCoordinates,
-  useSortable,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -61,7 +58,6 @@ import { characterRepository } from "@/features/characters/infra/dexie-character
 import { locationRepository } from "../infra/dexie-location-repository";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
 import { partitionLoreEntries } from "../domain/lore-entry-collections";
-import { MAX_LOCATION_DEPTH } from "../domain/repository";
 
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { LocationDialog } from "./location-dialog";
@@ -486,44 +482,39 @@ export function WorldPage() {
   }
 
   /** Reordenação de fichas (drop na borda do card) — pastas ficam de fora. */
-  function reorderLocations(activeId: string, overId: string) {
-    const oldIndex = viewLocationIds.indexOf(activeId);
-    const newIndex = viewLocationIds.indexOf(overId);
+  function reorderInView(
+    activeId: string,
+    overId: string,
+    ids: string[],
+    folderIds: string[],
+    apply: (moves: { id: string; order: number }[]) => Promise<unknown>,
+  ) {
+    const oldIndex = ids.indexOf(activeId);
+    const newIndex = ids.indexOf(overId);
     if (oldIndex === -1 || newIndex === -1) return;
-    const folderIdSet = new Set(viewLocationFolderIds);
-    const reordered = arrayMove(viewLocationIds, oldIndex, newIndex).filter(
-      (id) => !folderIdSet.has(id),
+    const folders = new Set(folderIds);
+    const reordered = arrayMove(ids, oldIndex, newIndex).filter(
+      (id) => !folders.has(id),
     );
-    void locationRepository
-      .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
+    void apply(reordered.map((id, order) => ({ id, order }))).catch(() =>
+      toast.error("Falha ao reordenar"),
+    );
   }
 
-  function reorderLoreEntries(activeId: string, overId: string) {
-    const oldIndex = viewLoreIds.indexOf(activeId);
-    const newIndex = viewLoreIds.indexOf(overId);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const folderIdSet = new Set(viewLoreFolderIds);
-    const reordered = arrayMove(viewLoreIds, oldIndex, newIndex).filter(
-      (id) => !folderIdSet.has(id),
+  const reorderLocations = (activeId: string, overId: string) =>
+    reorderInView(activeId, overId, viewLocationIds, viewLocationFolderIds, (moves) =>
+      locationRepository.applyMoves(moves),
     );
-    void loreEntryRepository
-      .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
-  }
 
-  function reorderItems(activeId: string, overId: string) {
-    const oldIndex = viewItemIds.indexOf(activeId);
-    const newIndex = viewItemIds.indexOf(overId);
-    if (oldIndex === -1 || newIndex === -1) return;
-    const folderIdSet = new Set(viewItemFolderIds);
-    const reordered = arrayMove(viewItemIds, oldIndex, newIndex).filter(
-      (id) => !folderIdSet.has(id),
+  const reorderLoreEntries = (activeId: string, overId: string) =>
+    reorderInView(activeId, overId, viewLoreIds, viewLoreFolderIds, (moves) =>
+      loreEntryRepository.applyMoves(moves),
     );
-    void loreEntryRepository
-      .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
-  }
+
+  const reorderItems = (activeId: string, overId: string) =>
+    reorderInView(activeId, overId, viewItemIds, viewItemFolderIds, (moves) =>
+      loreEntryRepository.applyMoves(moves),
+    );
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);
@@ -574,29 +565,20 @@ export function WorldPage() {
     }
   }
 
-  function exitLocationFolder() {
-    setOpenLocationFolderId(
-      currentLocationFolder
-        ? effectiveParentId(currentLocationFolder, liveLocationFolderIds)
-        : null,
-    );
+  function exitFolder(
+    current: Folder | null | undefined,
+    liveIds: Set<string>,
+    set: (id: string | null) => void,
+  ) {
+    set(current ? effectiveParentId(current, liveIds) : null);
   }
 
-  function exitLoreFolder() {
-    setOpenLoreFolderId(
-      currentLoreFolder
-        ? effectiveParentId(currentLoreFolder, liveLoreFolderIds)
-        : null,
-    );
-  }
-
-  function exitItemFolder() {
-    setOpenItemFolderId(
-      currentItemFolder
-        ? effectiveParentId(currentItemFolder, liveItemFolderIds)
-        : null,
-    );
-  }
+  const exitLocationFolder = () =>
+    exitFolder(currentLocationFolder, liveLocationFolderIds, setOpenLocationFolderId);
+  const exitLoreFolder = () =>
+    exitFolder(currentLoreFolder, liveLoreFolderIds, setOpenLoreFolderId);
+  const exitItemFolder = () =>
+    exitFolder(currentItemFolder, liveItemFolderIds, setOpenItemFolderId);
 
   return (
     <div className="flex flex-col gap-8">
@@ -1003,426 +985,9 @@ export function WorldPage() {
   );
 }
 
-interface LocationCardProps {
-  location: Location;
-  /** Filhos por ficha-mãe (item 7) — usados na renderização recursiva. */
-  childrenByParent: Map<EntityId, Location[]>;
-  suppressClick: RefObject<boolean>;
-  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
-  folderDropActive: boolean;
-  onView: (location: Location) => void;
-  onRemove: (location: Location) => void;
-  onNewChild: (location: Location) => void;
-}
+import {
+  LocationCard,
+  LoreCard,
+  TrackableItemCard,
+} from "./world-cards";
 
-function LocationCard({
-  location,
-  childrenByParent,
-  suppressClick,
-  folderDropActive,
-  onView,
-  onRemove,
-  onNewChild,
-}: LocationCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id: location.id });
-
-  const style = {
-    // Congela o "abre espaço" do sortable: só o card arrastado se move,
-    // o alvo não foge do ponteiro (soltar no centro vira fácil).
-    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
-    transition,
-  };
-
-  function openView() {
-    if (suppressClick.current) return;
-    onView(location);
-  }
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
-      onClick={openView}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openView();
-        }
-      }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-        isDragging ? "opacity-60" : ""
-      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
-    >
-      <div className="mb-2 flex items-start gap-2">
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onView(location);
-          }}
-          className="min-w-0 flex-1 text-left font-medium hover:underline"
-        >
-          {location.name}
-        </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Nova subficha em ${location.name}`}
-          title="Nova subficha"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onNewChild(location);
-          }}
-        >
-          <Plus aria-hidden />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Excluir ${location.name}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(location);
-          }}
-        >
-          <Trash2 aria-hidden />
-        </Button>
-      </div>
-      <Badge variant="outline" className="mb-2 w-fit">
-        {location.type}
-      </Badge>
-      {location.description ? (
-        <p className="line-clamp-3 flex-1 text-sm text-muted-foreground">
-          {location.description}
-        </p>
-      ) : (
-        <p className="flex-1 text-sm italic text-muted-foreground/60">
-          Sem descrição
-        </p>
-      )}
-      <span className="mt-2 text-xs text-muted-foreground">
-        atualizado {formatRelativeTime(location.updatedAt)}
-      </span>
-      {childrenByParent.get(location.id) ? (
-        <ul className="mt-3 flex flex-col gap-1 border-l-2 border-border pl-3">
-          {(childrenByParent.get(location.id) ?? []).map((child) => (
-            <LocationChildRow
-              key={child.id}
-              location={child}
-              depth={2}
-              childrenByParent={childrenByParent}
-              suppressClick={suppressClick}
-              onView={onView}
-              onRemove={onRemove}
-              onNewChild={onNewChild}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-interface LocationChildRowProps {
-  location: Location;
-  /** Nível da ficha na hierarquia (raiz = 1). */
-  depth: number;
-  childrenByParent: Map<EntityId, Location[]>;
-  suppressClick: RefObject<boolean>;
-  onView: (location: Location) => void;
-  onRemove: (location: Location) => void;
-  onNewChild: (location: Location) => void;
-}
-
-/**
- * Linha de subficha (display-only, sem dnd) com os filhos aninhados
- * recursivamente até MAX_LOCATION_DEPTH. Cada pai tem um único parentId,
- * então a travessia a partir de fichas de primeiro nível é uma árvore.
- */
-function LocationChildRow({
-  location,
-  depth,
-  childrenByParent,
-  suppressClick,
-  onView,
-  onRemove,
-  onNewChild,
-}: LocationChildRowProps) {
-  const children = childrenByParent.get(location.id) ?? [];
-  const stop = (event: React.SyntheticEvent) => {
-    event.stopPropagation();
-  };
-
-  return (
-    <li>
-      <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onPointerDown={stop}
-          onClick={(event) => {
-            stop(event);
-            if (suppressClick.current) return;
-            onView(location);
-          }}
-          className="flex min-w-0 flex-1 items-center gap-2 text-left text-sm hover:underline"
-        >
-          <span className="truncate">{location.name}</span>
-          <span className="ml-auto shrink-0 text-xs text-muted-foreground">
-            {location.type}
-          </span>
-        </button>
-        {depth < MAX_LOCATION_DEPTH ? (
-          <Button
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            aria-label={`Nova subficha em ${location.name}`}
-            title="Nova subficha"
-            onPointerDown={stop}
-            onClick={(event) => {
-              stop(event);
-              onNewChild(location);
-            }}
-          >
-            <Plus aria-hidden className="size-3.5" />
-          </Button>
-        ) : null}
-      </div>
-      {depth > MAX_LOCATION_DEPTH ? (
-        <p className="mt-1 text-xs text-amber-600 dark:text-amber-500">
-          Acima do limite de {MAX_LOCATION_DEPTH} níveis — não é possível criar
-          novas subfichas aqui.
-        </p>
-      ) : null}
-      {children.length > 0 ? (
-        <ul className="mt-1 flex flex-col gap-1 border-l-2 border-border pl-3">
-          {children.map((child) => (
-            <LocationChildRow
-              key={child.id}
-              location={child}
-              depth={depth + 1}
-              childrenByParent={childrenByParent}
-              suppressClick={suppressClick}
-              onView={onView}
-              onRemove={onRemove}
-              onNewChild={onNewChild}
-            />
-          ))}
-        </ul>
-      ) : null}
-    </li>
-  );
-}
-
-interface LoreCardProps {
-  entry: LoreEntry;
-  suppressClick: RefObject<boolean>;
-  /** A drop no centro deste card criaria uma pasta (ring + aviso visível). */
-  folderDropActive: boolean;
-  onView: (entry: LoreEntry) => void;
-  onRemove: (entry: LoreEntry) => void;
-}
-
-function LoreCard({
-  entry,
-  suppressClick,
-  folderDropActive,
-  onView,
-  onRemove,
-}: LoreCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id: entry.id });
-
-  const style = {
-    // Congela o "abre espaço" do sortable: só o card arrastado se move,
-    // o alvo não foge do ponteiro (soltar no centro vira fácil).
-    transform: isDragging ? CSS.Transform.toString(transform) : undefined,
-    transition,
-  };
-
-  function openView() {
-    if (suppressClick.current) return;
-    onView(entry);
-  }
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
-      onClick={openView}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          openView();
-        }
-      }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-        isDragging ? "opacity-60" : ""
-      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
-    >
-      <div className="mb-2 flex items-start gap-2">
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onView(entry);
-          }}
-          className="min-w-0 flex-1 text-left font-medium hover:underline"
-        >
-          {entry.title}
-        </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Excluir ${entry.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(entry);
-          }}
-        >
-          <Trash2 aria-hidden />
-        </Button>
-      </div>
-      <div className="mb-2 flex flex-wrap items-center gap-1">
-        <Badge variant="outline">{entry.category}</Badge>
-        {entry.linkedIds.length > 0 ? (
-          <Badge variant="secondary">
-            {entry.linkedIds.length}{" "}
-            {entry.linkedIds.length === 1 ? "vínculo" : "vínculos"}
-          </Badge>
-        ) : null}
-      </div>
-      {typeof entry.content === "string" && entry.content ? (
-        <p className="line-clamp-4 flex-1 whitespace-pre-wrap text-sm text-muted-foreground">
-          {entry.content}
-        </p>
-      ) : (
-        <p className="flex-1 text-sm italic text-muted-foreground/60">
-          Sem conteúdo
-        </p>
-      )}
-      <span className="mt-2 text-xs text-muted-foreground">
-        atualizada {formatRelativeTime(entry.updatedAt)}
-      </span>
-    </li>
-  );
-}
-
-interface TrackableItemCardProps {
-  item: LoreEntry;
-  ownerName: string;
-  suppressClick: RefObject<boolean>;
-  folderDropActive: boolean;
-  onEdit: (item: LoreEntry) => void;
-  onRemove: (item: LoreEntry) => void;
-}
-
-function TrackableItemCard({
-  item,
-  ownerName,
-  suppressClick,
-  folderDropActive,
-  onEdit,
-  onRemove,
-}: TrackableItemCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id: item.id });
-
-  function edit() {
-    if (suppressClick.current) return;
-    onEdit(item);
-  }
-
-  return (
-    <li
-      ref={setNodeRef}
-      style={{
-        transform: isDragging ? CSS.Transform.toString(transform) : undefined,
-        transition,
-      }}
-      data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
-      onClick={edit}
-      onKeyDown={(event) => {
-        if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          edit();
-        }
-      }}
-      className={`flex cursor-pointer touch-none select-none flex-col gap-3 rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
-        isDragging ? "opacity-60" : ""
-      } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
-    >
-      <div className="flex items-start gap-3">
-        <button
-          type="button"
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onEdit(item);
-          }}
-          className="min-w-0 flex-1 text-left font-medium hover:underline focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          {item.title}
-        </button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={`Excluir ${item.title}`}
-          onPointerDown={(event) => event.stopPropagation()}
-          onClick={(event) => {
-            event.stopPropagation();
-            onRemove(item);
-          }}
-        >
-          <Trash2 aria-hidden />
-        </Button>
-      </div>
-      {typeof item.content === "string" && item.content ? (
-        <p className="line-clamp-3 whitespace-pre-wrap text-sm text-muted-foreground">
-          {item.content}
-        </p>
-      ) : null}
-      <p className="text-xs text-muted-foreground">
-        Possuidor inicial: {ownerName}
-      </p>
-    </li>
-  );
-}

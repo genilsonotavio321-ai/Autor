@@ -16,15 +16,14 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { Archive, GripVertical, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { useCardSortable } from "@/shared/lib/sortable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -149,13 +148,8 @@ function ChapterRow({
   /** Posição na lista (não a `order` bruta: arquivados no meio deixam buracos). */
   number: number;
 }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: chapter.id });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  const { setNodeRef, dragProps, style, isDragging } =
+    useCardSortable(chapter.id);
 
   async function changeStatus(status: ChapterStatus) {
     try {
@@ -212,8 +206,7 @@ function ChapterRow({
       <div className="flex items-start gap-2 px-3 py-3.5">
         <button
           type="button"
-          {...attributes}
-          {...listeners}
+          {...dragProps}
           aria-label={`Reordenar ${chapter.title}`}
           className="relative z-10 inline-flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
         >

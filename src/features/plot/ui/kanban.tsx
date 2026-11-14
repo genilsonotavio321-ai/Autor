@@ -13,15 +13,14 @@ import {
 import {
   SortableContext,
   sortableKeyboardCoordinates,
-  useSortable,
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
+import { useCardSortable } from "@/shared/lib/sortable";
 import type { Chapter, EntityId, Scene, SceneStatus } from "@/shared/types/database";
 
 import { SCENE_STATUSES, SCENE_STATUS_LABELS } from "../domain/repository";
@@ -191,15 +190,10 @@ function KanbanCard({
   suppressClick,
   onEdit,
 }: KanbanCardProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({
-      id: scene.id,
-      data: { type: "card", status: scene.status },
-    });
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-  };
+  const { setNodeRef, dragProps, style, isDragging } = useCardSortable(
+    scene.id,
+    { type: "card", status: scene.status },
+  );
 
   return (
     <li
@@ -211,8 +205,7 @@ function KanbanCard({
       <div className="flex items-start gap-1">
         <button
           type="button"
-          {...attributes}
-          {...listeners}
+          {...dragProps}
           aria-label={`Mover ${scene.title}`}
           className="inline-flex size-6 shrink-0 cursor-grab touch-none select-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
         >

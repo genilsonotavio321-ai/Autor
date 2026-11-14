@@ -2,8 +2,6 @@
 
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { Folder as FolderIcon, Pencil, Trash2 } from "lucide-react";
-import { useSortable } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 
 import {
   AlertDialog,
@@ -17,6 +15,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
+import { useCardSortable } from "@/shared/lib/sortable";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { Folder } from "@/shared/types/database";
@@ -39,15 +38,8 @@ export function FolderCard({
   onRename,
   onDelete,
 }: FolderCardProps) {
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    transform,
-    transition,
-    isDragging,
-    isOver,
-  } = useSortable({ id: folder.id });
+  const { setNodeRef, dragProps, style, isDragging, isOver } =
+    useCardSortable(folder.id);
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState(folder.name);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -80,15 +72,9 @@ export function FolderCard({
   return (
     <li
       ref={setNodeRef}
-      // Congela o "abre espaço" do sortable: só o card arrastado se move,
-      // o alvo não foge do ponteiro (soltar no centro vira fácil).
-      style={{
-        transform: isDragging ? CSS.Transform.toString(transform) : undefined,
-        transition,
-      }}
+      style={style}
       data-dragging={isDragging || undefined}
-      {...attributes}
-      {...listeners}
+      {...dragProps}
       onClick={open}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
