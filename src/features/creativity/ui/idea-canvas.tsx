@@ -111,19 +111,19 @@ import { ideaBoardRepository } from "../infra/dexie-idea-board-repository";
 import { ideaCardRepository } from "../infra/dexie-idea-card-repository";
 import { ideaGroupRepository } from "../infra/dexie-idea-group-repository";
 
+import { CanvasBoard } from "./canvas-board";
 import { CardMenuButton } from "./card-menu-button";
 import {
   clampZoom,
   isCanvasBackground,
   marqueeHits,
-  rectCenter,
   refOpenLabel,
   sameRects,
   snapshotItems,
   type CardRect,
   type Marquee,
 } from "./canvas-geometry";
-import { IdeaCardView, removeCard } from "./idea-card-view";
+import { removeCard } from "./idea-card-view";
 import { SendCardDialog } from "./send-card-dialog";
 
 interface IdeaCanvasProps {
@@ -685,14 +685,6 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [selection]);
 
-  /** Endpoint da linha durante o drag: acompanha o card em tempo real. */
-  function linePoint(cardId: EntityId, center: { x: number; y: number }) {
-    if (!dragDelta || !dragDelta.ids.includes(cardId)) return center;
-    return {
-      x: center.x + dragDelta.x / zoom,
-      y: center.y + dragDelta.y / zoom,
-    };
-  }
 
   /** Persiste o lote do arraste (delta em px visuais) como 1 op de undo. */
   async function commitDrag(dxScreen: number, dyScreen: number) {
@@ -1447,135 +1439,29 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
 
   return (
     <div className="relative flex h-full flex-col">
-      <div
-        ref={boardRef}
-        data-slot="canvas-board"
-        className="relative flex-1 cursor-grab overflow-auto rounded-2xl border-border/70 bg-muted/30 touch-none"
-      >
-        {cards.length === 0 ? (
-          <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-8 text-center text-sm text-muted-foreground">
-            Nenhuma ideia ainda. Use o menu no canto superior direito.
-          </div>
-        ) : null}
-
-
-
-              <div
-                ref={contentRef}
-                className="relative transition-none"
-                style={{
-                  width: boardWidth * zoom,
-                  height: boardHeight * zoom,
-                }}
-              >
-                <div
-                  className="absolute top-0 left-0 transition-none"
-                  style={{
-                    width: boardWidth,
-                    height: boardHeight,
-                    transform: `scale(${zoom})`,
-                    transformOrigin: "0 0",
-                  }}
-                >
-                <svg className="pointer-events-none absolute inset-0 h-full w-full transition-none">
-                  {pairs.map(([a, b]) => {
-                    const from = rects[a.id];
-                    const to = rects[b.id];
-                    if (!from || !to) return null;
-                    const fromPoint = linePoint(a.id, rectCenter(from));
-                    const toPoint = linePoint(b.id, rectCenter(to));
-                    const points = {
-                      x1: fromPoint.x,
-                      y1: fromPoint.y,
-                      x2: toPoint.x,
-                      y2: toPoint.y,
-                    };
-                    return (
-                      <g key={`${a.id}|${b.id}`}>
-                        <line
-                          {...points}
-                          strokeWidth={2}
-                          className="pointer-events-none transition-none stroke-muted-foreground/40"
-                        />
-                        <line
-                          {...points}
-                          stroke="transparent"
-                          strokeWidth={14}
-                          role="button"
-                          tabIndex={0}
-                          aria-label={`Remover conexão entre ${a.title} e ${b.title}`}
-                          className="pointer-events-auto cursor-pointer transition-none"
-                          onClick={() => void removeLink(a, b)}
-                          onKeyDown={(event) => {
-                            if (event.key === "Enter") void removeLink(a, b);
-                          }}
-                        />
-                      </g>
-                    );
-                  })}
-                  {(() => {
-                    if (!linkDrag) return null;
-                    const from = rects[linkDrag.fromId];
-                    if (!from) return null;
-                    const center = rectCenter(from);
-                    return (
-                      <line
-                        x1={center.x}
-                        y1={center.y}
-                        x2={linkDrag.x}
-                        y2={linkDrag.y}
-                        strokeWidth={2}
-                        strokeDasharray="6 4"
-                        className="pointer-events-none transition-none stroke-primary"
-                      />
-                    );
-                  })()}
-                </svg>
-                {marquee ? (
-                  <div
-                    className="pointer-events-none absolute z-10 border border-dashed border-primary bg-primary/10 transition-none"
-                    style={{
-                      left: Math.min(marquee.x0, marquee.x1),
-                      top: Math.min(marquee.y0, marquee.y1),
-                      width: Math.abs(marquee.x1 - marquee.x0),
-                      height: Math.abs(marquee.y1 - marquee.y0),
-                    }}
-                  />
-                ) : null}
-                {cards.map((card) => (
-                  <IdeaCardView
-                    key={card.id}
-                    card={card}
-                    zoom={zoom}
-                    selected={selection.has(card.id)}
-                    editing={editingId === card.id}
-                    onEditEnd={() => setEditingId(null)}
-                    dragOffset={
-                      dragDelta && dragDelta.ids.includes(card.id)
-                        ? { x: dragDelta.x / zoom, y: dragDelta.y / zoom }
-                        : null
-                    }
-                    groupName={
-                      card.groupId
-                        ? groupNames.get(card.groupId)
-                        : undefined
-                    }
-                    liveSize={
-                      resize?.id === card.id
-                        ? { w: resize.w, h: resize.h }
-                        : null
-                    }
-                    onLinkHandleDown={(event) => beginLinkGesture(event, card)}
-                    onResizeHandleDown={(event) =>
-                      beginResizeGesture(event, card)
-                    }
-                    onGestureDown={(event) => beginCardGesture(event, card)}
-                    onCardKeyDown={(event) => handleCardKeyDown(event, card)}
-                  />
-                ))}
-                </div>
-              </div>
-            </div>
+      <CanvasBoard
+        boardRef={boardRef}
+        contentRef={contentRef}
+        cards={cards}
+        zoom={zoom}
+        boardWidth={boardWidth}
+        boardHeight={boardHeight}
+        pairs={pairs}
+        rects={rects}
+        linkDrag={linkDrag}
+        marquee={marquee}
+        selection={selection}
+        editingId={editingId}
+        dragDelta={dragDelta}
+        resize={resize}
+        groupNames={groupNames}
+        onEditEnd={() => setEditingId(null)}
+        onRemoveLink={removeLink}
+        onLinkHandleDown={beginLinkGesture}
+        onResizeHandleDown={beginResizeGesture}
+        onGestureDown={beginCardGesture}
+        onCardKeyDown={handleCardKeyDown}
+      />
 
       <input
         ref={uploadInputRef}

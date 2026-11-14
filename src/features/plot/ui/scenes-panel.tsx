@@ -14,7 +14,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { SceneBuilder } from "@/features/creativity/ui/scene-builder";
-import type { Chapter, EntityId, Scene } from "@/shared/types/database";
+import type { Chapter, EntityId, PlotBeat, Scene } from "@/shared/types/database";
 
 import { SCENE_STATUS_LABELS } from "../domain/repository";
 import { plotBeatRepository } from "../infra/dexie-plot-beat-repository";
@@ -91,14 +91,18 @@ export function ScenesPanel({ projectId, chapters }: ScenesPanelProps) {
   );
 }
 
+/** Lista estável para o `??` do useLiveQuery (deps de useMemo). */
+const NO_SCENES: Scene[] = [];
+const NO_BEATS: PlotBeat[] = [];
+
 function SceneList({ projectId, chapters }: ScenesPanelProps) {
   const scenes =
     useLiveQuery(() => sceneRepository.listByProject(projectId), [projectId]) ??
-    [];
+    NO_SCENES;
   const beats =
     useLiveQuery(() => plotBeatRepository.listByProject(projectId), [
       projectId,
-    ]) ?? [];
+    ]) ?? NO_BEATS;
   const [dialog, setDialog] = useState<{
     open: boolean;
     scene?: Scene | null;

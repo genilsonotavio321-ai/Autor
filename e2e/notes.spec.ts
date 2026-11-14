@@ -1,4 +1,4 @@
-import { expect, test, type Locator, type Page } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import { createProject, waitNoToasts } from "./helpers";
 
@@ -16,22 +16,6 @@ async function addNote(page: Page, title: string, content: string) {
   await page.getByLabel("Conteúdo").fill(content);
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
-}
-
-/** Pointer drag of one card onto another (dnd-kit PointerSensor, distance 5). */
-async function dragCardOnto(page: Page, from: Locator, toTitle: string) {
-  const source = await from.boundingBox();
-  const target = await notesList(page).filter({ hasText: toTitle }).boundingBox();
-  if (!source || !target) throw new Error("card not found for drag");
-  await page.mouse.move(source.x + source.width / 2, source.y + 20);
-  await page.mouse.down();
-  await page.mouse.move(source.x + source.width / 2 + 20, source.y + 30, {
-    steps: 10,
-  });
-  await page.mouse.move(target.x + target.width / 2, target.y + 20, {
-    steps: 15,
-  });
-  await page.mouse.up();
 }
 
 test("notas: visualizar, editar, ordenar e arrastar", async ({ page }) => {
@@ -121,9 +105,13 @@ test("importa notas de um arquivo .md pelo menu", async ({ page }) => {
   await expect(noteCard(page, "Beta")).toBeVisible();
 });
 
-// O drop de notas via dnd-kit não reordena no headless e o Space também abre
-// a visualização; revalidar o gesto no navegador antes de reativar.
-test.fixme("notas: arrastar reordena na ordem manual", async ({ page }) => {
+// Reordenar por teclado (espaço + seta) não muda a ordem no headless: o
+// dnd-kit KeyboardSensor não completa o drop aqui. A tecla Espaço já não abre
+// a visualização (só o Enter abre), então o gesto precisa de validação manual
+// no navegador antes de virar teste.
+test.fixme("notas: reordenar por teclado persiste na ordem manual", async ({
+  page,
+}) => {
   test.setTimeout(60_000);
   await createProject(page, "Projeto Arrastar");
   await page.goto("/notes");
@@ -131,20 +119,23 @@ test.fixme("notas: arrastar reordena na ordem manual", async ({ page }) => {
   await addNote(page, "Beta", "conteúdo beta");
   await addNote(page, "Gama", "conteúdo gama");
   await waitNoToasts(page);
-  // E6: arrastar reordena e a ordem manual persiste após recarregar.
-  await dragCardOnto(page, noteCard(page, "Gama"), "Alfa");
-  await expect(page
-        .getByRole("region", { name: "Notas", exact: true })
-        .locator("li")
-        .first()).not.toContainText("Alfa");
+  // E6: espaço pega o card (dnd-kit), seta move e espaço solta; a ordem
+  // manual persiste depois do reload.
+  const gama = noteCard(page, "Gama");
+  await gama.focus();
+  await page.keyboard.press("Space");
+  await page.keyboard.press("ArrowUp");
+  await page.keyboard.press("Space");
+  const items = page
+    .getByRole("region", { name: "Notas", exact: true })
+    .locator("li");
+  // Gama saiu do fim e ficou entre Alfa e Beta.
+  await expect(items).toHaveCount(3);
+  await expect(items.nth(1)).toContainText("Gama");
 
   await page.reload();
-  await expect(page
-        .getByRole("region", { name: "Notas", exact: true })
-        .locator("li")
-        .first()).not.toContainText("Alfa", {
-    timeout: 15_000,
-  });
+  await expect(
+    page.getByRole("region", { name: "Notas", exact: true }).locator("li").nth(1),
+  ).toContainText("Gama", { timeout: 15_000 });
   await expect(page.getByLabel("Ordenar notas")).toContainText("Ordem manual");
-
 });

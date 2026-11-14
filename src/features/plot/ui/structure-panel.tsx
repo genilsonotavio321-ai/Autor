@@ -45,7 +45,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from "@/components/ui/select";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import type {
@@ -54,12 +54,12 @@ import type {
   NarrativeArc,
   PlotBeat,
   Scene,
+  StructureSection,
   StructureTemplateId,
 } from "@/shared/types/database";
 
 import {
   applyStructureTemplate,
-  type CustomSectionInput,
 } from "../application/plot-service";
 import {
   getPoltiSituation,
@@ -82,6 +82,12 @@ import {
 
 
 const MAIN_SCOPE = "main";
+
+/** Listas estáveis para o `??` do useLiveQuery (deps de useMemo/useEffect). */
+const NO_BEATS: PlotBeat[] = [];
+const NO_SECTIONS: StructureSection[] = [];
+const NO_ARCS: NarrativeArc[] = [];
+const NO_SCENES: Scene[] = [];
 
 interface StructurePanelProps {
   projectId: EntityId;
@@ -108,22 +114,22 @@ export function StructurePanel({
   const beats =
     useLiveQuery(() => plotBeatRepository.listByProject(projectId), [
       projectId,
-    ]) ?? [];
+    ]) ?? NO_BEATS;
   const sections =
     useLiveQuery(() => structureSectionRepository.listByProject(projectId), [
       projectId,
-    ]) ?? [];
+    ]) ?? NO_SECTIONS;
   const arcs =
     useLiveQuery(() => narrativeArcRepository.listByProject(projectId), [
       projectId,
-    ]) ?? [];
+    ]) ?? NO_ARCS;
   const project = useLiveQuery(
     () => projectRepository.getById(projectId),
     [projectId],
   );
   const scenes =
     useLiveQuery(() => sceneRepository.listByProject(projectId), [projectId]) ??
-    [];
+    NO_SCENES;
   const events =
     useLiveQuery(() => timelineEventRepository.listByProject(projectId), [
       projectId,

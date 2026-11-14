@@ -773,7 +773,9 @@ function NoteCard({
       onClick={openView}
       onKeyDown={(event) => {
         if (event.target !== event.currentTarget) return;
-        if (event.key === "Enter" || event.key === " ") {
+        // Espaço fica com o dnd-kit: é a tecla que "pega" o card para
+        // reordenar por teclado. Abrir a visualização é o Enter.
+        if (event.key === "Enter") {
           event.preventDefault();
           openView();
         }

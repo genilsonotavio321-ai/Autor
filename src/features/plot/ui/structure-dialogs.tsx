@@ -1,17 +1,8 @@
 "use client";
 
-import { useMemo, useState, type RefObject } from "react";
-import Link from "next/link";
-import {
-  type DragEndEvent,
-} from "@dnd-kit/core";
-import {
-} from "@dnd-kit/sortable";
+import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-
-import {
-} from "@/components/ui/alert-dialog";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,17 +39,12 @@ import {
   applyCustomStructure,
   type CustomSectionInput,
 } from "../application/plot-service";
-import {
-  POLTI_SITUATIONS,
-  SOURIAU_FUNCTIONS,
-} from "../domain/dramatic-catalog";
-import {
-} from "../domain/structure-catalog";
+import { POLTI_SITUATIONS, SOURIAU_FUNCTIONS } from "../domain/dramatic-catalog";
 import { plotBeatRepository } from "../infra/dexie-plot-beat-repository";
 import { sceneRepository } from "../infra/dexie-scene-repository";
 
 const NO_LINK = "__none__";
-const MAIN_SCOPE = "main";
+
 
 export interface CustomStructureDialogProps {
   open: boolean;
