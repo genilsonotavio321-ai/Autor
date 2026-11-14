@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { addCharacter, createProject } from "./helpers";
+import { addCharacter, chapterLink, createChapter, createProject } from "./helpers";
 
 test("a fonte e o tamanho do editor acompanham as configurações", async ({
   page,
@@ -8,8 +8,8 @@ test("a fonte e o tamanho do editor acompanham as configurações", async ({
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Fonte");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Uma frase qualquer.");
@@ -25,7 +25,7 @@ test("a fonte e o tamanho do editor acompanham as configurações", async ({
   await page.getByLabel("Tamanho da fonte — valor exato").fill("24");
 
   await page.goto(url);
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await chapterLink(page, "Capítulo 1").click();
   const editorAfter = page.locator(".ProseMirror");
   await expect(editorAfter).toBeVisible();
   await expect(editorAfter).toHaveCSS("font-size", "24px");
@@ -37,8 +37,8 @@ test("o editor tem altura estática com rolagem interna", async ({ page }) => {
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Altura");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
 
@@ -62,8 +62,8 @@ test("ferramentas do editor: Revisar, Substituir e Ler", async ({ page }) => {
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Ferramentas");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("eu vi o o gato");
@@ -99,8 +99,8 @@ test("alinhamento do capítulo inteiro aplica a todos os parágrafos", async ({
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Alinhamento");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Primeiro parágrafo.");
@@ -128,8 +128,8 @@ test("renomear um personagem atualiza o destaque nos capítulos", async ({
   await addCharacter(page, "Aurora");
 
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Aurora Nova chegou.");
   // Enquanto a ficha se chama "Aurora", só a primeira palavra é destacada.
@@ -146,7 +146,7 @@ test("renomear um personagem atualiza o destaque nos capítulos", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.goto(url);
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await chapterLink(page, "Capítulo 1").click();
   await expect(page.locator(".ProseMirror")).toContainText("Aurora Nova chegou.");
   await expect(page.locator(".mention")).toHaveText("Aurora Nova");
 });
@@ -157,8 +157,8 @@ test("renomear uma ficha reescreve o nome nos capítulos", async ({ page }) => {
   await addCharacter(page, "Davi");
 
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Davi chegou.");
@@ -177,7 +177,7 @@ test("renomear uma ficha reescreve o nome nos capítulos", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.goto(url);
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await chapterLink(page, "Capítulo 1").click();
   await expect(page.locator(".ProseMirror")).toHaveText("Davi Silva chegou.");
   await expect(page.locator(".ProseMirror .mention")).toHaveText("Davi Silva");
 });
@@ -186,8 +186,8 @@ test("substituir realça as ocorrências e mostra o contexto", async ({ page }) 
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Realce");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("O gato viu o gato e o gato fugiu.");

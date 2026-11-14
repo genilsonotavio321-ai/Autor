@@ -1,6 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { chapterLink, createChapter, createProject } from "./helpers";
 
 /**
  * After an action that CREATES a toast: wait for it to actually render, then
@@ -61,7 +61,7 @@ test("linha do tempo: desfazer exclusão e restaurar pela lixeira", async ({
   });
   await expect(section).toBeVisible({ timeout: 15_000 });
   await section.getByRole("button", { name: "Restaurar" }).click();
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible({
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible({
     timeout: 15_000,
   });
 
@@ -97,7 +97,7 @@ test("beats: desfazer exclusão e restaurar pela lixeira", async ({ page }) => {
   const section = page.getByRole("region", { name: "Beats" });
   await expect(section).toBeVisible({ timeout: 15_000 });
   await section.getByRole("button", { name: "Restaurar" }).click();
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible({
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible({
     timeout: 15_000,
   });
 
@@ -114,11 +114,11 @@ test("cenas e capítulos na lixeira com restauração em cascata", async ({
 
   await page.goto("/outline");
   await page.getByRole("tab", { name: "Roteiro" }).click();
-  await page.getByRole("button", { name: "Adicionar capítulo" }).click();
+  await createChapter(page, "Capítulo 1");
   await page
     .getByRole("button", { name: "Adicionar cena em Capítulo 1" })
     .click();
-  await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible();
+  await expect(chapterLink(page, "Capítulo 1")).toBeVisible();
 
   // Deleta a cena pelo diálogo (fica na lixeira) — espera o toast expirar
   // para não interceptar o clique seguinte em "Excluir Capítulo 1".
@@ -137,13 +137,13 @@ test("cenas e capítulos na lixeira com restauração em cascata", async ({
   // Restaurar a cena órfã restaura o capítulo pai junto (cascata).
   const scenes = page.getByRole("region", { name: "Cenas" });
   await scenes.getByRole("button", { name: "Restaurar" }).click();
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible({
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible({
     timeout: 15_000,
   });
 
   await page.goto("/outline");
   await page.getByRole("tab", { name: "Roteiro" }).click();
-  await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible({
+  await expect(chapterLink(page, "Capítulo 1")).toBeVisible({
     timeout: 15_000,
   });
   await expect(

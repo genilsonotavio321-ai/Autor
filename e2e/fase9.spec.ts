@@ -2,15 +2,15 @@ import fs from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { chapterLink, createChapter, createProject } from "./helpers";
 
 test.describe("Fase 9 — celular e PDF", () => {
   test("renomear um capítulo preserva a última letra (autosave)", async ({
     page,
   }) => {
     const url = await createProject(page, "Projeto Nome");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
     await expect(page.locator(".ProseMirror")).toBeVisible();
 
     const title = page.getByLabel("Título do capítulo");
@@ -33,7 +33,7 @@ test.describe("Fase 9 — celular e PDF", () => {
   }) => {
     test.setTimeout(60_000);
     await createProject(page, "Projeto Toque");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
+    await createChapter(page, "Capítulo 1");
     await page.goto("/outline");
     await page.getByRole("tab", { name: "Roteiro" }).click();
     await page
@@ -82,8 +82,8 @@ test.describe("Fase 9 — celular e PDF", () => {
   }) => {
     test.setTimeout(90_000);
     await createProject(page, "Projeto PDF");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
 
     const editor = page.locator(".ProseMirror");
     await editor.click();

@@ -27,9 +27,16 @@ test.describe("smoke", () => {
 
   test("opens the command palette with Ctrl+K", async ({ page }) => {
     await page.goto("/");
+    // O atalho é registrado num effect: sem esperar a hidratação, a tecla cai
+    // antes do listener existir.
+    await expect(page.getByRole("button", { name: "Abrir busca" })).toBeVisible();
 
-    await page.keyboard.press("Control+k");
-    await expect(page.getByPlaceholder("Digite uma página ou ação...")).toBeVisible();
+    await expect(async () => {
+      await page.keyboard.press("Control+k");
+      await expect(
+        page.getByPlaceholder("Digite uma página ou ação..."),
+      ).toBeVisible({ timeout: 1_000 });
+    }).toPass({ timeout: 10_000 });
   });
 
   test("bottom navigation opens the Mais sheet on mobile", async ({ page }) => {

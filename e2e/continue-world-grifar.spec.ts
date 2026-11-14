@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject, openAdvancedSettings } from "./helpers";
+import { chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
 
 test.describe("Seção Continuar na Home", () => {
   test("seção desligada por padrão e ativável nas Configurações", async ({
@@ -8,8 +8,8 @@ test.describe("Seção Continuar na Home", () => {
   }) => {
     test.setTimeout(60_000);
     const url = await createProject(page, "Projeto Continuar");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
     const editor = page.locator(".ProseMirror");
     await editor.click();
     await page.keyboard.type("Retome aqui.");
@@ -105,8 +105,8 @@ test.describe("Grifar", () => {
   }) => {
     test.setTimeout(90_000);
     const url = await createProject(page, "Projeto Grifar");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
     const editor = page.locator(".ProseMirror");
     await editor.click();
     await page.keyboard.type("Um trecho importante aqui.");

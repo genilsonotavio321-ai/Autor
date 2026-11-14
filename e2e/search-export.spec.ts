@@ -2,14 +2,14 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { chapterLink, createChapter, createProject } from "./helpers";
 
 test("busca global encontra texto do capítulo mesmo sem acentos", async ({
   page,
 }) => {
   const projectUrl = await createProject(page, "Projeto Busca");
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.waitForURL(/\/write\//);
 
   await page.locator(".ProseMirror").click();
@@ -46,7 +46,7 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
 
 test("exporta o projeto em markdown, docx, pdf e backup", async ({ page }) => {
   await createProject(page, "Projeto Export");
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
+  await createChapter(page, "Capítulo 1");
 
   await page.goto("/export");
   await expect(page.getByRole("tab", { name: "Dados", exact: true })).toBeVisible();

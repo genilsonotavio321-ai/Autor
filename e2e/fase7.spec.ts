@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { zipSync } from "fflate";
 
-import { createProject } from "./helpers";
+import { createChapter, createProject } from "./helpers";
 
 async function waitNoToasts(page: import("@playwright/test").Page) {
   await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, {
@@ -24,8 +24,10 @@ test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
   test("diff de versões antes de restaurar", async ({ page }) => {
     await createProject(page, "Versões");
     await page.goto("/outline");
-    await page.getByRole("button", { name: "Adicionar capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    // Sem renomear: a renomeação geraria um snapshot extra e este teste conta
+    // as versões exatas do capítulo.
+    await createChapter(page);
+    await page.locator('a[href^="/write/"]').first().click();
 
     const editor = page.locator(".ProseMirror");
     const versionRows = page.getByRole("dialog").getByRole("listitem");

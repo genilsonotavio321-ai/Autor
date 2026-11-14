@@ -4,6 +4,9 @@ const PORT = 3000;
 
 export default defineConfig({
   testDir: "./e2e",
+  // Dev server compila rotas sob demanda; os fluxos de capítulo abrem o editor
+  // e voltam, então 30s (padrão) estourava por boot, não por falha.
+  timeout: 60_000,
   // O suite offline exige um build de produção com service worker ativo;
   // roda separado via `npm run test:e2e:offline`.
   testIgnore: ["offline/**"],

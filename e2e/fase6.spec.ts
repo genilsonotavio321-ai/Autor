@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { chapterLink, createChapter, createProject } from "./helpers";
 
 /** Create a character through the UI and wait for the dialog to close. */
 async function addCharacter(page: import("@playwright/test").Page, name: string) {
@@ -17,8 +17,8 @@ async function openNewChapter(
   projectUrl: string,
 ) {
   await page.goto(projectUrl);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await expect(page.locator(".ProseMirror")).toBeVisible();
 }
 
@@ -50,7 +50,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await page.goto(url);
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await chapterLink(page, "Capítulo 1").click();
     await expect(page.locator(".ProseMirror")).toContainText(
       "Davi Renomeado partiu.",
     );
@@ -62,8 +62,8 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     page,
   }) => {
     await createProject(page, "Projeto Status");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible();
+    await createChapter(page, "Capítulo 1");
+    await expect(chapterLink(page, "Capítulo 1")).toBeVisible();
 
     const row = page.getByRole("listitem").filter({ hasText: "Capítulo 1" });
     // Um único controle de status na linha (sem duplicação).
@@ -85,9 +85,9 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     page,
   }) => {
     await createProject(page, "Projeto Ordem");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await expect(page.getByRole("link", { name: "Capítulo 2" })).toBeVisible();
+    await createChapter(page, "Capítulo 1");
+    await createChapter(page, "Capítulo 2");
+    await expect(chapterLink(page, "Capítulo 2")).toBeVisible();
 
     const handle = page.getByRole("button", { name: "Reordenar Capítulo 2" });
     await handle.focus();
@@ -205,7 +205,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await expect(toggle).not.toBeChecked();
 
     await page.goto(url);
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await chapterLink(page, "Capítulo 1").click();
     await expect(page.locator(".ProseMirror")).toContainText("Bento");
     await expect(page.locator(".mention")).toHaveCount(0);
   });

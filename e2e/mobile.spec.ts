@@ -1,10 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import {
-  createProject,
-  openAdvancedSettings,
-  waitForToastCycle,
-} from "./helpers";
+import { chapterLink, createChapter, createProject, openAdvancedSettings, waitForToastCycle } from "./helpers";
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -56,8 +52,8 @@ test.describe("Fase 9 — celular (390×844)", () => {
     const projectUrl = await createProject(page, "Projeto Mobile");
 
     // Lista de capítulos do projeto (item 5).
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible();
+    await createChapter(page, "Capítulo 1");
+    await expect(chapterLink(page, "Capítulo 1")).toBeVisible();
     await expectNoOverflow(page, "projeto (capítulos)");
 
     // Card de personagem: nome e traços longos (item 2).
@@ -95,8 +91,8 @@ test.describe("Fase 9 — celular (390×844)", () => {
   test("o diálogo Revisar cabe na tela do celular", async ({ page }) => {
     test.setTimeout(90_000);
     await createProject(page, "Projeto Revisar");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
 
     const editor = page.locator(".ProseMirror");
     await editor.click();

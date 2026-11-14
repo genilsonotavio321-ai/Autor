@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  createProject,
-  openCanvasMenuButton,
-  waitForToastCycle,
-} from "./helpers";
+import { createChapter, createProject, openCanvasMenuButton, waitForToastCycle } from "./helpers";
 
 test("criatividade: desbloqueio, canvas e construtor de cena", async ({
   page,
@@ -13,7 +9,7 @@ test("criatividade: desbloqueio, canvas e construtor de cena", async ({
 
   // A cena precisa de um capítulo destino — cria um na Estrutura.
   await page.goto("/outline");
-  await page.getByRole("button", { name: "Adicionar capítulo" }).click();
+  await createChapter(page, "Capítulo 1");
 
   // Desbloqueio: agora vive na aba Roteiro da Estrutura.
   await page.goto("/outline");

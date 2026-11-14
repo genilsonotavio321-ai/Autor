@@ -120,6 +120,9 @@ export function NotesPage() {
     ) ?? null;
 
   const [sort, setSort] = useState<NotesSort>("updated");
+  // Só persiste depois de ler: sem isso o efeito de escrita rodava antes de a
+  // leitura aplicar e o critério salvo era sobrescrito pelo default.
+  const [sortHydrated, setSortHydrated] = useState(false);
   const [dialog, setDialog] = useState<{
     open: boolean;
     note?: Note | null;
@@ -139,11 +142,13 @@ export function NotesPage() {
   useEffect(() => {
     const stored = window.localStorage.getItem(SORT_STORAGE_KEY);
     if (stored && stored in NOTES_SORT_LABELS) setSort(stored as NotesSort);
+    setSortHydrated(true);
   }, []);
 
   useEffect(() => {
+    if (!sortHydrated) return;
     window.localStorage.setItem(SORT_STORAGE_KEY, sort);
-  }, [sort]);
+  }, [sort, sortHydrated]);
 
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("note");

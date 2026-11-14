@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { openAdvancedSettings } from "./helpers";
+import { chapterLink, createChapter, openAdvancedSettings } from "./helpers";
 
 import { createProject } from "./helpers";
 
@@ -10,8 +10,8 @@ test.describe("Grifar no modo leitura", () => {
   }) => {
     test.setTimeout(60_000);
     await createProject(page, "Projeto Grifar Read");
-    await page.getByRole("button", { name: "Novo capítulo" }).click();
-    await page.getByRole("link", { name: "Capítulo 1" }).click();
+    await createChapter(page, "Capítulo 1");
+    await chapterLink(page, "Capítulo 1").click();
     const editor = page.locator(".ProseMirror");
     await editor.click();
     await page.keyboard.type("Trecho para grifar no modo leitura.");

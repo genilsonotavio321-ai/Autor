@@ -1,20 +1,21 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject, waitForToastCycle } from "./helpers";
+import { chapterLink, createChapter, createProject, waitForToastCycle } from "./helpers";
 
 test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   page,
 }) => {
+  test.setTimeout(90_000);
   const projectUrl = await createProject(page, "Meu Romance");
   await expect(
     page.getByRole("heading", { name: "Meu Romance" }),
   ).toBeVisible();
 
   // Create a chapter and open the editor.
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  const chapterLink = page.getByRole("link", { name: "Capítulo 1" });
-  await expect(chapterLink).toBeVisible();
-  await chapterLink.click();
+  await createChapter(page, "Capítulo 1");
+  const firstChapter = chapterLink(page, "Capítulo 1");
+  await expect(firstChapter).toBeVisible();
+  await firstChapter.click();
   await page.waitForURL(/\/write\//);
   const editorUrl = page.url();
 
@@ -50,9 +51,9 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
     .getByRole("button", { name: "Ações de Capítulo 1" })
     .click();
   await page.getByRole("menuitem", { name: "Excluir" }).click();
-  await expect(page.getByRole("link", { name: "Capítulo 1" })).toHaveCount(0);
+  await expect(chapterLink(page, "Capítulo 1")).toHaveCount(0);
   await page.getByRole("button", { name: "Desfazer" }).click();
-  await expect(page.getByRole("link", { name: "Capítulo 1" })).toBeVisible();
+  await expect(chapterLink(page, "Capítulo 1")).toBeVisible();
 });
 
 test("aba Arquivados guarda os projetos arquivados", async ({ page }) => {
@@ -87,5 +88,5 @@ test("mover projeto para a lixeira e restaurar", async ({ page }) => {
   await page.goto("/trash");
   await expect(page.getByText("Projeto Descartável")).toBeVisible();
   await page.getByRole("button", { name: "Restaurar" }).click();
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible();
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible();
 });

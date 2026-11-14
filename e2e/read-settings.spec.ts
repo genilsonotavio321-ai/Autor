@@ -1,10 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import {
-  addCharacter,
-  createProject,
-  openAdvancedSettings,
-} from "./helpers";
+import { addCharacter, chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
 
 test("modo leitura: destaques, toggle e botão Editar", async ({ page }) => {
   test.setTimeout(60_000);
@@ -12,8 +8,8 @@ test("modo leitura: destaques, toggle e botão Editar", async ({ page }) => {
   await addCharacter(page, "Helena");
 
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Helena caminhou até o farol.");
   await expect(page.getByTestId("save-status")).toContainText("Salvo", {
@@ -46,8 +42,8 @@ test("preferências persistem e o card Continuar expira", async ({ page }) => {
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Continuar");
   await page.goto(url);
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Retomar daqui.");
   await expect(page.getByTestId("save-status")).toContainText("Salvo", {

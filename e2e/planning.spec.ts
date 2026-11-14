@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { chapterLink, createChapter, createProject } from "./helpers";
 
 test("outline: beats, cenas e reordenação por teclado", async ({ page }) => {
   await createProject(page, "Planejado");
@@ -23,13 +23,9 @@ test("outline: beats, cenas e reordenação por teclado", async ({ page }) => {
 
   // Roteiro: dois capítulos + uma cena no primeiro.
   await page.getByRole("tab", { name: "Roteiro" }).click();
-  await page
-    .getByRole("button", { name: "Adicionar capítulo" })
-    .click();
-  await page
-    .getByRole("button", { name: "Adicionar capítulo" })
-    .click();
-  await expect(page.getByRole("link", { name: "Capítulo 2" })).toBeVisible();
+  await createChapter(page, "Capítulo 1");
+  await createChapter(page, "Capítulo 2");
+  await expect(chapterLink(page, "Capítulo 2")).toBeVisible();
   await page
     .getByRole("button", { name: "Adicionar cena em Capítulo 1" })
     .click();
@@ -138,5 +134,5 @@ test("timeline e notas", async ({ page }) => {
     .click();
   await page.goto("/trash");
   await page.getByRole("button", { name: "Restaurar" }).click();
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible();
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible();
 });

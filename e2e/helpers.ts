@@ -14,6 +14,69 @@ export async function createProject(
 }
 
 /**
+ * Link de capítulo pelo título. A lista do projeto mostra "1. Título" e a
+ * árvore da Estrutura mostra só o título, então casamos pelo sufixo.
+ */
+export function chapterLink(page: Page, title: string) {
+  const escaped = title.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return page.getByRole("link", { name: new RegExp(`${escaped}$`) });
+}
+
+/**
+ * Cria um capítulo pela UI atual (título padrão "Novo capítulo", numeração
+ * pela posição) e, quando o teste precisa de um nome, renomeia no editor.
+ * Devolve a página à tela de origem (projeto ou Estrutura).
+ */
+export async function createChapter(page: Page, title?: string) {
+  const origin = page.url();
+
+  const projectButton = page.getByRole("button", { name: "Novo capítulo" });
+  const outlineButton = page.getByRole("button", { name: "Adicionar capítulo" });
+  // A UI hidrata no cliente (gate do IndexedDB), então esperamos o botão da
+  // tela em que estamos antes de decidir qual usar.
+  // Na Estrutura, o botão de capítulo vive na aba Roteiro (a default é
+  // Estrutura), então trocamos de aba antes de procurar o botão.
+  if (!(await projectButton.count()) && new URL(page.url()).pathname === "/outline") {
+    await page.getByRole("tab", { name: "Roteiro" }).click();
+  }
+  await expect(projectButton.or(outlineButton).first()).toBeVisible();
+
+  // A aba selecionada vive em estado do cliente e se perde ao voltar do
+  // editor; guardamos o rótulo (já depois da troca acima) para restaurar.
+  const tabs = page.getByRole("tab", { selected: true });
+  const activeTab = (await tabs.count()) ? await tabs.first().textContent() : null;
+  const links = page.locator('a[href^="/write/"]');
+  const before = await links.count();
+  if (await projectButton.count()) {
+    await projectButton.last().click();
+  } else {
+    await outlineButton.last().click();
+  }
+
+  // Sem esperar o crescimento da lista, `.last()` podia resolver para o
+  // capítulo anterior e renomear o capítulo errado.
+  await expect(links).toHaveCount(before + 1);
+  const link = links.last();
+  if (!title) return;
+
+  await link.click();
+  await page.waitForURL(/\/write\//);
+  // O autosave só agenda quando o editor Tiptap está montado.
+  await expect(page.locator(".ProseMirror")).toBeVisible();
+  await page.getByLabel("Título do capítulo").fill(title);
+  // Debounce de 800ms do autosave.
+  await page.waitForTimeout(1_400);
+
+  await page.goBack();
+  const originPath = new URL(origin).pathname;
+  await page.waitForURL((url) => url.pathname === originPath);
+  if (activeTab && originPath === "/outline") {
+    await page.getByRole("tab", { name: activeTab.trim() }).click();
+  }
+  await expect(chapterLink(page, title).first()).toBeVisible();
+}
+
+/**
  * After an action that CREATES a toast: wait for it to actually render, then
  * for the whole stack to expire (sonner default = 4s). The two-step wait
  * closes the race where a bare toHaveCount(0) passes before the async success

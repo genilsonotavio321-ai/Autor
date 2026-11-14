@@ -90,7 +90,7 @@ test("excluir todas move as notas para a lixeira", async ({ page }) => {
   await expect(confirm).toContainText("serão movidas para a lixeira");
   await confirm.getByRole("button", { name: "Excluir todas" }).click();
 
-  await expect(page.getByText("Nenhuma nota ainda.")).toBeVisible();
+  await expect(page.getByText("Nenhuma nota ainda")).toBeVisible();
   await expect(page.locator("main ul li")).toHaveCount(0);
 
   await page.goto("/trash");

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject, openAdvancedSettings } from "./helpers";
+import { chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
 
 test("configurações personalizam tema, editor e metas", async ({ page }) => {
   await page.goto("/settings");
@@ -80,8 +80,8 @@ test("painel mostra meta diária, palavras de hoje e projetos recentes", async (
   page,
 }) => {
   await createProject(page, "Projeto Painel");
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.waitForURL(/\/write\//);
 
   await page.locator(".ProseMirror").click();
@@ -100,8 +100,8 @@ test("painel mostra meta diária, palavras de hoje e projetos recentes", async (
 
 test("modo leitura mostra o manuscrito do capítulo", async ({ page }) => {
   await createProject(page, "Projeto Leitura");
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.waitForURL(/\/write\//);
 
   await page.locator(".ProseMirror").click();
@@ -131,8 +131,8 @@ test("modo leitura mostra o manuscrito do capítulo", async ({ page }) => {
 
 test("cronômetro de sprint inicia, pausa e reinicia", async ({ page }) => {
   await createProject(page, "Projeto Sprint");
-  await page.getByRole("button", { name: "Novo capítulo" }).click();
-  await page.getByRole("link", { name: "Capítulo 1" }).click();
+  await createChapter(page, "Capítulo 1");
+  await chapterLink(page, "Capítulo 1").click();
   await page.waitForURL(/\/write\//);
 
   // Timer global no Topbar duplica testid/aria-labels; foca na instância da página.

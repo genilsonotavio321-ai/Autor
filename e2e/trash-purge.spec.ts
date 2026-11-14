@@ -26,7 +26,7 @@ test("excluir um item definitivamente esvazia a lixeira", async ({ page }) => {
   await expect(confirm).toContainText("Isso não pode ser desfeito.");
   await confirm.getByRole("button", { name: "Excluir", exact: true }).click();
 
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible({
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible({
     timeout: 15_000,
   });
   await expect(
@@ -52,7 +52,7 @@ test("esvaziar a lixeira apaga tudo de uma vez", async ({ page }) => {
   await expect(confirm).toContainText("Todos os itens serão apagados");
   await confirm.getByRole("button", { name: "Esvaziar", exact: true }).click();
 
-  await expect(page.getByText("A lixeira está vazia.")).toBeVisible({
+  await expect(page.getByText("A lixeira está vazia")).toBeVisible({
     timeout: 15_000,
   });
 });
