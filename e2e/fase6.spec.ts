@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject } from "./helpers";
+import {
+  chapterLink,
+  createChapter,
+  createProject,
+  openChapterEditor,
+} from "./helpers";
 
 /** Create a character through the UI and wait for the dialog to close. */
 async function addCharacter(page: import("@playwright/test").Page, name: string) {
@@ -18,8 +23,7 @@ async function openNewChapter(
 ) {
   await page.goto(projectUrl);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
-  await expect(page.locator(".ProseMirror")).toBeVisible();
+  await openChapterEditor(page, "Capítulo 1");
 }
 
 test.describe("Fase 6 — refinamentos de UX", () => {
@@ -50,7 +54,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await expect(page.getByRole("dialog")).toHaveCount(0);
 
     await page.goto(url);
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
     await expect(page.locator(".ProseMirror")).toContainText(
       "Davi Renomeado partiu.",
     );
@@ -104,14 +108,14 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     }).toPass({ timeout: 8_000 });
     await page.keyboard.press("Space");
 
-    const titles = page.locator('a[href^="/write/"]');
+    const titles = page.locator('a[href*="chapter="]');
     await expect(titles.first()).toHaveText("1. Capítulo 2");
     await expect(titles.nth(1)).toHaveText("2. Capítulo 1");
 
     await page.reload();
-    await expect(
-      page.locator('a[href^="/write/"]').first(),
-    ).toHaveText("1. Capítulo 2");
+    await expect(page.locator('a[href*="chapter="]').first()).toHaveText(
+      "1. Capítulo 2",
+    );
   });
 
   test("a lista de projetos ordena e alterna entre caixas e lista", async ({
@@ -205,7 +209,7 @@ test.describe("Fase 6 — refinamentos de UX", () => {
     await expect(toggle).not.toBeChecked();
 
     await page.goto(url);
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
     await expect(page.locator(".ProseMirror")).toContainText("Bento");
     await expect(page.locator(".mention")).toHaveCount(0);
   });

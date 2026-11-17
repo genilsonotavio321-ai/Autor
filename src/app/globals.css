@@ -442,19 +442,78 @@ html[data-theme-variant="musgo"] {
   }
 }
 
-@keyframes page-enter {
+/* Transição entre páginas (View Transitions API): só o <main> viaja, o resto
+   do shell fica parado. Avançar desliza da direita; voltar, da esquerda. */
+#main-content {
+  view-transition-name: page;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+}
+
+::view-transition-group(page) {
+  animation-duration: 240ms;
+  animation-timing-function: var(--ease-out);
+}
+
+::view-transition-old(page) {
+  animation: page-leave 140ms ease-in both;
+}
+
+::view-transition-new(page) {
+  animation: page-arrive 240ms var(--ease-out) both;
+}
+
+html[data-nav-direction="back"] ::view-transition-old(page) {
+  animation-name: page-leave-back;
+}
+
+html[data-nav-direction="back"] ::view-transition-new(page) {
+  animation-name: page-arrive-back;
+}
+
+/* Desativar animações em Configurações também vale para a troca de página. */
+html[data-animations="off"] ::view-transition-old(page),
+html[data-animations="off"] ::view-transition-new(page) {
+  animation: none !important;
+}
+
+@keyframes page-arrive {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    translate: 24px 0;
   }
   to {
     opacity: 1;
-    transform: none;
+    translate: 0 0;
   }
 }
 
-.page-enter {
-  animation: page-enter 220ms ease-out both;
+@keyframes page-arrive-back {
+  from {
+    opacity: 0;
+    translate: -24px 0;
+  }
+  to {
+    opacity: 1;
+    translate: 0 0;
+  }
+}
+
+@keyframes page-leave {
+  to {
+    opacity: 0;
+    translate: -14px 0;
+  }
+}
+
+@keyframes page-leave-back {
+  to {
+    opacity: 0;
+    translate: 14px 0;
+  }
 }
 
 /* Tiptap editor surface */
@@ -464,6 +523,15 @@ html[data-theme-variant="musgo"] {
   /* O tamanho vem da preferência do usuário (estilo inline no container). */
   font-size: inherit;
   letter-spacing: 0.002em;
+  /* Palavra/frase sem espaço (URL, nome colado, texto colado de fora) não
+     pode empurrar o documento para fora da tela. */
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.tiptap .ProseMirror img {
+  max-width: 100%;
+  height: auto;
 }
 
 .tiptap .ProseMirror p.is-editor-empty:first-child::before {

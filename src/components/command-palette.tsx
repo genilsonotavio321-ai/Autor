@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
 import { Search as SearchIcon } from "lucide-react";
 
@@ -16,6 +16,7 @@ import {
   CommandSeparator,
 } from "@/components/ui/command";
 import { navGroups } from "@/components/layout/nav-items";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import { useUiStore } from "@/shared/store/ui-store";
 
 export function CommandPalette() {
@@ -30,7 +31,6 @@ export function CommandPalette() {
   );
   const openSearch = useUiStore((state) => state.openSearch);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
-  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
   const panelTabVisible = useUiStore((state) => state.panelTabVisible);
 
   useEffect(() => {
@@ -106,14 +106,6 @@ export function CommandPalette() {
               }}
             >
               Alternar barra lateral
-            </CommandItem>
-            <CommandItem
-              onSelect={() => {
-                toggleFocusMode();
-                closeCommandPalette();
-              }}
-            >
-              Alternar modo foco
             </CommandItem>
           </CommandGroup>
         </CommandList>

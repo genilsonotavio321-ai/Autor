@@ -1,52 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
-
-test.describe("Seção Continuar na Home", () => {
-  test("seção desligada por padrão e ativável nas Configurações", async ({
-    page,
-  }) => {
-    test.setTimeout(60_000);
-    const url = await createProject(page, "Projeto Continuar");
-    await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
-    const editor = page.locator(".ProseMirror");
-    await editor.click();
-    await page.keyboard.type("Retome aqui.");
-    await expect(page.getByTestId("save-status")).toContainText("Salvo", {
-      timeout: 5_000,
-    });
-
-    // Padrão (opt-in desligado): a seção não aparece na Home.
-    await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Continuar de onde parou" }),
-    ).toHaveCount(0);
-
-    // Ativa a seção nas Configurações (e amplia o aviso para 30s).
-    await page.goto("/settings");
-    await openAdvancedSettings(page);
-    await page
-      .getByLabel('Botão "Continuar" — valor exato')
-      .fill("30");
-    await page.getByRole("switch", { name: "Continuar escrevendo" }).click();
-
-    await page.goto("/");
-    await expect(
-      page.getByRole("heading", { name: "Continuar de onde parou" }),
-    ).toBeVisible();
-    await expect(
-      page.getByRole("link", { name: /Continuar escrevendo/ }),
-    ).toBeVisible();
-
-    // O mesmo card continua no Painel.
-    await page.goto("/dashboard");
-    await expect(
-      page.getByRole("heading", { name: "Continuar de onde parou" }),
-    ).toBeVisible();
-    void url;
-  });
-});
+import {
+  addWorldEntry,
+  createChapter,
+  createProject,
+  openChapterEditor,
+} from "./helpers";
 
 test.describe("Cascata de locais (3 níveis)", () => {
   test("cria raiz → filho → neto e bloqueia o 4º nível", async ({ page }) => {
@@ -55,7 +14,7 @@ test.describe("Cascata de locais (3 níveis)", () => {
     await page.goto("/world");
 
     // Raiz.
-    await page.getByRole("button", { name: "Novo local" }).click();
+    await addWorldEntry(page, "Local");
     await page.getByLabel("Nome", { exact: true }).fill("Reino");
     await page.getByRole("button", { name: "Salvar" }).click();
     await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -87,7 +46,7 @@ test.describe("Cascata de locais (3 níveis)", () => {
     ).toHaveCount(0);
 
     // E o diálogo de novo local esconde candidatos de nível 3 como pai.
-    await page.getByRole("button", { name: "Novo local" }).click();
+    await addWorldEntry(page, "Local");
     await page.getByLabel("Local pai").click();
     await expect(page.getByRole("option", { name: "Reino" })).toBeVisible();
     await expect(page.getByRole("option", { name: "Capital" })).toBeVisible();
@@ -106,7 +65,7 @@ test.describe("Grifar", () => {
     test.setTimeout(90_000);
     const url = await createProject(page, "Projeto Grifar");
     await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
     const editor = page.locator(".ProseMirror");
     await editor.click();
     await page.keyboard.type("Um trecho importante aqui.");

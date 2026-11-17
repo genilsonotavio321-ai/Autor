@@ -1,9 +1,17 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ArrowLeft, Frame, MoreHorizontal, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  Frame,
+  MoreHorizontal,
+  Pencil,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -36,6 +44,8 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
     (state) => state.setSelectedProjectId,
   );
   const [editOpen, setEditOpen] = useState(false);
+  // Capítulos arquivados só aparecem quando o usuário pede para revelar.
+  const [showArchived, setShowArchived] = useState(false);
   // `null` (not `undefined`) marks "not found" — useLiveQuery uses undefined
   // both for "loading" and for a query that resolved to undefined.
   const project = useLiveQuery(
@@ -199,17 +209,28 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
 
       {archivedChapters.length > 0 ? (
         <section className="space-y-3">
-          <div className="flex items-center gap-2">
-            <h2 className="font-serif text-2xl font-semibold tracking-tight">
-              Arquivados
-            </h2>
+          <Button
+            variant="ghost"
+            className="gap-2 rounded-full px-3"
+            aria-expanded={showArchived}
+            onClick={() => setShowArchived((value) => !value)}
+          >
+            <ChevronDown
+              aria-hidden
+              className={`size-4 transition-transform ${showArchived ? "rotate-180" : ""}`}
+            />
+            {showArchived ? "Ocultar arquivados" : "Revelar arquivados"}
             <Badge variant="outline">{archivedChapters.length}</Badge>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Capítulos guardados dentro do projeto — fora da escrita, mas sempre
-            à mão.
-          </p>
-          <ChapterList chapters={archivedChapters} />
+          </Button>
+          {showArchived ? (
+            <>
+              <p className="text-sm text-muted-foreground">
+                Capítulos guardados dentro do projeto — fora da escrita, mas
+                sempre à mão.
+              </p>
+              <ChapterList chapters={archivedChapters} sortable={false} />
+            </>
+          ) : null}
         </section>
       ) : null}
 

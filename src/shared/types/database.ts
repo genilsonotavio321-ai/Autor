@@ -113,6 +113,10 @@ export interface Project extends BaseEntity {
   status: ProjectStatus;
   settings: Record<string, Json>;
   lastEdit?: LastEdit;
+  /** Posição manual entre os irmãos (pasta atual ou raiz da biblioteca). */
+  order?: number;
+  /** Pasta da aba Projetos; sem valor = raiz da biblioteca. */
+  folderId?: EntityId;
 }
 
 export interface Chapter extends BaseEntity {
@@ -147,7 +151,13 @@ export interface Relationship {
 }
 
 /** Tipos de ficha que podem ser agrupados em pastas (uma árvore por aba). */
-export type FolderKind = "character" | "location" | "lore" | "item" | "note";
+export type FolderKind =
+  | "character"
+  | "location"
+  | "lore"
+  | "item"
+  | "note"
+  | "project";
 
 /** Pasta de fichas numa aba (Personagens, Locais, Lore, Objetos, Notas). */
 export interface Folder extends BaseEntity {

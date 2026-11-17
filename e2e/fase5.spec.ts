@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
+import {
+  createChapter,
+  createProject,
+  openAdvancedSettings,
+  openChapterEditor,
+} from "./helpers";
 
 test("configurações personalizam tema, editor e metas", async ({ page }) => {
   await page.goto("/settings");
@@ -81,8 +86,7 @@ test("painel mostra meta diária, palavras de hoje e projetos recentes", async (
 }) => {
   await createProject(page, "Projeto Painel");
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
-  await page.waitForURL(/\/write\//);
+  await openChapterEditor(page, "Capítulo 1");
 
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Uma frase curta com algumas palavras escritas hoje.");
@@ -101,8 +105,7 @@ test("painel mostra meta diária, palavras de hoje e projetos recentes", async (
 test("modo leitura mostra o manuscrito do capítulo", async ({ page }) => {
   await createProject(page, "Projeto Leitura");
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
-  await page.waitForURL(/\/write\//);
+  await openChapterEditor(page, "Capítulo 1");
 
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Texto para o modo de leitura.");
@@ -113,65 +116,17 @@ test("modo leitura mostra o manuscrito do capítulo", async ({ page }) => {
   await page.goto("/read");
   await expect(page.getByRole("heading", { name: "Ler" })).toBeVisible();
   await expect(
-    page.getByRole("combobox", { name: "Capítulo" }),
-  ).toContainText("Capítulo 1");
-  await expect(
     page.getByRole("heading", { name: "Capítulo 1" }),
   ).toBeVisible();
   await expect(
     page.getByText("Texto para o modo de leitura."),
   ).toBeVisible();
+  // As ações do leitor vivem na barra flutuante, como ícones.
   await expect(
-    page.getByRole("button", { name: "Capítulo anterior" }),
-  ).toBeDisabled();
+    page.getByRole("button", { name: "Escolher capítulo" }),
+  ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Próximo capítulo" }),
-  ).toBeDisabled();
-});
-
-test("cronômetro de sprint inicia, pausa e reinicia", async ({ page }) => {
-  await createProject(page, "Projeto Sprint");
-  await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
-  await page.waitForURL(/\/write\//);
-
-  // Timer global no Topbar duplica testid/aria-labels; foca na instância da página.
-  const pageScope = page.locator("#main-content");
-  const timer = pageScope.getByTestId("sprint-timer");
-  await expect(timer).toHaveText("25:00");
-
-  await pageScope
-    .getByRole("button", { name: "Iniciar sprint", exact: true })
-    .click();
-  await expect(timer).not.toHaveText("25:00", { timeout: 5_000 });
-
-  await pageScope
-    .getByRole("button", { name: "Pausar sprint", exact: true })
-    .click();
-  await pageScope
-    .getByRole("button", { name: "Reiniciar sprint", exact: true })
-    .click();
-  await expect(timer).toHaveText("25:00");
-});
-
-test("sprint iniciado fora da escrita pode ser pausado no modo foco", async ({
-  page,
-}) => {
-  // Em focus mode o Topbar some; fora de /write o timer completo não existe.
-  // Sem o timer flutuante não haveria como sair do focus mode.
-  await page.goto("/dashboard");
-  await page.getByRole("button", { name: "Iniciar sprint", exact: true }).click();
-
-  // Focus mode engajado: Topbar oculto, timer flutuante visível.
-  await expect(page.getByRole("banner")).toBeHidden();
-  const floating = page.locator('[data-slot="app-shell-focus-timer"]');
-  await expect(floating).toBeVisible();
-
-  await floating.getByRole("button", { name: "Pausar sprint" }).click();
-
-  // Pausar restaura o chrome (sprintFocusEngaged).
-  await expect(page.getByRole("banner")).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Iniciar sprint", exact: true }),
+    page.getByRole("button", { name: "Editar capítulo" }),
   ).toBeVisible();
 });
+

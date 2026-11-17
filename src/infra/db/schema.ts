@@ -234,5 +234,32 @@ export class AutorDatabase extends Dexie {
       storyArcs: "id, projectId, order",
       structureSections: "id, projectId, scope, arcId, order",
     });
+
+    // v9: ordem manual e pastas na aba Projetos. Copia TODAS as tabelas do v8.
+    this.version(9).stores({
+      projects:
+        "id, folderId, order, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, beatId, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, scope, arcId, sectionId, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
+      ideaGroups: "id, projectId",
+      ideaBoards: "id, projectId, createdAt",
+      promptItems: "id, kind",
+      folders: "id, projectId, kind, deletedAt",
+      storyArcs: "id, projectId, order",
+      structureSections: "id, projectId, scope, arcId, order",
+    });
   }
 }

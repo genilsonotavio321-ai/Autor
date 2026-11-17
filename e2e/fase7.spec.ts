@@ -40,8 +40,9 @@ test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
     await page.waitForTimeout(1_500);
 
     // Snapshot manual do estado "A" — a lista fica [A, vazio].
-    await page.getByRole("button", { name: "Versões" }).click();
+    await page.getByRole("button", { name: "Versões anteriores" }).click();
     await expect(page.getByText("Versões do capítulo")).toBeVisible();
+    await page.getByRole("button", { name: "Salvar versão agora" }).click();
     await waitNoToasts(page);
     await page.keyboard.press("Escape");
     await expect(page.getByText("Versões do capítulo")).toBeHidden();
@@ -56,8 +57,9 @@ test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
     // Reabre: cria o snapshot "B" (o mais recente). Lista = [B, A, vazio];
     // restaurar A (nth(1)) força o diff B → A. Evita-se excluir linhas:
     // um clique posicional re-resolvido após re-render apagaria a linha errada.
-    await page.getByRole("button", { name: "Versões" }).click();
+    await page.getByRole("button", { name: "Versões anteriores" }).click();
     await expect(page.getByText("Versões do capítulo")).toBeVisible();
+    await page.getByRole("button", { name: "Salvar versão agora" }).click();
     await waitNoToasts(page);
     await expect(versionRows).toHaveCount(3);
     await versionRows

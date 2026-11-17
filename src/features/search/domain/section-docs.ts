@@ -20,7 +20,7 @@ const navSectionDocs: SearchDoc[] = navGroups.flatMap((group) =>
 // Configurações para não poluir os resultados com entradas repetidas.
 const settingsKeywords =
   "Aparência tema claro escuro dark light Editor fonte tamanho texto " +
-  "Destaques no texto personagens locais cores Escrita meta diária sprint " +
+  "Destaques no texto personagens locais cores Escrita meta diária " +
   "continuar Som volume efeitos sonoros áudio aviso Animações easy-in " +
   "easy-out fade motion Busca procurar global popup Página inicial home " +
   "primeiro acesso Tags etiquetas Atalhos teclas keyboard Dados backup " +

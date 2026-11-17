@@ -39,8 +39,8 @@ function DropdownMenuContent({
 }: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
   /**
    * Com `portal` desligado o conteúdo renderiza no lugar (sem ir para o
-   * body). Menus dentro de um wrapper flutuante (BubbleMenu do Tiptap)
-   * precisam disso, senão o Radix ancora no rect errado.
+   * body). Menus dentro de um wrapper flutuante precisam disso, senão o Radix
+   * ancora no rect errado.
    */
   portal?: boolean
 }) {

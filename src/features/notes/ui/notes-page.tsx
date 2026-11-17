@@ -23,6 +23,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { PageActionBar } from "@/components/layout/action-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
@@ -386,7 +387,9 @@ export function NotesPage() {
             ? `${notes.length} ${notes.length === 1 ? "nota" : "notas"}`
             : undefined
         }
-      >
+      />
+
+      <PageActionBar>
         <NotesToolbar
           projectId={projectId}
           noteCount={notes.length}
@@ -398,14 +401,14 @@ export function NotesPage() {
           onClearAll={() => void clearNotes()}
           onNewNote={() => setDialog({ open: true })}
         />
-      </PageHeader>
+      </PageActionBar>
 
       {projectId === null ? (
         <EmptyState
           title="Nenhum projeto ativo"
           hint="Crie um projeto para anotar ideias e lembretes."
         />
-      ) : notes.length === 0 ? (
+      ) : notes.length === 0 && folders.length === 0 ? (
         <EmptyState
           title="Nenhuma nota ainda"
           hint="Use notas para ideias soltas, pesquisas e lembretes."

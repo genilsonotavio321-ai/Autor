@@ -2,15 +2,20 @@ import { readFileSync } from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject } from "./helpers";
+import {
+  createChapter,
+  createProject,
+  gotoHome,
+  openChapterEditor,
+  openSearch,
+} from "./helpers";
 
 test("busca global encontra texto do capítulo mesmo sem acentos", async ({
   page,
 }) => {
   const projectUrl = await createProject(page, "Projeto Busca");
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
-  await page.waitForURL(/\/write\//);
+  await openChapterEditor(page, "Capítulo 1");
 
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("O dragão místico guardava a floresta.");
@@ -18,11 +23,11 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
     timeout: 5_000,
   });
 
-  await page.goto("/");
-  await page.getByLabel("Buscar no acervo").fill("dragao");
-  const result = page.getByRole("link", { name: /Capítulo 1/ });
+  await gotoHome(page);
+  const search = await openSearch(page);
+  await search.fill("dragao");
+  const result = page.getByRole("option", { name: /Capítulo 1/ });
   await expect(result).toBeVisible();
-  await expect(page.getByText(/resultado\(s\)/)).toContainText("1 resultado");
 
   // The result links back to the read view of the chapter.
   await result.click();
@@ -39,9 +44,9 @@ test("busca global encontra texto do capítulo mesmo sem acentos", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  await page.goto("/");
-  await page.getByLabel("Buscar no acervo").fill("beatriz");
-  await expect(page.getByRole("link", { name: /Ana Beatriz/ })).toBeVisible();
+  await gotoHome(page);
+  await (await openSearch(page)).fill("beatriz");
+  await expect(page.getByRole("option", { name: /Ana Beatriz/ })).toBeVisible();
 });
 
 test("exporta o projeto em markdown, docx, pdf e backup", async ({ page }) => {

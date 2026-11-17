@@ -2,14 +2,16 @@
 
 import type { Content } from "@tiptap/core";
 import type { Editor } from "@tiptap/react";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, PanelRightOpen } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { useRouter } from "@/infra/navigation/use-app-router";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,23 +37,24 @@ import type {
 } from "@/shared/types/database";
 
 import { createAutosave } from "../application/autosave";
-import { EditorActionsCompact, EditorToolbar } from "./editor-toolbar";
-import { MentionConfirmDialog } from "./mention-confirm-dialog";
-import { SaveStatusIndicator, type SaveStatus } from "./save-status-indicator";
-import { ScenesDialog } from "./scenes-dialog";
 import {
   createManualVersion,
   maybeCreateAutoVersion,
 } from "../application/version-service";
 import { toDayKey } from "@/features/productivity/domain/writing-log";
 import { recordWords } from "@/features/productivity/infra/writing-log-repository";
-import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
+import { EditorSidebar } from "./editor-sidebar";
+import { MentionConfirmDialog } from "./mention-confirm-dialog";
+import { SaveStatusIndicator, type SaveStatus } from "./save-status-indicator";
 import { MentionSheet } from "./mention-sheet";
 import { VersionsDialog } from "./versions-dialog";
 
 // O editor Tiptap é pesado (~145 kB): carrega só nesta rota (plan §7.9 — perf).
 const TiptapEditor = dynamic(
-  () => import("./tiptap-editor").then((mod) => mod.TiptapEditor),
+  () =>
+    import("./tiptap-editor").then((mod) => ({
+      default: mod.TiptapEditor,
+    })),
   {
     ssr: false,
     loading: () => <Skeleton className="h-96 w-full rounded-lg" />,
@@ -82,22 +85,22 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [wordCount, setWordCount] = useState(0);
   const [versionsOpen, setVersionsOpen] = useState(false);
-  const [scenesOpen, setScenesOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [revealGrifar, setRevealGrifar] = useState(false);
+  const [canUndo, setCanUndo] = useState(false);
+  const [canRedo, setCanRedo] = useState(false);
   const [pendingMention, setPendingMention] = useState<{
     type: MentionType;
     id: string;
     name: string;
   } | null>(null);
-  // Ficha aberta *sobre* o editor (item 10), sem navegar para outra página.
+  // Ficha aberta *sobre* o editor, sem navegar para outra página.
   const [mentionSheet, setMentionSheet] = useState<{
     type: MentionType;
     id: string;
   } | null>(null);
 
-  const focusMode = useUiStore((state) => state.focusMode);
-  const toggleFocusMode = useUiStore((state) => state.toggleFocusMode);
-  const editorSimplified = useUiStore((state) => state.editorSimplified);
   const editorFontFamily = useUiStore((state) => state.editorFontFamily);
   const editorFontSize = useUiStore((state) => state.editorFontSize);
   const mentionConfirmOpen = useUiStore((state) => state.mentionConfirmOpen);
@@ -106,6 +109,12 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   );
   const setSelectedProjectId = useUiStore(
     (state) => state.setSelectedProjectId,
+  );
+  const editorSidebarCollapsed = useUiStore(
+    (state) => state.editorSidebarCollapsed,
+  );
+  const setEditorSidebarCollapsed = useUiStore(
+    (state) => state.setEditorSidebarCollapsed,
   );
   const mentionBackToTextEnabled = useUiStore(
     (state) => state.mentionBackToTextEnabled,
@@ -124,6 +133,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const returnPointRef = useRef<{ offset: number; scrollTop: number } | null>(
     null,
   );
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   // Load chapter (and remember its content for auto-versioning).
   useEffect(() => {
@@ -205,7 +215,16 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const scheduleSave = useCallback(
     (nextTitle?: string) => {
       const editor = editorRef.current;
-      if (!chapter || !editor) return;
+      if (!chapter) return;
+      if (!editor) {
+        // Título editado antes de o Tiptap montar: o conteúdo ainda não existe,
+        // mas o título não pode ser descartado.
+        if (nextTitle === undefined) return;
+        void chapterRepository
+          .update(chapterId, { title: nextTitle.trim() || "Sem título" })
+          .catch(() => toast.error("Falha ao salvar o título"));
+        return;
+      }
       const words = editor.storage.characterCount.words() as number;
       setWordCount(words);
       setDirty(true);
@@ -295,16 +314,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     return unsubscribe;
   }, [chapter]);
 
-  // Escape exits focus mode.
-  useEffect(() => {
-    if (!focusMode) return;
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") toggleFocusMode();
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [focusMode, toggleFocusMode]);
-
   const saveManualVersion = useCallback(async () => {
     const editor = editorRef.current;
     if (!editor) return;
@@ -314,7 +323,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         editor.getJSON() as unknown as Json,
       );
       toast.success("Versão salva");
-      setVersionsOpen(true);
     } catch {
       toast.error("Falha ao salvar a versão");
     }
@@ -355,7 +363,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     [chapter, router, setSelectedProjectId],
   );
 
-  // Item 10: abre a ficha sobre o editor, guardando o ponto de escrita
+  // Abre a ficha sobre o editor, guardando o ponto de escrita
   // (cursor + rolagem do ProseMirror) para o "Voltar ao texto".
   const openMentionSheet = useCallback((type: MentionType, id: string) => {
     const editor = editorRef.current;
@@ -446,6 +454,15 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     }
   }
 
+  async function insertImageFromInput(fileList: FileList | null) {
+    if (!fileList || fileList.length === 0) return;
+    const editor = editorRef.current;
+    if (!editor) return;
+    const { insertImageFiles, imageFilesOf } = await import("./tiptap-editor");
+    await insertImageFiles(editor.view, imageFilesOf(fileList));
+    scheduleSave();
+  }
+
   if (chapter === undefined) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
@@ -472,36 +489,22 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     );
   }
 
-  // No layout simplificado os botões de ação ficam dentro do próprio editor.
-  const editorActions = editorSimplified ? (
-    <EditorActionsCompact
-      status={status ?? chapter.status}
-      onChangeStatus={changeStatus}
-      onRead={() => router.push(`/read?chapter=${chapterId}`)}
-      onScenes={() => setScenesOpen(true)}
-      onVersions={() => void saveManualVersion()}
-      onShare={() => setShareOpen(true)}
-      focusMode={focusMode}
-      onToggleFocus={toggleFocusMode}
-    />
-  ) : null;
-
   return (
-    <div
-      className={
-        focusMode
-          ? "mx-auto w-full max-w-2xl space-y-6 px-4 py-8"
-          : "mx-auto w-full max-w-2xl space-y-6 pt-2"
-      }
-    >
-      <div className="flex items-center gap-2">
-        {!focusMode ? (
-          <Button variant="ghost" size="icon" asChild aria-label="Voltar ao projeto">
-            <Link href={`/projects/${chapter.projectId}`}>
-              <ArrowLeft aria-hidden />
-            </Link>
-          </Button>
-        ) : null}
+    <div className="mx-auto w-full max-w-3xl pt-1">
+      <div
+        className="flex items-start gap-2"
+      >
+        <Button
+          variant="ghost"
+          size="icon"
+          className="mt-1 shrink-0"
+          asChild
+          aria-label="Voltar ao projeto"
+        >
+          <Link href={`/projects/${chapter.projectId}`}>
+            <ArrowLeft aria-hidden />
+          </Link>
+        </Button>
         <Input
           value={title}
           onChange={(event) => {
@@ -511,23 +514,40 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-1 font-serif text-[2.1rem] font-medium tracking-[-0.015em] shadow-none focus-visible:border-border focus-visible:ring-0 dark:bg-transparent md:text-[2.6rem]"
           aria-label="Título do capítulo"
         />
+        <div className="mt-1 flex shrink-0 items-center gap-1.5">
+          <SaveStatusIndicator
+            status={saveStatus}
+            dirty={dirty}
+            savedAt={savedAt}
+          />
+          {/* O botão de expandir entra deslizando pela borda direita. */}
+          <div className="size-9 shrink-0 overflow-hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              className={cn(
+                // `translate`: o Tailwind v4 não usa `transform` nas utilidades
+                // de deslocamento — animar `transform` não produzia efeito.
+                "rounded-full transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                editorSidebarCollapsed
+                  ? "visible translate-x-0 opacity-100"
+                  : "pointer-events-none invisible translate-x-10 opacity-0",
+              )}
+              aria-label="Expandir ações do capítulo"
+              aria-hidden={!editorSidebarCollapsed}
+              tabIndex={editorSidebarCollapsed ? 0 : -1}
+              onClick={() => setEditorSidebarCollapsed(false)}
+            >
+              <PanelRightOpen aria-hidden />
+            </Button>
+          </div>
+        </div>
       </div>
-      <div aria-hidden className="hairline" />
-      {!editorSimplified ? (
-        <EditorToolbar
-          status={status ?? chapter.status}
-          onChangeStatus={changeStatus}
-          onRead={() => router.push(`/read?chapter=${chapterId}`)}
-          onScenes={() => setScenesOpen(true)}
-          onVersions={() => void saveManualVersion()}
-          onShare={() => setShareOpen(true)}
-          focusMode={focusMode}
-          onToggleFocus={toggleFocusMode}
-        />
-      ) : null}
+      <div aria-hidden className="hairline mt-3" />
 
       <div
-        className="relative"
+        className="relative mt-4"
         style={{
           fontSize: `${editorFontSize}px`,
           fontFamily:
@@ -542,19 +562,50 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           onOpenMention={openMention}
           onReady={handleEditorReady}
           onUpdate={() => scheduleSave()}
-          actions={editorActions}
-        />
-        <SaveStatusIndicator
-          status={saveStatus}
-          dirty={dirty}
-          savedAt={savedAt}
+          onEditorState={(state) => {
+            setCanUndo(state.canUndo);
+            setCanRedo(state.canRedo);
+          }}
+          revealGrifar={revealGrifar}
+          reviewOpen={reviewOpen}
+          onReviewOpenChange={setReviewOpen}
         />
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] tracking-wide text-muted-foreground">
+      <div className="mt-2 flex flex-wrap items-center justify-between gap-2 border-t border-border/60 pt-3 text-[11px] tracking-wide text-muted-foreground">
         <span>{wordCount.toLocaleString("pt-BR")} palavras</span>
-        <SprintTimer />
       </div>
+
+      <EditorSidebar
+        status={status ?? chapter.status}
+        onStatusChange={changeStatus}
+        onRead={() =>
+          router.push(`/read?project=${chapter.projectId}&chapter=${chapterId}`)
+        }
+        onStructure={() => router.push("/outline")}
+        onShare={() => setShareOpen(true)}
+        onVersions={() => setVersionsOpen(true)}
+        revealGrifar={revealGrifar}
+        onToggleRevealGrifar={() => setRevealGrifar((value) => !value)}
+        onInsertImage={() => imageInputRef.current?.click()}
+        onUndo={() => editorRef.current?.chain().focus().undo().run()}
+        onRedo={() => editorRef.current?.chain().focus().redo().run()}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onReview={() => setReviewOpen(true)}
+      />
+
+      <input
+        ref={imageInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-label="Inserir imagem no capítulo"
+        onChange={(event) => {
+          void insertImageFromInput(event.target.files);
+          event.target.value = "";
+        }}
+      />
 
       <VersionsDialog
         chapterId={chapterId}
@@ -564,19 +615,13 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         getCurrentContent={() =>
           (editorRef.current?.getJSON() as unknown as Json) ?? null
         }
+        onCreateVersion={() => saveManualVersion()}
       />
 
       <ExportFormatDialog
         open={shareOpen}
         onOpenChange={setShareOpen}
         onExport={(format) => void handleShare(format)}
-      />
-
-      <ScenesDialog
-        open={scenesOpen}
-        onOpenChange={setScenesOpen}
-        chapterId={chapterId}
-        mentions={mentionEntities}
       />
 
       <MentionSheet

@@ -3,7 +3,6 @@ import { ensureDbReady } from "@/infra/db/ready";
 import type { Json } from "@/shared/types/database";
 
 import {
-  addSprint,
   addWords,
   EMPTY_WRITING_LOG,
   type WritingLog,
@@ -20,9 +19,9 @@ function parseLog(value: unknown): WritingLog {
   for (const [key, entry] of Object.entries(value as Record<string, unknown>)) {
     if (!entry || typeof entry !== "object") continue;
     const words = (entry as { words?: unknown }).words;
-    const sprints = (entry as { sprints?: unknown }).sprints;
     if (typeof words !== "number") continue;
-    log[key] = { words, sprints: typeof sprints === "number" ? sprints : 0 };
+    // O campo `sprints` de logs antigos é simplesmente ignorado.
+    log[key] = { words };
   }
   return log;
 }
@@ -35,8 +34,8 @@ export async function getWritingLog(): Promise<WritingLog> {
 
 /**
  * Read-modify-write inside a transaction: o navegador serializa escritas na
- * mesma tabela, então chamadas concorrentes (autosave do editor + ticker do
- * sprint) não apagam os deltas umas das outras.
+ * mesma tabela, então chamadas concorrentes (autosave do editor + outras
+ * abas) não apagam os deltas umas das outras.
  */
 async function updateLog(apply: (log: WritingLog) => WritingLog): Promise<void> {
   await ensureDbReady();
@@ -59,7 +58,3 @@ export async function recordWords(
   await updateLog((log) => addWords(log, dayKey, words));
 }
 
-/** Registra a conclusão de uma sessão de sprint. */
-export async function recordSprint(dayKey: string): Promise<void> {
-  await updateLog((log) => addSprint(log, dayKey));
-}

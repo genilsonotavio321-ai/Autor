@@ -21,7 +21,7 @@ test("app funciona offline após o primeiro carregamento", async ({
     undefined,
     { timeout: 60_000 },
   );
-  await expect(page.getByRole("heading", { name: "Painel" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Início" })).toBeVisible();
 
   // Cria dados enquanto online (persistem em IndexedDB).
   await createProject(page, "Projeto Offline");

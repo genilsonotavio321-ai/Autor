@@ -1,6 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject, openAdvancedSettings, waitForToastCycle } from "./helpers";
+import {
+  chapterLink,
+  createChapter,
+  createProject,
+  openAdvancedSettings,
+  openChapterEditor,
+  waitForToastCycle,
+} from "./helpers";
 
 test.use({
   viewport: { width: 390, height: 844 },
@@ -92,7 +99,7 @@ test.describe("Fase 9 — celular (390×844)", () => {
     test.setTimeout(90_000);
     await createProject(page, "Projeto Revisar");
     await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
 
     const editor = page.locator(".ProseMirror");
     await editor.click();

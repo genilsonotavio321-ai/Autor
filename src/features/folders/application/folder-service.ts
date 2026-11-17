@@ -3,12 +3,19 @@ import { noteRepository } from "@/features/notes/infra/dexie-note-repository";
 import type { EntityId, Folder, FolderKind } from "@/shared/types/database";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
 import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
+import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 
 import { collectSubtreeIds } from "../domain/folder-tree";
 import {
   folderRepository,
   setEntityFolderId,
 } from "../infra/dexie-folder-repository";
+
+/**
+ * Pastas da aba Projetos não pertencem a um projeto: vivem numa biblioteca
+ * única, identificada por este escopo fixo em `Folder.projectId`.
+ */
+export const PROJECT_FOLDER_SCOPE = "projects";
 
 /** Mínimo que o serviço precisa de cada repositório de ficha. */
 interface FolderMemberRepo {
@@ -25,7 +32,6 @@ interface FolderMemberRepo {
 const KIND_REPOS: Record<FolderKind, FolderMemberRepo> = {
   character: characterRepository,
   location: locationRepository,
-  lore: loreEntryRepository,
   item: {
     async listByProject(projectId) {
       return (await loreEntryRepository.listByProject(projectId)).filter(
@@ -40,7 +46,45 @@ const KIND_REPOS: Record<FolderKind, FolderMemberRepo> = {
     softDelete: (id) => loreEntryRepository.softDelete(id),
     restore: (id) => loreEntryRepository.restore(id),
   },
+  // Lore e objetos dividem a mesma tabela (`loreEntries`), mas são árvores
+  // de pastas separadas: cada cascata só pode tocar no seu próprio tipo.
+  // Sem esse filtro, apagar uma pasta de lore levava junto um objeto que
+  // tinha sido marcado como rastreável morando naquela pasta.
+  lore: {
+    async listByProject(projectId) {
+      return (await loreEntryRepository.listByProject(projectId)).filter(
+        (entry) => !entry.isTrackableItem,
+      );
+    },
+    async listDeleted() {
+      return (await loreEntryRepository.listDeleted()).filter(
+        (entry) => !entry.isTrackableItem,
+      );
+    },
+    softDelete: (id) => loreEntryRepository.softDelete(id),
+    restore: (id) => loreEntryRepository.restore(id),
+  },
   note: noteRepository,
+  // Projetos: o "projectId" vira o escopo da biblioteca. Os adapters
+  // normalizam o campo para que a cascata genérica continue valendo.
+  project: {
+    async listByProject() {
+      return (await projectRepository.listActive()).map((project) => ({
+        id: project.id,
+        projectId: PROJECT_FOLDER_SCOPE,
+        folderId: project.folderId,
+      }));
+    },
+    async listDeleted() {
+      return (await projectRepository.listDeleted()).map((project) => ({
+        id: project.id,
+        projectId: PROJECT_FOLDER_SCOPE,
+        folderId: project.folderId,
+      }));
+    },
+    softDelete: (id) => projectRepository.softDelete(id),
+    restore: (id) => projectRepository.restore(id),
+  },
 };
 
 /** Cria uma pasta (dentro de `parentId`, quando informado) e move as fichas. */
@@ -48,11 +92,14 @@ export async function createFolderWith(input: {
   kind: FolderKind;
   projectId: EntityId;
   parentId?: EntityId;
+  /** Nome da pasta nova (padrão: "Nova pasta"). */
+  name?: string;
   entityIds: EntityId[];
 }): Promise<Folder> {
   const folder = await folderRepository.create({
     projectId: input.projectId,
     kind: input.kind,
+    ...(input.name ? { name: input.name } : {}),
     ...(input.parentId ? { parentId: input.parentId } : {}),
   });
   for (const id of input.entityIds) {

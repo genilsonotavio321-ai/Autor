@@ -395,7 +395,7 @@ export function TrashPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
-      <header className="flex flex-wrap items-end justify-between gap-3">
+      <header className="flex flex-col items-center gap-4 text-center">
         <div className="space-y-2">
           <p className="eyebrow">
             Sistema

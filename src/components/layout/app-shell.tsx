@@ -1,18 +1,21 @@
 "use client";
 
 import { useTheme } from "next-themes";
-import { usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useRef } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
-import { BottomNav } from "@/components/layout/bottom-nav";
+import { ActionBar, ActionBarProvider } from "@/components/layout/action-bar";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Topbar } from "@/components/layout/topbar";
+import { usePageTransition } from "@/components/layout/use-page-transition";
 import { SearchDialog } from "@/features/search/ui/search-dialog";
 import { NotificationMonitor } from "@/features/productivity/ui/notification-monitor";
-import { SprintTicker } from "@/features/productivity/ui/sprint-ticker";
-import { SprintTimer } from "@/features/productivity/ui/sprint-timer";
 import { TrashAutoPurge } from "@/features/projects/ui/trash-auto-purge";
+import {
+  resolveResumeRoute,
+  RESUME_GUARD_KEY,
+} from "@/infra/navigation/resume-last-edit";
 import { useUiStore } from "@/shared/store/ui-store";
 
 // Variante de tema (Papel, Marfim, Névoa, Tinta, Grafite, Meia-noite):
@@ -39,14 +42,46 @@ function useAnimationPreference() {
   }, [enabled]);
 }
 
+/**
+ * Retoma a escrita no primeiro carregamento do app: quem abre a raiz "/"
+ * volta ao capítulo e ao ponto exato da última edição. Navegar para "/"
+ * depois disso mostra a home normalmente.
+ */
+function useResumeLastEdit() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const attempted = useRef(false);
+
+  useEffect(() => {
+    if (attempted.current) return;
+    attempted.current = true;
+    if (pathname !== "/") return;
+    try {
+      if (window.sessionStorage.getItem(RESUME_GUARD_KEY)) return;
+      window.sessionStorage.setItem(RESUME_GUARD_KEY, "1");
+    } catch {
+      // sessionStorage indisponível (modo privado): tenta uma vez mesmo assim.
+    }
+    void resolveResumeRoute()
+      .then((route) => {
+        // O usuário pode ter navegado enquanto o banco abria: só retoma se
+        // ele ainda estiver na raiz.
+        if (route && window.location.pathname === "/") router.replace(route);
+      })
+      .catch(() => undefined);
+  }, [pathname, router]);
+}
+
 export function AppShell({ children }: { children: React.ReactNode }) {
   const sidebarCollapsed = useUiStore((state) => state.sidebarCollapsed);
-  const focusMode = useUiStore((state) => state.focusMode);
-  const sprintRunning = useUiStore((state) => state.sprintRunning);
   const pathname = usePathname();
 
   useThemeVariantAttribute();
   useAnimationPreference();
+  useResumeLastEdit();
+  usePageTransition();
+
+  const isEditor = pathname.startsWith("/write");
 
   const skipLink = (
     <a
@@ -65,59 +100,53 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </>
   );
 
-  // Focus mode: some com todo o chrome, sobra só a superfície de escrita.
-  if (focusMode) {
+  // O editor ocupa a tela inteira: sem sidebar, topbar nem barras flutuantes.
+  if (isEditor) {
     return (
-      <div className="min-h-dvh w-full">
-        {backgroundServices}
-        <SearchDialog />
-        <SprintTicker />
-        {skipLink}
-        {sprintRunning && !pathname.startsWith("/write") ? (
-          <div
-            data-slot="app-shell-focus-timer"
-            className="fixed right-4 bottom-[max(1rem,env(safe-area-inset-bottom))] z-40 rounded-lg border bg-card px-2 py-1 shadow"
+      <ActionBarProvider>
+        <div className="min-h-dvh w-full">
+          {backgroundServices}
+          <SearchDialog />
+          {skipLink}
+          <main
+            id="main-content"
+            style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+            className="min-h-dvh w-full px-4 pb-[max(2rem,env(safe-area-inset-bottom))] md:px-10"
           >
-            <SprintTimer compact />
-          </div>
-        ) : null}
-        <main
-          id="main-content"
-          style={{ paddingTop: "max(1rem, env(safe-area-inset-top))" }}
-          className="min-h-dvh p-4 md:p-6"
-        >
-          {children}
-        </main>
-      </div>
+            {children}
+          </main>
+        </div>
+      </ActionBarProvider>
     );
   }
 
   return (
-    <div className="flex min-h-dvh w-full">
-      {backgroundServices}
-      <SearchDialog />
-      <SprintTicker />
-      {skipLink}
-      <Sidebar collapsed={sidebarCollapsed} />
-      <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar />
-        <main
-          id="main-content"
-          className={
-            pathname === "/canvas"
-              ? "flex-1"
-              : "flex-1 px-4 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] md:px-8 md:py-8"
-          }
-        >
-          {pathname === "/canvas" ? (
-            children
-          ) : (
-            <div className="mx-auto w-full max-w-6xl">{children}</div>
-          )}
-        </main>
+    <ActionBarProvider>
+      <div className="flex min-h-dvh w-full">
+        {backgroundServices}
+        <SearchDialog />
+        {skipLink}
+        <Sidebar collapsed={sidebarCollapsed} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <Topbar />
+          <main
+            id="main-content"
+            className={
+              pathname === "/canvas"
+                ? "flex-1"
+                : "flex-1 px-4 pt-4 pb-[calc(9rem+env(safe-area-inset-bottom))] md:px-8 md:py-8 md:pb-24"
+            }
+          >
+            {pathname === "/canvas" ? (
+              children
+            ) : (
+              <div className="mx-auto w-full max-w-6xl">{children}</div>
+            )}
+          </main>
+        </div>
+        <ActionBar />
+        <CommandPalette />
       </div>
-      <BottomNav />
-      <CommandPalette />
-    </div>
+    </ActionBarProvider>
   );
 }

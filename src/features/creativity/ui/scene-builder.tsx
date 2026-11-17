@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Send } from "lucide-react";
 import { toast } from "sonner";

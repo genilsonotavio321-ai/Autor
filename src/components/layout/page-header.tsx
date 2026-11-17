@@ -20,22 +20,29 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("space-y-5", className)}>
-      <div className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0 space-y-2">
-          {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
-          <h1 className="display-title">{title}</h1>
-          {description || count ? (
-            <p className="lead">
-              {description}
-              {description && count ? " · " : null}
-              {count}
-            </p>
-          ) : null}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">{children}</div>
+    <header
+      className={cn(
+        "flex flex-col items-center gap-5 text-center",
+        className,
+      )}
+    >
+      <div className="min-w-0 space-y-2">
+        {eyebrow ? <p className="eyebrow">{eyebrow}</p> : null}
+        <h1 className="display-title">{title}</h1>
+        {description || count ? (
+          <p className="lead">
+            {description}
+            {description && count ? " · " : null}
+            {count}
+          </p>
+        ) : null}
       </div>
-      <div aria-hidden className="hairline" />
+      {children ? (
+        <div className="flex flex-wrap items-center justify-center gap-2">
+          {children}
+        </div>
+      ) : null}
+      <div aria-hidden className="hairline w-full" />
     </header>
   );
 }

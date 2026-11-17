@@ -5,24 +5,31 @@ export type OrderTableName =
   | "characters"
   | "locations"
   | "loreEntries"
-  | "folders";
+  | "folders"
+  | "projects";
 
 /**
  * Persists a drag-and-drop reorder in a single transaction. Shared by the
- * characters, locations and lore tables, which all use `order?: number`.
+ * characters, locations, lore, folders and projects tables, which all use
+ * `order?: number`.
+ *
+ * Organizar não é editar: quem ordena por atividade passa
+ * `touchUpdatedAt: false` para o arraste não mexer em "alterado há".
  */
 export async function applyOrderMoves(
   db: Dexie,
   table: OrderTableName,
   updates: { id: string; order: number }[],
+  options: { touchUpdatedAt?: boolean } = {},
 ): Promise<void> {
   if (updates.length === 0) return;
+  const touch = options.touchUpdatedAt ?? true;
   const now = new Date().toISOString();
   await db.transaction("rw", table, async () => {
     for (const move of updates) {
       await db.table(table).update(move.id, {
         order: move.order,
-        updatedAt: now,
+        ...(touch ? { updatedAt: now } : {}),
       });
     }
   });

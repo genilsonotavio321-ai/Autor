@@ -3,9 +3,9 @@
 import { useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowUpDown,
+  Check,
   FileDown,
   FileUp,
-  MoreHorizontal,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -28,13 +28,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type { EntityId, Folder } from "@/shared/types/database";
 
@@ -55,7 +48,10 @@ interface NotesToolbarProps {
   onNewNote: () => void;
 }
 
-/** Ações do cabeçalho da página de notas (criar pasta, ordenar, importar/exportar). */
+/**
+ * Ações da página de notas, todas em ícones na sub-barra flutuante: nova nota,
+ * nova pasta, ordenação, exportar, importar e excluir todas.
+ */
 export function NotesToolbar({
   projectId,
   noteCount,
@@ -97,50 +93,78 @@ export function NotesToolbar({
         parentId={openFolderId ?? undefined}
         onCreated={onFolderCreated}
       />
-      <Select value={sort} onValueChange={(value) => onSortChange(value as NotesSort)}>
-        <SelectTrigger className="w-52" aria-label="Ordenar notas">
-          <ArrowUpDown aria-hidden className="size-4" />
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {Object.entries(NOTES_SORT_LABELS).map(([value, label]) => (
-            <SelectItem key={value} value={value}>
-              {label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      <DropdownMenu>
+      <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
-          <Button variant="outline" size="icon" aria-label="Mais opções de notas">
-            <MoreHorizontal aria-hidden />
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full"
+            aria-label={`Ordenar notas — ${NOTES_SORT_LABELS[sort]}`}
+            title={`Ordenar: ${NOTES_SORT_LABELS[sort]}`}
+          >
+            <ArrowUpDown aria-hidden />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuItem disabled={noteCount === 0} onSelect={onExportAll}>
-            <FileDown aria-hidden />
-            Exportar notas
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            disabled={!projectId}
-            onSelect={() => {
-              // Abre o seletor após o menu fechar (evita corrida de foco).
-              window.setTimeout(() => importInputRef.current?.click(), 0);
-            }}
-          >
-            <FileUp aria-hidden />
-            Importar notas
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            variant="destructive"
-            disabled={noteCount === 0}
-            onSelect={() => setClearOpen(true)}
-          >
-            <Trash2 aria-hidden />
-            Excluir
-          </DropdownMenuItem>
+          {Object.entries(NOTES_SORT_LABELS).map(([value, label]) => (
+            <DropdownMenuItem
+              key={value}
+              onSelect={() => onSortChange(value as NotesSort)}
+            >
+              {value === sort ? (
+                <Check aria-hidden />
+              ) : (
+                <span aria-hidden className="size-4" />
+              )}
+              {label}
+            </DropdownMenuItem>
+          ))}
         </DropdownMenuContent>
       </DropdownMenu>
+      <Button
+        variant="outline"
+        size="icon"
+        className="rounded-full"
+        aria-label="Exportar notas"
+        title="Exportar notas"
+        disabled={noteCount === 0}
+        onClick={onExportAll}
+      >
+        <FileDown aria-hidden />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="rounded-full"
+        aria-label="Importar notas"
+        title="Importar notas"
+        disabled={!projectId}
+        onClick={() => importInputRef.current?.click()}
+      >
+        <FileUp aria-hidden />
+      </Button>
+      <Button
+        variant="outline"
+        size="icon"
+        className="rounded-full text-destructive"
+        aria-label="Excluir todas as notas"
+        title="Excluir todas as notas"
+        disabled={noteCount === 0}
+        onClick={() => setClearOpen(true)}
+      >
+        <Trash2 aria-hidden />
+      </Button>
+      <Button
+        size="icon"
+        className="rounded-full"
+        aria-label="Nova nota"
+        title="Nova nota"
+        onClick={onNewNote}
+        disabled={!projectId}
+      >
+        <Plus aria-hidden />
+      </Button>
+
       <AlertDialog open={clearOpen} onOpenChange={setClearOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -165,10 +189,6 @@ export function NotesToolbar({
         className="hidden"
         onChange={(event) => void handleImportFile(event)}
       />
-      <Button onClick={onNewNote} disabled={!projectId}>
-        <Plus aria-hidden />
-        Nova nota
-      </Button>
     </>
   );
 }

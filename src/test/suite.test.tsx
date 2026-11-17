@@ -61,8 +61,8 @@ import { DexieChapterRepository } from "@/features/projects/infra/dexie-chapter-
 import { DexieProjectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { renameMentionsInContent } from "@/features/mentions/domain/rename-mentions";
 import { decideGoalNotification, decideStaleNotifications, latestCreatedAt } from "@/features/productivity/domain/notifications";
-import { EMPTY_WRITING_LOG, addSprint, addWords, estimateReadingMinutes, summariseWriting, toDayKey } from "@/features/productivity/domain/writing-log";
-import { WRITING_LOG_KEY, getWritingLog, recordSprint, recordWords } from "@/features/productivity/infra/writing-log-repository";
+import { EMPTY_WRITING_LOG, addWords, estimateReadingMinutes, summariseWriting, toDayKey } from "@/features/productivity/domain/writing-log";
+import { WRITING_LOG_KEY, getWritingLog, recordWords } from "@/features/productivity/infra/writing-log-repository";
 import { buildSearchDocs } from "@/features/search/domain/search-doc";
 import { createSearchIndex, searchDocs } from "@/features/search/application/search-service";
 import { MAX_LOCATION_DEPTH, locationDepth, locationParentCandidates } from "@/features/world/domain/repository";
@@ -608,27 +608,26 @@ describe("productivity", () => {
     expect(toDayKey(new Date(2026, 9, 17))).toBe("2026-10-17");
     let log = addWords(EMPTY_WRITING_LOG, "2026-10-17", 120);
     log = addWords(log, "2026-10-17", 80);
-    log = addSprint(log, "2026-10-17");
-    expect(log["2026-10-17"]).toEqual({ words: 200, sprints: 1 });
+    expect(log["2026-10-17"]).toEqual({ words: 200 });
     expect(addWords(EMPTY_WRITING_LOG, "2026-10-17", 0)).toEqual({});
 
     const summary = summariseWriting(
       {
-        "2026-10-17": { words: 300, sprints: 1 },
-        "2026-10-16": { words: 100, sprints: 0 },
-        "2026-10-11": { words: 50, sprints: 0 },
-        "2026-10-10": { words: 999, sprints: 0 },
+        "2026-10-17": { words: 300 },
+        "2026-10-16": { words: 100 },
+        "2026-10-11": { words: 50 },
+        "2026-10-10": { words: 999 },
       },
       new Date(2026, 9, 17),
     );
-    expect(summary).toMatchObject({ today: 300, week: 450, total: 1449, sprintsToday: 1 });
+    expect(summary).toMatchObject({ today: 300, week: 450, total: 1449 });
     expect(
       summariseWriting(
         {
-          "2026-10-17": { words: 10, sprints: 0 },
-          "2026-10-16": { words: 10, sprints: 0 },
-          "2026-10-15": { words: 10, sprints: 0 },
-          "2026-10-13": { words: 10, sprints: 0 },
+          "2026-10-17": { words: 10 },
+          "2026-10-16": { words: 10 },
+          "2026-10-15": { words: 10 },
+          "2026-10-13": { words: 10 },
         },
         new Date(2026, 9, 17),
       ).streak,
@@ -644,14 +643,13 @@ describe("productivity", () => {
     await recordWords("2026-10-17", 150);
     await recordWords("2026-10-17", 50);
     await recordWords("2026-10-16", 20);
-    await recordSprint("2026-10-17");
-    expect((await getWritingLog())["2026-10-17"]).toEqual({ words: 200, sprints: 1 });
+    expect((await getWritingLog())["2026-10-17"]).toEqual({ words: 200 });
 
     await getDatabase().settings.put({
       key: WRITING_LOG_KEY,
       value: { "2026-10-17": "not-an-object", "2026-10-16": { words: 5 } },
     });
-    expect(await getWritingLog()).toEqual({ "2026-10-16": { words: 5, sprints: 0 } });
+    expect(await getWritingLog()).toEqual({ "2026-10-16": { words: 5 } });
   });
 });
 
@@ -1154,17 +1152,10 @@ describe("ui-store", () => {
     useUiStore.setState({
       sidebarCollapsed: false,
       commandPaletteOpen: false,
-      focusMode: false,
-      sprintMinutes: 25,
-      sprintRemaining: 25 * 60,
-      sprintRunning: false,
-      sprintCompleted: 0,
-      sprintFocusEngaged: false,
     });
   });
 
   it("guarda preferências com clamp e padrões do app", () => {
-    expect(useUiStore.getState().homeSections).not.toContain("continue");
     expect(useUiStore.getState().promptCustomWeight).toBe(0.5);
     expect(useUiStore.getState().panelTabVisible).toBe(false);
     expect(useUiStore.getState().unblockCloseOnSave).toBe(true);
@@ -1175,23 +1166,8 @@ describe("ui-store", () => {
     expect(useUiStore.getState().promptCustomWeight).toBe(0);
     expect(localStorage.getItem("autor-ui")).toContain("promptCustomWeight");
 
-    useUiStore.getState().setHomeSections(["search", "continue", "projects"]);
-    expect(localStorage.getItem("autor-ui")).toContain('"continue"');
     useUiStore.getState().setMentionHighlightReadEnabled(false);
     expect(useUiStore.getState().mentionHighlightReadEnabled).toBe(false);
-  });
-
-  it("liga o foco no sprint e restaura ao pausar, respeitando o modo manual", () => {
-    useUiStore.getState().toggleSprintRunning();
-    expect(useUiStore.getState().sprintRunning).toBe(true);
-    expect(useUiStore.getState().focusMode).toBe(true);
-    useUiStore.getState().toggleSprintRunning();
-    expect(useUiStore.getState().focusMode).toBe(false);
-
-    useUiStore.setState({ focusMode: true, sprintFocusEngaged: false });
-    useUiStore.getState().toggleSprintRunning();
-    useUiStore.getState().toggleSprintRunning();
-    expect(useUiStore.getState().focusMode).toBe(true);
   });
 
 });

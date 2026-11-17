@@ -39,6 +39,8 @@ export async function resolveFolderDragEnd(input: {
   overId: EntityId | undefined;
   activeRect: RectLike | null;
   overRect: RectLike | null;
+  /** Nome da pasta criada ao soltar um card no centro do outro. */
+  newFolderName?: string;
 }): Promise<FolderDragOutcome> {
   const { kind, folders, viewFolderIds, openFolderId } = input;
   const overId = input.overId;
@@ -97,6 +99,7 @@ export async function resolveFolderDragEnd(input: {
       kind,
       projectId: input.projectId,
       ...(openFolderId ? { parentId: openFolderId } : {}),
+      ...(input.newFolderName ? { name: input.newFolderName } : {}),
       entityIds: [input.activeId, overId],
     });
     return "created";

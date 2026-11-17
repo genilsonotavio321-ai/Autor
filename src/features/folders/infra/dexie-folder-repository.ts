@@ -20,6 +20,7 @@ const KIND_TABLES: Record<FolderKind, string> = {
   lore: "loreEntries",
   item: "loreEntries",
   note: "notes",
+  project: "projects",
 };
 
 export class DexieFolderRepository implements FolderRepository {
@@ -127,9 +128,9 @@ export async function setEntityFolderId(
   folderId: EntityId | undefined,
 ): Promise<void> {
   await ensureDbReady();
-  await getDatabase()
-    .table(KIND_TABLES[kind])
-    .where("id")
-    .equals(id)
-    .modify({ folderId, updatedAt: nowIso() });
+  // Mover um projeto de pasta não é edição: não mexe em updatedAt, senão a
+  // ordenação "Alterados recentemente" e o arraste brigam entre si.
+  const patch =
+    kind === "project" ? { folderId } : { folderId, updatedAt: nowIso() };
+  await getDatabase().table(KIND_TABLES[kind]).where("id").equals(id).modify(patch);
 }

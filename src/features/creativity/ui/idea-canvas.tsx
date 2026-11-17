@@ -10,7 +10,7 @@ import {
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import {
   AlignHorizontalJustifyCenter,
   AlignStartHorizontal,

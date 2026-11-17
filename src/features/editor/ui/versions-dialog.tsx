@@ -39,6 +39,8 @@ interface VersionsDialogProps {
   onRestore: (version: Version) => void;
   /** Live editor content, used to preview the diff before restoring. */
   getCurrentContent: () => Json | null;
+  /** Cria um instantâneo manual do conteúdo atual. */
+  onCreateVersion: () => void | Promise<void>;
 }
 
 const DIFF_LINE_CLASSES: Record<DiffLine["type"], string> = {
@@ -61,6 +63,7 @@ export function VersionsDialog({
   onOpenChange,
   onRestore,
   getCurrentContent,
+  onCreateVersion,
 }: VersionsDialogProps) {
   const versions = useLiveQuery(
     () => listVersions(chapterId),
@@ -106,9 +109,21 @@ export function VersionsDialog({
     <Dialog open={open} onOpenChange={(next) => (next ? onOpenChange(next) : close())}>
       <DialogContent className="sm:max-w-2xl">
         <DialogHeader>
-          <DialogTitle>
-            {preview ? "Confirmar restauração" : "Versões do capítulo"}
-          </DialogTitle>
+          <div className="flex items-start justify-between gap-3">
+            <DialogTitle>
+              {preview ? "Confirmar restauração" : "Versões do capítulo"}
+            </DialogTitle>
+            {preview ? null : (
+              <Button
+                variant="outline"
+                size="sm"
+                className="shrink-0"
+                onClick={() => void onCreateVersion()}
+              >
+                Salvar versão agora
+              </Button>
+            )}
+          </div>
           <DialogDescription>
             {preview
               ? "Verifique o que muda ao restaurar esta versão."

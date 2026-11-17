@@ -346,6 +346,9 @@ function remapProjectRow(
     row.createdAt = importedAt;
     row.updatedAt = importedAt;
     delete row.deletedAt;
+    // Pasta e ordem são da biblioteca de origem, não do pacote.
+    delete row.folderId;
+    delete row.order;
     remapLastEdit(row, idMap);
     return row;
   }

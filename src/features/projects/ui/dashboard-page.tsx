@@ -27,8 +27,6 @@ import { useUiStore } from "@/shared/store/ui-store";
 import { chapterRepository } from "../infra/dexie-chapter-repository";
 import { projectRepository } from "../infra/dexie-project-repository";
 
-import { ResumeWritingCard } from "./resume-writing-card";
-
 interface RecentProject {
   id: string;
   title: string;
@@ -126,7 +124,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      <header className="space-y-5">
+      <header className="space-y-5 text-center">
         <div className="space-y-2">
           <p className="eyebrow">Progresso</p>
           <h1 className="display-title">Painel</h1>
@@ -160,8 +158,6 @@ export function DashboardPage() {
           </CardContent>
         </Card>
       ) : null}
-
-      <ResumeWritingCard />
 
       <section
         aria-label="Estatísticas"

@@ -27,6 +27,8 @@ export interface ProjectRepository {
   listDeleted(): Promise<Project[]>;
   update(id: EntityId, patch: ProjectUpdateInput): Promise<Project>;
   updateLastEdit(id: EntityId, lastEdit: LastEdit): Promise<void>;
+  /** Grava a ordem manual (arraste na aba Projetos). */
+  applyMoves(updates: { id: EntityId; order: number }[]): Promise<void>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;
   /** Permanently deletes the row (trash purge only). */
@@ -52,6 +54,8 @@ export interface ChapterRepository {
   getById(id: EntityId): Promise<Chapter | undefined>;
   /** Non-deleted chapters of a project, ordered by `order`. */
   listByProject(projectId: EntityId): Promise<Chapter[]>;
+  /** Non-deleted chapters of every project (list summaries, one query). */
+  listAll(): Promise<Chapter[]>;
   update(id: EntityId, patch: ChapterUpdateInput): Promise<Chapter>;
   softDelete(id: EntityId): Promise<void>;
   restore(id: EntityId): Promise<void>;

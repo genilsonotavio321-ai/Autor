@@ -27,6 +27,7 @@ import { Badge } from "@/components/ui/badge";
 import { useCardSortable } from "@/shared/lib/sortable";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
+import { PageActionBar } from "@/components/layout/action-bar";
 import { PageHeader } from "@/components/layout/page-header";
 import {
   Select,
@@ -343,7 +344,20 @@ export function CharactersPage() {
             ? `${characters.length} ${characters.length === 1 ? "personagem" : "personagens"}`
             : undefined
         }
-      >
+      />
+
+      <PageActionBar>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label="Ficha aleatória"
+          title="Ficha aleatória"
+          onClick={() => void createRandomCharacter()}
+          disabled={!projectId}
+        >
+          <Dices aria-hidden />
+        </Button>
         <NewFolderButton
           kind="character"
           projectId={projectId}
@@ -351,18 +365,16 @@ export function CharactersPage() {
           onCreated={(folder) => setOpenFolderId(folder.id)}
         />
         <Button
-          variant="outline"
-          onClick={() => void createRandomCharacter()}
+          size="icon"
+          className="rounded-full"
+          aria-label="Novo personagem"
+          title="Novo personagem"
+          onClick={() => setDialog({ open: true })}
           disabled={!projectId}
         >
-          <Dices aria-hidden />
-          Ficha aleatória
-        </Button>
-        <Button onClick={() => setDialog({ open: true })} disabled={!projectId}>
           <Plus aria-hidden />
-          Novo personagem
         </Button>
-      </PageHeader>
+      </PageActionBar>
 
       {projectId !== null && characters.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
@@ -410,7 +422,7 @@ export function CharactersPage() {
           title="Nenhum projeto ativo"
           hint="Crie um projeto para cadastrar seus personagens."
         />
-      ) : characters.length === 0 ? (
+      ) : characters.length === 0 && folders.length === 0 ? (
         <EmptyState
           title="Nenhum personagem ainda"
           hint="Registre protagonistas, antagonistas e personagens de apoio com seus objetivos e relações."

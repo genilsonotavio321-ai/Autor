@@ -1,20 +1,23 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { ChevronLeft, ChevronRight, Eye, PenLine } from "lucide-react";
+import { Eye, Highlighter, List, PenLine } from "lucide-react";
 import dynamic from "next/dynamic";
-import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { useRouter } from "@/infra/navigation/use-app-router";
+import { cn } from "@/lib/utils";
+import { PageActionBar } from "@/components/layout/action-bar";
 import { Button } from "@/components/ui/button";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { estimateReadingMinutes } from "@/features/productivity/domain/writing-log";
 import type { MentionType } from "@/features/mentions/domain/entity-index";
@@ -45,53 +48,89 @@ export function ReadPage() {
     () => (projectId ? chapterRepository.listByProject(projectId) : []),
     [projectId],
   );
-  // Capítulos arquivados ficam fora da leitura: saem do seletor, da
-  // navegação anterior/próxima e das estatísticas.
-  const chapters = useMemo(
-    () => (liveChapters ?? []).filter((chapter) => !chapter.archived),
-    [liveChapters],
+  // `/read?project=…&chapter=…` (clique na lista de capítulos). Lido do router:
+  // um segundo clique em /read precisa enxergar a nova query.
+  const searchParams = useSearchParams();
+  const projectParam = searchParams.get("project");
+  const chapterParam = searchParams.get("chapter");
+  const [chapterId, setChapterId] = useState<string | null>(chapterParam);
+  // Capítulo pedido pelo link: pode estar arquivado e ainda assim ser lido.
+  // Fica em estado porque a query é limpa da URL e o parâmetro some.
+  const [requestedChapterId, setRequestedChapterId] = useState<string | null>(
+    chapterParam,
   );
-  const [chapterId, setChapterId] = useState<string | null>(null);
+  const [chooserOpen, setChooserOpen] = useState(false);
   // Destaque ampliado dos trechos grifados (toggle visual, sem navegação).
   const [grifarReveal, setGrifarReveal] = useState(false);
-  const requestedChapterRef = useRef(true);
+  // O botão de grifar vive na barra: a seleção acontece dentro do documento.
+  const [hasSelection, setHasSelection] = useState(false);
+  const [grifarRequest, setGrifarRequest] = useState(0);
+  const readGrifarEnabled = useUiStore((state) => state.readGrifarEnabled);
+
+  useEffect(() => {
+    if (!projectParam) return;
+    setSelectedProjectId(projectParam);
+  }, [projectParam, setSelectedProjectId]);
+
+  // Trocar de capítulo zera a seleção do documento anterior.
+  useEffect(() => setHasSelection(false), [chapterId]);
+
+  // Um novo capítulo pedido pelo link vence a seleção anterior.
+  useEffect(() => {
+    if (!chapterParam) return;
+    setRequestedChapterId(chapterParam);
+    setChapterId(chapterParam);
+  }, [chapterParam]);
+
+  // A URL volta a ser só `/read` depois de aplicar os parâmetros.
+  useEffect(() => {
+    if (!projectParam && !chapterParam) return;
+    if (chapterParam && chapterId !== chapterParam) return;
+    router.replace("/read", { scroll: false });
+  }, [chapterId, chapterParam, projectParam, router]);
+
+  // Capítulos arquivados ficam fora da leitura, exceto o pedido pelo link.
+  const chapters = useMemo(
+    () =>
+      (liveChapters ?? []).filter(
+        (chapter) => !chapter.archived || chapter.id === requestedChapterId,
+      ),
+    [liveChapters, requestedChapterId],
+  );
 
   // Keep a valid selection when the project or chapter list changes.
-  // On the first commit, honor ?chapter= (from /write "Ler"), then strip it.
   useEffect(() => {
-    if (chapters.length === 0) {
-      setChapterId(null);
+    // Enquanto a live query carrega (`undefined`) ou o projeto ainda não foi
+    // selecionado, o capítulo pedido pelo link não está na lista: limpar aqui
+    // cairia no primeiro capítulo.
+    if (!projectId || !liveChapters) return;
+    if (!chapterId) {
+      setChapterId(chapters[0]?.id ?? null);
       return;
     }
-    let requested: string | null = null;
-    if (requestedChapterRef.current) {
-      requestedChapterRef.current = false;
-      requested = new URLSearchParams(window.location.search).get("chapter");
-      if (requested) {
-        window.history.replaceState({}, "", "/read");
+    // Lista vazia pode ser "ainda carregando": preserva o capítulo pedido.
+    if (chapters.length === 0) return;
+    if (chapters.some((chapter) => chapter.id === chapterId)) return;
+    // Fora da lista: um link direto pode apontar para outro projeto. Busca o
+    // capítulo antes de cair no primeiro do projeto selecionado.
+    let cancelled = false;
+    void chapterRepository.getById(chapterId).then((found) => {
+      if (cancelled) return;
+      if (found && !found.deletedAt && found.projectId !== projectId) {
+        setSelectedProjectId(found.projectId);
+        return;
       }
-    }
-    setChapterId((current) => {
-      if (current && chapters.some((chapter) => chapter.id === current)) {
-        return current;
-      }
-      if (requested && chapters.some((chapter) => chapter.id === requested)) {
-        return requested;
-      }
-      return chapters[0]?.id ?? null;
+      setChapterId(chapters[0]?.id ?? null);
     });
-  }, [chapters]);
+    return () => {
+      cancelled = true;
+    };
+  }, [chapters, chapterId, liveChapters, projectId, setSelectedProjectId]);
 
-  const index = useMemo(
-    () => chapters.findIndex((chapter) => chapter.id === chapterId),
+  const chapter: Chapter | null = useMemo(
+    () => chapters.find((item) => item.id === chapterId) ?? null,
     [chapters, chapterId],
   );
-  const chapter: Chapter | null = index >= 0 ? (chapters[index] ?? null) : null;
-
-  function step(delta: number) {
-    const next = chapters[index + delta];
-    if (next) setChapterId(next.id);
-  }
 
   function openMention(type: MentionType, id: string) {
     if (!projectId) return;
@@ -108,39 +147,72 @@ export function ReadPage() {
   function handleGrifarChange(json: Json) {
     if (!chapter) return;
     if (JSON.stringify(json) === JSON.stringify(chapter.content)) return;
-    void chapterRepository.update(chapter.id, { content: json }).catch(() => undefined);
+    void chapterRepository
+      .update(chapter.id, { content: json })
+      .catch(() => undefined);
   }
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 pt-2">
-      <header className="flex flex-wrap items-end justify-between gap-3">
-        <div className="space-y-1">
-          <p className="eyebrow">
-            Manuscrito
-          </p>
-          <h1 className="display-title">
-            Ler
-          </h1>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <Button
-            variant="outline"
-            aria-pressed={grifarReveal}
-            onClick={() => setGrifarReveal((value) => !value)}
-          >
-            <Eye aria-hidden />
-            Revelar grifados
-          </Button>
-          <Button
-            variant="outline"
-            disabled={!chapter}
-            onClick={() => chapter && router.push(`/write/${chapter.id}`)}
-          >
-            <PenLine aria-hidden />
-            Editar
-          </Button>
-        </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6 pt-2">
+      <header className="space-y-1 text-center">
+        <p className="eyebrow">Manuscrito</p>
+        <h1 className="display-title">Ler</h1>
       </header>
+
+      <PageActionBar>
+        <Button
+          size="icon"
+          className="rounded-full"
+          aria-label="Grifar seleção"
+          title={
+            readGrifarEnabled
+              ? "Grifar seleção"
+              : "Grifar desativado nas Configurações"
+          }
+          disabled={!readGrifarEnabled || !hasSelection || !chapter}
+          onMouseDown={(event) => event.preventDefault()}
+          onClick={() => setGrifarRequest((value) => value + 1)}
+        >
+          <Highlighter aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn(
+            "rounded-full",
+            grifarReveal
+              ? "bg-accent text-accent-foreground [&_svg]:opacity-100"
+              : "text-muted-foreground [&_svg]:opacity-70",
+          )}
+          aria-label="Revelar grifados"
+          title="Revelar grifados"
+          aria-pressed={grifarReveal}
+          onClick={() => setGrifarReveal((value) => !value)}
+        >
+          <Eye aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label="Escolher capítulo"
+          title="Escolher capítulo"
+          disabled={chapters.length === 0}
+          onClick={() => setChooserOpen(true)}
+        >
+          <List aria-hidden />
+        </Button>
+        <Button
+          size="icon"
+          className="rounded-full"
+          aria-label="Editar capítulo"
+          title="Editar capítulo"
+          disabled={!chapter}
+          onClick={() => chapter && router.push(`/write/${chapter.id}`)}
+        >
+          <PenLine aria-hidden />
+        </Button>
+      </PageActionBar>
 
       {projectId === null ? (
         <EmptyState
@@ -152,69 +224,69 @@ export function ReadPage() {
           title="Nenhum capítulo ainda"
           hint="Este projeto ainda não tem capítulos. Escreva algo para ler aqui."
         />
-      ) : (
-        <>
-          <div className="flex items-center gap-2 rounded-2xl bg-card/50 p-2 ring-1 ring-border/70 print:hidden">
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Capítulo anterior"
-              disabled={index <= 0}
-              onClick={() => step(-1)}
-            >
-              <ChevronLeft aria-hidden />
-            </Button>
-            <Select
-              value={chapterId ?? undefined}
-              onValueChange={(value) => setChapterId(value)}
-            >
-              <SelectTrigger className="min-w-56 flex-1" aria-label="Capítulo">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {chapters.map((item, itemIndex) => (
-                  <SelectItem key={item.id} value={item.id}>
-                    {itemIndex + 1}. {item.title}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button
-              variant="outline"
-              size="icon"
-              aria-label="Próximo capítulo"
-              disabled={index < 0 || index >= chapters.length - 1}
-              onClick={() => step(1)}
-            >
-              <ChevronRight aria-hidden />
-            </Button>
+      ) : chapter ? (
+        <article aria-labelledby="reading-title" className="grid gap-3">
+          <h2
+            id="reading-title"
+            className="font-serif text-3xl leading-tight font-semibold tracking-tight"
+          >
+            {chapter.title}
+          </h2>
+          <p className="text-[11px] tracking-wide text-muted-foreground">
+            {chapter.wordCount.toLocaleString("pt-BR")} palavras ·{" "}
+            {estimateReadingMinutes(chapter.wordCount)} min de leitura ·
+            atualizado {formatRelativeTime(chapter.updatedAt)}
+          </p>
+          <div className={grifarReveal ? "grifar-reveal" : undefined}>
+            <ReadingDocument
+              content={chapter.content}
+              mentions={mentionEntities}
+              onOpenMention={openMention}
+              onGrifarChange={handleGrifarChange}
+              onSelectionChange={setHasSelection}
+              grifarRequest={grifarRequest}
+            />
           </div>
+        </article>
+      ) : null}
 
-          {chapter ? (
-            <article aria-labelledby="reading-title" className="grid gap-3">
-              <h2
-                id="reading-title"
-                className="font-serif text-3xl leading-tight font-semibold tracking-tight"
-              >
-                {chapter.title}
-              </h2>
-              <p className="text-[11px] tracking-wide text-muted-foreground">
-                {chapter.wordCount.toLocaleString("pt-BR")} palavras ·{" "}
-                {estimateReadingMinutes(chapter.wordCount)} min de leitura ·
-                atualizado {formatRelativeTime(chapter.updatedAt)}
-              </p>
-              <div className={grifarReveal ? "grifar-reveal" : undefined}>
-                <ReadingDocument
-                  content={chapter.content}
-                  mentions={mentionEntities}
-                  onOpenMention={openMention}
-                  onGrifarChange={handleGrifarChange}
-                />
-              </div>
-            </article>
-          ) : null}
-        </>
-      )}
+      <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Escolher capítulo</DialogTitle>
+            <DialogDescription>
+              O manuscrito é lido na ordem dos capítulos do projeto.
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="max-h-80 divide-y overflow-y-auto">
+            {chapters.map((item, index) => (
+              <li key={item.id}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChapterId(item.id);
+                    setChooserOpen(false);
+                  }}
+                  aria-current={item.id === chapterId ? "page" : undefined}
+                  className={`flex w-full items-center gap-2 px-2 py-2.5 text-left text-sm hover:bg-accent/60 ${
+                    item.id === chapterId ? "font-semibold" : ""
+                  }`}
+                >
+                  <span className="w-6 shrink-0 text-xs text-muted-foreground">
+                    {index + 1}.
+                  </span>
+                  <span className="min-w-0 flex-1 truncate">{item.title}</span>
+                  {item.archived ? (
+                    <span className="text-[10px] text-muted-foreground">
+                      arquivado
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            ))}
+          </ul>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

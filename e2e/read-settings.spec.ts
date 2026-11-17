@@ -1,6 +1,13 @@
 import { expect, test } from "@playwright/test";
 
-import { addCharacter, chapterLink, createChapter, createProject, openAdvancedSettings } from "./helpers";
+import {
+  addCharacter,
+  createChapter,
+  createProject,
+  openAdvancedSettings,
+  openChapterEditor,
+  waitNoToasts,
+} from "./helpers";
 
 test("modo leitura: destaques, toggle e botão Editar", async ({ page }) => {
   test.setTimeout(60_000);
@@ -9,7 +16,7 @@ test("modo leitura: destaques, toggle e botão Editar", async ({ page }) => {
 
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Helena caminhou até o farol.");
   await expect(page.getByTestId("save-status")).toContainText("Salvo", {
@@ -32,39 +39,52 @@ test("modo leitura: destaques, toggle e botão Editar", async ({ page }) => {
   await expect(page.locator(".ProseMirror")).toContainText("Helena");
   await expect(page.locator(".mention")).toHaveCount(0);
 
-  // B3: o botão Editar leva ao editor do capítulo.
-  await page.getByRole("button", { name: "Editar" }).click();
+  // B3: o botão Editar capítulo leva ao editor do capítulo.
+  await page.getByRole("button", { name: "Editar capítulo" }).click();
   await expect(page).toHaveURL(/\/write\//);
   await expect(page.getByLabel("Título do capítulo")).toHaveValue("Capítulo 1");
 });
 
-test("preferências persistem e o card Continuar expira", async ({ page }) => {
+test("capítulo arquivado abre na leitura pelo link", async ({ page }) => {
   test.setTimeout(60_000);
-  const url = await createProject(page, "Projeto Continuar");
+  const url = await createProject(page, "Projeto Arquivado");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await createChapter(page, "Capítulo 2");
+
+  await page.goto(url);
+  await page.getByRole("button", { name: "Ações de Capítulo 2" }).click();
+  await page.getByRole("menuitem", { name: "Arquivar" }).click();
+  await waitNoToasts(page);
+
+  await page.getByRole("button", { name: "Revelar arquivados" }).click();
+  await page.getByRole("link", { name: /Capítulo 2/ }).click();
+  await expect(page).toHaveURL(/\/read$/);
+  // A query some da URL; o capítulo pedido não pode cair no primeiro da lista.
+  await expect(page.getByRole("heading", { name: "Capítulo 2" })).toBeVisible();
+});
+
+test("primeiro carregamento retoma o último capítulo uma vez", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const url = await createProject(page, "Projeto Retomada");
+  await page.goto(url);
+  await createChapter(page, "Capítulo 1");
+  await openChapterEditor(page, "Capítulo 1");
   await page.locator(".ProseMirror").click();
-  await page.keyboard.type("Retomar daqui.");
+  await page.keyboard.type("Paramos aqui.");
   await expect(page.getByTestId("save-status")).toContainText("Salvo", {
     timeout: 5_000,
   });
 
-  // B7: o valor do slider persiste entre sessões.
-  await page.goto("/settings");
-  await openAdvancedSettings(page);
-  const resume = page.getByLabel('Botão "Continuar" — valor exato');
-  await resume.fill("3");
-  await page.reload();
-  await openAdvancedSettings(page);
-  await expect(page.getByLabel('Botão "Continuar" — valor exato')).toHaveValue(
-    "3",
+  await page.goto("/");
+  await expect(page).toHaveURL(/\/write\/[0-9a-f-]+/, { timeout: 10_000 });
+  await expect(page.getByLabel("Título do capítulo")).toHaveValue(
+    "Capítulo 1",
   );
 
-  // A2: o card "Continuar de onde parou" some após o tempo configurado.
-  // O card mora no Painel (/dashboard); a home virou um hub de seções.
-  await page.goto("/dashboard");
-  const section = page.getByRole("region", { name: "Continuar de onde parou" });
-  await expect(section).toBeVisible({ timeout: 5_000 });
-  await expect(section).toHaveCount(0, { timeout: 10_000 });
+  // A retomada é só do primeiro carregamento: a segunda visita é a Início.
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Início" })).toBeVisible();
 });

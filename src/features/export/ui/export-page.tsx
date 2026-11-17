@@ -1,12 +1,13 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+
 import { useLiveQuery } from "dexie-react-hooks";
 import { Download, FileDown, FileUp, HardDriveDownload } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import {
   Card,
   CardContent,

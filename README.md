@@ -31,15 +31,15 @@ conforme o tema. Valores antigos (Padrão, Sépia, Areia, Floresta) são migrado
 
 ### Navegação e telas
 
-- Barra inferior fixa: **Escrever · Estrutura · Fichas · Mais**, com safe areas do iOS.
-- O botão **Mais** abre um sheet com todas as seções, seletor de projeto, sprint, busca e tema.
-- No desktop o mesmo conjunto vira rail lateral; não há menu hambúrguer escondido.
+- Celular: barra inferior flutuante **Escrever · Personagens · Mundo · Notas** + menu de três linhas (seletor de projeto, busca e demais seções), com safe areas do iOS.
+- Desktop: topbar no topo e rail lateral; não há menu hambúrguer escondido.
+- Ações de página ficam numa barra flutuante centralizada, também no desktop. O tema mora apenas em Configurações.
 - Todas as 14 telas foram redesenhadas com tipografia editorial (Fraunces para títulos e
   leitura, Inter para interface), respeitando 390×844 sem rolagem horizontal.
 
 ### Configurações
 
-- **Geral:** tema e paleta, fonte e tamanho do editor, meta diária, sprint, animações,
+- **Geral:** tema e paleta, fonte e tamanho do editor, meta diária, animações,
   destaques de nomes, menções, expiração da lixeira e busca.
 - **Dados:** exportar (Markdown/Word/PDF), importar capítulos, backup JSON completo,
   restauração e importação de pacote de projeto.
@@ -101,8 +101,8 @@ src/
 ## Recursos (Fase 1)
 
 - Projetos: criar/editar, status, capítulos com ordenação automática.
-- Editor Tiptap: toolbar, contagem de palavras, autosave (800ms), modo foco (Esc sai).
-- Retomar escrita: botão "Continuar escrevendo" no painel volta ao capítulo/posição exatos.
+- Editor Tiptap em tela cheia: título no topo, autosave (800ms), sidebar flutuante de ações e formatação na sidebar da seleção.
+- Retomar escrita: abrir o app volta ao capítulo e ao ponto exatos da última edição.
 - Versionamento: snapshots automáticos (5 min) e manuais, restaurar via diálogo.
 - Exclusão suave + restaurar (projetos, capítulos) com "Desfazer" no toast e página de lixeira.
 - Atalhos: Ctrl/Cmd+K paleta de comandos; tema claro/escuro.
@@ -129,11 +129,11 @@ src/
 
 ## Recursos (Fase 5)
 
-- Painel: estatísticas reais (projetos, capítulos, palavras, tempo estimado de leitura), meta diária com barra de progresso, palavras na semana, sequência de dias, "Continuar de onde parou" e lista de projetos recentes; card de primeiros passos quando não há projetos.
-- Configurações (`/settings`): tema (claro/escuro/sistema), fonte e tamanho do editor, meta diária, duração do sprint, tempo do botão "Continuar", lista de atalhos e acesso ao backup.
-- Produtividade: sprint timer no editor (com registro de sessões) e log de escrita por dia (`settings`), base das estatísticas do painel.
+- Painel: estatísticas reais (projetos, capítulos, palavras, tempo estimado de leitura), meta diária com barra de progresso, palavras na semana, sequência de dias e lista de projetos recentes; card de primeiros passos quando não há projetos.
+- Configurações (`/settings`): tema (claro/escuro/sistema), fonte e tamanho do editor, meta diária, lista de atalhos e acesso ao backup.
+- Produtividade: log de escrita por dia (`settings`), base das estatísticas do painel.
 - Tags: gestão por projeto (criar, renomear, recolorir, mesclar, excluir com limpeza de referências) e marcação de personagens; filtros de personagens por papel e tag.
-- Modo leitura (`/read`): preview do manuscrito do capítulo com tipografia confortável, navegação anterior/próximo e estimativa de leitura.
+- Modo leitura (`/read?project=&chapter=`): preview do manuscrito com tipografia confortável e estimativa de leitura; a barra flutuante traz grifar a seleção, revelar grifados, escolher capítulo e editar.
 - PWA/offline: service worker (Serwist), manifest e ícones; o app funciona offline após o primeiro carregamento.
 - Desempenho: editor Tiptap carregado sob demanda (`next/dynamic`) — `/write/[chapterId]` caiu de ~346 kB para ~214 kB (First Load JS).
 
@@ -155,13 +155,13 @@ src/
 ## Recursos (Fase 8)
 
 - Status de projeto "Concluído": o projeto passa a ter quatro estados (Rascunho, Ativo, Concluído, Arquivado); o Badge de "Concluído" tem tom esmeralda.
-- Projetos (`/projects`) com abas **Ativos** (rascunho, ativo e concluído) e **Arquivados** — os arquivados ficam guardados na própria aba, sem se misturar aos ativos.
-- Importar notas: no menu (⋯) da página de notas, importa `.md` (`## Título` por nota) ou `.txt` (blocos separados por linha em branco); exportar e limpar também migraram para o mesmo menu.
+- Projetos (`/projects`) sem abas: os arquivados ficam numa lista oculta atrás de "Mostrar arquivados", sem se misturar aos ativos.
+- Importar notas: a página de notas importa `.md` (`## Título` por nota) ou `.txt` (blocos separados por linha em branco).
 - Limpar histórico de versões: o diálogo de versões do editor ganhou o botão "Limpar", que apaga definitivamente todas as versões do capítulo (com confirmação).
 - Atalhos de teclado atualizados em Configurações, e reordenação por teclado (Espaço + setas) agora funciona também em personagens, locais, lore e notas.
 - Tags com seletor de cor livre: além dos tons predefinidos, o seletor RGB nativo permite qualquer cor.
 - `---` sozinho na linha vira uma quebra de parágrafo visível (linha horizontal) no editor, no modo leitura e nos PDFs e DOCX exportados.
-- Alinhamento (esquerda, centro, direita e justificado) preservado no modo leitura e nos PDFs exportados; citações ganham recuo e barra lateral, e listas aninhadas mantêm o recuo no PDF.
+- Alinhamento (esquerda, centro, direita e justificado) preservado no modo leitura e nos PDFs exportados; o botão na barra da seleção alterna o modo a cada clique e vale para os parágrafos selecionados. Citações ganham recuo e barra lateral, e listas aninhadas mantêm o recuo no PDF.
 - Ficha in-place no editor: Ctrl/Cmd+clique em um nome destacado abre a ficha sobre o texto, com o pop-up "Voltar ao texto" que devolve o cursor e a rolagem ao ponto exato de escrita; comportamento configurável em Configurações (`/settings`, cartão "Destaques no texto").
 - Aba **Dados** (antes "Exportar"): exportar o projeto em Markdown, Word ou PDF (Memória), importar capítulos `.md`/`.docx`, restaurar um backup completo `.json` (Restaurar dados) e baixar o backup dos dados.
 
@@ -186,10 +186,33 @@ src/
 - Aba **Cenas**: lista e kanban viraram visões alternáveis da mesma coleção (antes eram abas separadas). A aba **Roteiro** mantém a árvore de capítulos/cenas.
 - **Migração automática**: os beats antigos viram seções do template equivalente (com vínculo de capítulo preservado e `linkedSceneId` migrado para `scene.beatId`), com backup pré-migração de praxe (`dataVersion`).
 
+## Recursos (Fase 11 — Barra de ações e seleção)
+
+- Alinhamento por atalho: o botão na barra da seleção do editor alterna esquerda → centro → direita → justificado a cada clique (o ícone mostra o modo atual) e vale para os parágrafos selecionados. O antigo submenu e a opção "Capítulo inteiro" saíram.
+- Modo leitura: o botão **Grifar seleção** entrou na barra flutuante, ao lado de revelar grifados, escolher capítulo e editar; fica desabilitado sem texto selecionado e respeita o switch "Grifar na seleção (modo leitura)" das Configurações. A pílula flutuante sobre o texto deixou de existir.
+- "Revelar grifados" ativo fica com fundo preenchido e ícone claro, para distinguir do estado inativo.
+- Personagens: a **Ficha aleatória** deixou o cabeçalho e virou botão de dado (ícone) na barra de ações, junto de nova pasta e novo personagem.
+
+## Recursos (Fase 12 — Sidebar de seleção)
+
+- A barra horizontal que aparecia sobre o texto selecionado virou uma **sidebar vertical secundária**, encostada à esquerda da sidebar do capítulo: entra com slide-in ao selecionar texto e sai com slide-out ao esvaziar a seleção ou pressionar Esc. Os mesmos atalhos de formatação seguem nela (negrito, itálico, grifar, título, citação, listas e alinhamento).
+- As duas sidebars são flutuantes (`fixed`), sem coluna própria e sem roubar largura do editor de forma permanente.
+- A sidebar principal agora **minimiza** pelo primeiro botão da coluna: a coluna desliza para fora da tela, à direita, e uma aba sai da borda para reabrir. A preferência fica salva entre sessões.
+
+## Recursos (Fase 13 — Navegação enxuta)
+
+- Sidebars do editor: a coluna de formatação fica **ao lado** da principal em qualquer largura (nunca por cima dela) e assume a coluna dela quando está minimizada. Minimizar desliza a coluna para fora da tela e o botão de expandir entra pela borda direita.
+- Status do capítulo: virou um **ponto colorido** na sidebar, abaixo do botão de ocultar; clicar abre o sub-menu com A fazer, Rascunho, Revisão e Concluído. O seletor do cabeçalho saiu.
+- Modo leitura: texto sem espaços (URL, palavra colada) quebra dentro da coluna em vez de estourar a tela.
+- Pastas: criar uma pasta vazia em Personagens ou Notas já mostra o card na hora — antes a lista só aparecia quando existia alguma ficha/nota.
+- Notas: todas as ações foram para a sub-barra flutuante em ícones — nova nota (+), nova pasta, ordenação (menu com o critério atual), exportar, importar e excluir todas. O menu de três pontos deixou de existir.
+- Menu "Mais" do celular: saíram os atalhos de Canvas, Ler, Mundo, Personagens e Início; o **Painel** entrou no lugar.
+- Início (`/`) virou só três portas de entrada: **Nova história** (abre o formulário de projeto), **Novo capítulo** (escolhe o projeto — com arquivados numa região expansível — cria o capítulo e abre o editor) e **Localizar arquivos** (busca global). Os toggles de seções da Início e o card "Continuar de onde parou" saíram; a retomada automática continua, e cai em Início quando o capítulo salvo não pode mais ser aberto.
+
 ## Notas
 
 - Banco IndexedDB `autor` com schema versionado (Dexie) e migrações de dados com backup pré-migracao (`src/infra/db/migrations.ts`).
 - Multi-aba via `broadcast-channel` (`src/infra/db/multi-tab.ts`).
 - `next@15` mantido por compatibilidade com o plano; `npm audit` reporta vulnerabilidade em `postcss` resolvida apenas em `next@16` (migração futura).
 - Service worker gerado pelo Serwist em `public/sw.js` (fora do versionamento); fica desabilitado em `next dev`.
-- Preferências de UI (tema do editor, metas, sprint) ficam no `zustand/persist` (`autor-ui`); o log de escrita do dia é o único que usa a tabela `settings` do IndexedDB (para aparecer no painel via `useLiveQuery`).
+- Preferências de UI (tema do editor, metas, ordenação) ficam no `zustand/persist` (`autor-ui`); o log de escrita do dia é o único que usa a tabela `settings` do IndexedDB (para aparecer no painel via `useLiveQuery`).

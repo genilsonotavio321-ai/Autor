@@ -1,120 +1,94 @@
 "use client";
 
-import Link from "next/link";
-import type { CSSProperties } from "react";
-import { Database, FolderKanban, Frame, LayoutDashboard } from "lucide-react";
+import { BookPlus, FilePlus2, Search } from "lucide-react";
+import { useRouter } from "@/infra/navigation/use-app-router";
+import { useState, type CSSProperties } from "react";
 
-import { EmptyState } from "@/components/layout/empty-state";
-import { SearchTool } from "@/features/search/ui/search-tool";
-import { ResumeWritingCard } from "@/features/projects/ui/resume-writing-card";
-import { useUiStore, type HomeSection } from "@/shared/store/ui-store";
+import { useUiStore } from "@/shared/store/ui-store";
 
-const SECTION_CARDS: Record<
-  Exclude<HomeSection, "search" | "continue">,
-  { title: string; description: string; href: string; icon: typeof Database }
-> = {
-  projects: {
-    title: "Projetos",
-    description: "Ver e criar seus projetos de escrita.",
-    href: "/projects",
-    icon: FolderKanban,
-  },
-  dashboard: {
-    title: "Painel",
-    description: "Estatísticas e progresso dos seus projetos.",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-  },
-  canvas: {
-    title: "Canvas",
-    description: "Quadro de ideias do projeto.",
-    href: "/canvas",
-    icon: Frame,
-  },
-  data: {
-    title: "Dados",
-    description: "Exportar, importar e fazer backup.",
-    href: "/settings?tab=dados",
-    icon: Database,
-  },
-};
+import { NewChapterDialog } from "./new-chapter-dialog";
 
+interface HomeAction {
+  title: string;
+  description: string;
+  icon: typeof BookPlus;
+  run: () => void;
+}
+
+/**
+ * Página inicial enxuta: três portas de entrada para o acervo. O resto do app
+ * vive na navegação; aqui a pessoa só escolhe por onde começar.
+ */
 export function HomePage() {
-  const homeSections = useUiStore((state) => state.homeSections);
-  const showSearch = homeSections.includes("search");
-  const cards = (["projects", "dashboard", "canvas", "data"] as const).filter(
-    (section) => homeSections.includes(section),
-  );
+  const router = useRouter();
+  const openSearch = useUiStore((state) => state.openSearch);
+  const [newChapterOpen, setNewChapterOpen] = useState(false);
+
+  const actions: HomeAction[] = [
+    {
+      title: "Nova história",
+      description: "Criar um projeto do zero, com título e sinopse.",
+      icon: BookPlus,
+      run: () => router.push("/projects?novo=1"),
+    },
+    {
+      title: "Novo capítulo",
+      description: "Escolher um projeto existente e começar a escrever.",
+      icon: FilePlus2,
+      run: () => setNewChapterOpen(true),
+    },
+    {
+      title: "Localizar arquivos",
+      description: "Buscar capítulos, personagens, locais e notas.",
+      icon: Search,
+      run: openSearch,
+    },
+  ];
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-9 pt-2">
-      <header className="space-y-4">
+      <header className="space-y-4 text-center">
         <p className="eyebrow">Seu ateliê de escrita</p>
         <h1 className="display-title">Início</h1>
-        <p className="lead">
-          Escolha por onde começar. As seções desta página podem ser
-          personalizadas nas Configurações.
-        </p>
         <div aria-hidden className="hairline" />
       </header>
 
-      {showSearch && (
-        <section
-          id="inicio-busca"
-          aria-label="Buscar"
-          className="surface reveal p-4"
-        >
-          <SearchTool />
-        </section>
-      )}
-
-      {homeSections.includes("continue") && <ResumeWritingCard />}
-
-      {cards.length > 0 && (
-        <div className="grid gap-3 sm:grid-cols-2">
-          {cards.map((section, index) => {
-            const { title, description, href, icon: Icon } = SECTION_CARDS[section];
-            return (
-              <Link
-                key={section}
-                href={href}
-                style={{ "--i": index } as CSSProperties}
-                className="group reveal rounded-2xl outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+      <div className="grid gap-3">
+        {actions.map((action, index) => (
+          <button
+            key={action.title}
+            type="button"
+            onClick={action.run}
+            style={{ "--i": index } as CSSProperties}
+            className="group reveal rounded-2xl text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          >
+            <span className="surface surface-lift flex items-center gap-4 p-5 group-hover:bg-card">
+              <span className="grid size-11 shrink-0 place-items-center rounded-xl bg-muted/70 text-foreground/75 ring-1 ring-border/60">
+                <action.icon aria-hidden className="size-[1.15rem]" />
+              </span>
+              <span className="min-w-0 flex-1 space-y-1">
+                <span className="block font-serif text-[1.25rem] leading-tight font-medium tracking-tight">
+                  {action.title}
+                </span>
+                <span className="block text-sm leading-relaxed text-muted-foreground">
+                  {action.description}
+                </span>
+              </span>
+              <span
+                aria-hidden
+                className="text-muted-foreground/60 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
               >
-                <div className="surface surface-lift flex h-full flex-col gap-4 p-5 group-hover:bg-card">
-                  <div className="flex items-start justify-between">
-                    <span className="grid size-10 place-items-center rounded-xl bg-muted/70 text-foreground/75 ring-1 ring-border/60">
-                      <Icon aria-hidden className="size-[1.15rem]" />
-                    </span>
-                    <span
-                      aria-hidden
-                      className="text-muted-foreground/60 transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-foreground motion-reduce:transition-none"
-                    >
-                      →
-                    </span>
-                  </div>
-                  <span className="space-y-1.5">
-                    <span className="block font-serif text-[1.3rem] leading-tight font-medium tracking-tight">
-                      {title}
-                    </span>
-                    <span className="block text-sm leading-relaxed text-muted-foreground">
-                      {description}
-                    </span>
-                  </span>
-                </div>
-              </Link>
-            );
-          })}
-        </div>
-      )}
+                →
+              </span>
+            </span>
+          </button>
+        ))}
+      </div>
 
-      {!showSearch && cards.length === 0 && !homeSections.includes("continue") && (
-        <EmptyState
-          icon={<LayoutDashboard aria-hidden className="size-5" />}
-          title="Página em branco"
-          hint="Nenhuma seção selecionada. Escolha as seções em Configurações → Página inicial."
-        />
-      )}
+      <NewChapterDialog
+        open={newChapterOpen}
+        onOpenChange={setNewChapterOpen}
+      />
     </div>
   );
 }

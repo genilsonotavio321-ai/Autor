@@ -12,7 +12,7 @@ export interface SaveStatusIndicatorProps {
   savedAt: string | null;
 }
 
-/** Selo discreto de autosave no canto do editor. */
+/** Ícone de autosave do editor (fica ao lado do status do capítulo). */
 export function SaveStatusIndicator({
   status,
   dirty,
@@ -22,11 +22,20 @@ export function SaveStatusIndicator({
     <span
       data-testid="save-status"
       aria-live="polite"
-      className="pointer-events-none absolute bottom-2 left-2 z-10 inline-flex items-center rounded-full bg-card/80 px-2 py-1 backdrop-blur-sm"
+      title={
+        status === "saving"
+          ? "Salvando…"
+          : status === "error"
+            ? "Erro ao salvar"
+            : savedAt
+              ? `Salvo ${formatRelativeTime(savedAt)}`
+              : "Nenhuma alteração ainda"
+      }
+      className="inline-flex size-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
     >
       <Cloud
         aria-hidden
-        className={`size-3.5 ${
+        className={`size-4 ${
           status === "saving"
             ? "animate-pulse text-foreground"
             : status === "error"

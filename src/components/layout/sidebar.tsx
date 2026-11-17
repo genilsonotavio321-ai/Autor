@@ -1,12 +1,13 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronDown } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import { Button } from "@/components/ui/button";
 import { ProjectPicker } from "@/features/projects/ui/project-picker";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";

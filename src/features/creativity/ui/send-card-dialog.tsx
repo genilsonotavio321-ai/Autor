@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/infra/navigation/use-app-router";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";

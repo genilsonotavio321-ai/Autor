@@ -1,6 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject, waitForToastCycle } from "./helpers";
+import {
+  chapterLink,
+  createChapter,
+  createProject,
+  openChapterEditor,
+  waitForToastCycle,
+} from "./helpers";
 
 test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   page,
@@ -15,8 +21,7 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   await createChapter(page, "Capítulo 1");
   const firstChapter = chapterLink(page, "Capítulo 1");
   await expect(firstChapter).toBeVisible();
-  await firstChapter.click();
-  await page.waitForURL(/\/write\//);
+  await openChapterEditor(page, "Capítulo 1");
   const editorUrl = page.url();
 
   // Type and wait for the debounced autosave to confirm.
@@ -26,24 +31,18 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
     timeout: 5_000,
   });
 
-  // Focus mode hides the app chrome; Escape restores it.
-  await page.getByRole("button", { name: /modo foco/i }).click();
-  await expect(page.locator("aside")).toHaveCount(0);
-  await page.keyboard.press("Escape");
-  await expect(page.locator("aside")).toHaveCount(1);
-
   // Autosave survives a reload.
   await page.reload();
   await expect(page.locator(".ProseMirror")).toContainText(
     "Era uma vez uma história.",
   );
 
-  // Dashboard resume button points back to this chapter.
-  await page.goto("/dashboard");
-  const resume = page.getByRole("link", { name: /Continuar escrevendo/ });
-  await expect(resume).toBeVisible();
-  await resume.click();
-  await expect(page).toHaveURL(editorUrl);
+  // Abrir o app na raiz retoma este capítulo (retomada automática).
+  await page.addInitScript(() => {
+    window.sessionStorage.removeItem("autor-resume-done");
+  });
+  await page.goto("/");
+  await expect(page).toHaveURL(editorUrl, { timeout: 10_000 });
 
   // Soft-delete the chapter and restore it via the toast action.
   await page.goto(projectUrl);
@@ -56,25 +55,20 @@ test("fluxo completo: projeto → capítulo → editor com autosave", async ({
   await expect(chapterLink(page, "Capítulo 1")).toBeVisible();
 });
 
-test("aba Arquivados guarda os projetos arquivados", async ({ page }) => {
+test("arquivados ficam numa lista oculta na aba Projetos", async ({ page }) => {
   await createProject(page, "Projeto Guardado");
 
   await page.getByRole("button", { name: "Mais ações" }).click();
   await page.getByRole("menuitem", { name: "Arquivar projeto" }).click();
   await waitForToastCycle(page);
 
-  // Arquivado sai da aba Ativos e fica guardado na aba Arquivados.
-  // (O rodapé da sidebar tem um seletor de projeto — mira no título do card.)
+  // Arquivado sai da lista principal e só aparece quando revelado.
   await page.goto("/projects");
-  await expect(
-    page.getByRole("heading", { name: "Projeto Guardado" }),
-  ).toHaveCount(0);
+  const card = page.getByRole("link", { name: /^Projeto Guardado/ });
+  await expect(card).toHaveCount(0);
 
-  await page.getByRole("tab", { name: "Arquivados" }).click();
-  await expect(
-    page.getByRole("heading", { name: "Projeto Guardado" }),
-  ).toBeVisible();
-  await expect(page.getByText("Nenhum projeto arquivado")).toHaveCount(0);
+  await page.getByRole("button", { name: /Mostrar arquivados/ }).click();
+  await expect(card).toBeVisible();
 });
 
 test("mover projeto para a lixeira e restaurar", async ({ page }) => {

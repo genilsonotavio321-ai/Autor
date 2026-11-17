@@ -25,6 +25,7 @@ import { Textarea } from "@/components/ui/textarea";
 import type { Character, EntityId, Location, LoreEntry } from "@/shared/types/database";
 
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
+import { setEntityFolderId } from "@/features/folders/infra/dexie-folder-repository";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
 
 interface LoreDialogProps {
@@ -92,6 +93,11 @@ export function LoreDialog({
               ? initialOwnerId
               : null,
         });
+        // Trocar de aba (lore ↔ objetos) troca também a árvore de pastas:
+        // solta o card da pasta da outra aba para não sumir com ela depois.
+        if (entry.isTrackableItem !== isTrackableItem) {
+          await setEntityFolderId("lore", entry.id, undefined);
+        }
         toast.success("Entrada atualizada");
       } else {
         await loreEntryRepository.create({

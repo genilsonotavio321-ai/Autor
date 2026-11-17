@@ -11,6 +11,13 @@ export interface ProjectEntry {
 
 const collator = new Intl.Collator("pt-BR", { sensitivity: "base" });
 
+/** Ordem manual: `order` crescente (projetos sem ordem vão para o fim). */
+function compareManual(a: ProjectEntry, b: ProjectEntry): number {
+  const orderA = a.project.order ?? Number.MAX_SAFE_INTEGER;
+  const orderB = b.project.order ?? Number.MAX_SAFE_INTEGER;
+  return orderA - orderB || collator.compare(a.project.title, b.project.title);
+}
+
 /** Returns a new, sorted copy of `entries` according to `sort`. */
 export function sortProjectEntries(
   entries: ProjectEntry[],
@@ -18,6 +25,9 @@ export function sortProjectEntries(
 ): ProjectEntry[] {
   const next = [...entries];
   switch (sort) {
+    case "manual":
+      next.sort(compareManual);
+      break;
     case "updated-desc":
       next.sort((a, b) => b.project.updatedAt.localeCompare(a.project.updatedAt));
       break;

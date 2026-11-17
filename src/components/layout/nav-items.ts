@@ -61,11 +61,12 @@ export const navGroups: NavGroup[] = [
   },
 ];
 
-/** Abas fixas da barra inferior (mobile). O resto vive no sheet "Mais". */
+/** Atalhos fixos da barra flutuante (mobile). O resto vive no menu "Mais". */
 export const mobileTabs: NavItem[] = [
   { title: "Escrever", href: "/projects", icon: PenLine },
-  { title: "Estrutura", href: "/outline", icon: ListTree },
-  { title: "Fichas", href: "/characters", icon: Users },
+  { title: "Personagens", href: "/characters", icon: Users },
+  { title: "Mundo", href: "/world", icon: Globe },
+  { title: "Notas", href: "/notes", icon: StickyNote },
 ];
 
 export const BrandIcon = Feather;

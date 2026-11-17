@@ -43,15 +43,17 @@ test("notas: visualizar, editar, ordenar e arrastar", async ({ page }) => {
   await waitNoToasts(page);
 
   // E5: ordenação A–Z, com o critério persistido após recarregar.
-  await page.getByLabel("Ordenar notas").click();
-  await page.getByRole("option", { name: /Título \(A/ }).click();
+  await page.getByRole("button", { name: /^Ordenar notas/ }).click();
+  await page.getByRole("menuitem", { name: /Título \(A/ }).click();
   await expect(page
         .getByRole("region", { name: "Notas", exact: true })
         .locator("li")
         .first()).toContainText("Alfa");
 
   await page.reload();
-  await expect(page.getByLabel("Ordenar notas")).toContainText(/Título \(A/);
+  await expect(
+    page.getByRole("button", { name: /Ordenar notas — Título \(A/ }),
+  ).toBeVisible();
   await expect(page
         .getByRole("region", { name: "Notas", exact: true })
         .locator("li")
@@ -68,8 +70,7 @@ test("excluir todas move as notas para a lixeira", async ({ page }) => {
   await addNote(page, "Segunda", "b");
   await waitNoToasts(page);
 
-  await page.getByRole("button", { name: "Mais opções de notas" }).click();
-  await page.getByRole("menuitem", { name: "Excluir" }).click();
+  await page.getByRole("button", { name: "Excluir todas as notas" }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toContainText("serão movidas para a lixeira");
   await confirm.getByRole("button", { name: "Excluir todas" }).click();
@@ -89,10 +90,9 @@ test("importa notas de um arquivo .md pelo menu", async ({ page }) => {
   await page.goto("/notes");
   await waitNoToasts(page);
 
-  await page.getByRole("button", { name: "Mais opções de notas" }).click();
   const [chooser] = await Promise.all([
     page.waitForEvent("filechooser"),
-    page.getByRole("menuitem", { name: "Importar notas" }).click(),
+    page.getByRole("button", { name: "Importar notas" }).click(),
   ]);
   await chooser.setFiles({
     name: "notas.md",
@@ -137,5 +137,7 @@ test.fixme("notas: reordenar por teclado persiste na ordem manual", async ({
   await expect(
     page.getByRole("region", { name: "Notas", exact: true }).locator("li").nth(1),
   ).toContainText("Gama", { timeout: 15_000 });
-  await expect(page.getByLabel("Ordenar notas")).toContainText("Ordem manual");
+  await expect(
+    page.getByRole("button", { name: /Ordenar notas — Ordem manual/ }),
+  ).toBeVisible();
 });

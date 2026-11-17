@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { addCharacter, createProject } from "./helpers";
+import { addCharacter, createProject, gotoHome, openSearch } from "./helpers";
 
 test("resultados da busca abrem o destino com o diálogo certo", async ({
   page,
@@ -16,18 +16,18 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   await page.getByRole("button", { name: "Salvar" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // Projeto → página do projeto. (Sem rota /search: a busca vive na home.)
-  await page.goto("/");
-  await page.getByLabel("Buscar no acervo").fill("Deeplink");
-  const project = page.getByRole("link", { name: /Projeto Deeplink/ });
+  // Projeto → página do projeto.
+  await gotoHome(page);
+  await (await openSearch(page)).fill("Deeplink");
+  const project = page.getByRole("option", { name: /Projeto Deeplink/ });
   await expect(project).toBeVisible();
   await project.click();
   await expect(page).toHaveURL(/\/projects\/[0-9a-f-]+$/);
 
   // Personagem → /characters com a ficha aberta.
-  await page.goto("/");
-  await page.getByLabel("Buscar no acervo").fill("Helena");
-  await page.getByRole("link", { name: /Helena/ }).click();
+  await gotoHome(page);
+  await (await openSearch(page)).fill("Helena");
+  await page.getByRole("option", { name: /Helena/ }).click();
   await expect(page).toHaveURL(/\/characters/);
   const characterDialog = page.getByRole("dialog");
   await expect(characterDialog).toBeVisible();
@@ -36,9 +36,9 @@ test("resultados da busca abrem o destino com o diálogo certo", async ({
   ).toBeVisible();
 
   // Nota → visualização aberta em /notes.
-  await page.goto("/");
-  await page.getByLabel("Buscar no acervo").fill("farol");
-  await page.getByRole("link", { name: /Pista do farol/ }).click();
+  await gotoHome(page);
+  await (await openSearch(page)).fill("farol");
+  await page.getByRole("option", { name: /Pista do farol/ }).click();
   await expect(page).toHaveURL(/\/notes/);
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible();

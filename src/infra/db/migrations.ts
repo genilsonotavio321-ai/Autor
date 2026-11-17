@@ -156,6 +156,23 @@ export const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 2,
+    description: "Ordem manual dos projetos (base do arraste na biblioteca)",
+    upgrade: async (db) => {
+      const projects = await db.projects.toArray();
+      const live = projects
+        .filter((project) => !project.deletedAt)
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+      for (const [index, project] of live.entries()) {
+        if (typeof project.order === "number") continue;
+        await db.projects
+          .where("id")
+          .equals(project.id)
+          .modify({ order: index + 1 });
+      }
+    },
+  },
 ];
 
 const DATA_VERSION_KEY = "dataVersion";

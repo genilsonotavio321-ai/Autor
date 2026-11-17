@@ -1,6 +1,10 @@
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, openAdvancedSettings } from "./helpers";
+import {
+  createChapter,
+  openAdvancedSettings,
+  openChapterEditor,
+} from "./helpers";
 
 import { createProject } from "./helpers";
 
@@ -11,7 +15,7 @@ test.describe("Grifar no modo leitura", () => {
     test.setTimeout(60_000);
     await createProject(page, "Projeto Grifar Read");
     await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
     const editor = page.locator(".ProseMirror");
     await editor.click();
     await page.keyboard.type("Trecho para grifar no modo leitura.");
@@ -20,10 +24,11 @@ test.describe("Grifar no modo leitura", () => {
     });
 
     await page.goto("/read");
+    // O botão vive na barra e só habilita com texto selecionado.
+    const grifarButton = page.getByRole("button", { name: "Grifar seleção" });
+    await expect(grifarButton).toBeDisabled();
     await page.locator(".ProseMirror").selectText();
-
-    const grifarButton = page.getByTestId("read-grifar-button");
-    await expect(grifarButton).toBeVisible();
+    await expect(grifarButton).toBeEnabled();
     await grifarButton.click();
     await expect(page.locator(".ProseMirror span.grifar")).toContainText(
       "Trecho para grifar",

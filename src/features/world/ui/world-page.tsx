@@ -2,23 +2,16 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
-  DndContext,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
-  closestCenter,
   useSensor,
   useSensors,
   type Announcements,
   type DragEndEvent,
   type UniqueIdentifier,
 } from "@dnd-kit/core";
-import {
-  SortableContext,
-  arrayMove,
-  rectSortingStrategy,
-  sortableKeyboardCoordinates,
-} from "@dnd-kit/sortable";
+import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { toast } from "sonner";
@@ -26,9 +19,20 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { formatRelativeTime } from "@/shared/lib/dates";
-import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { PageActionBar } from "@/components/layout/action-bar";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
 import {
@@ -43,9 +47,7 @@ import {
 } from "@/features/folders/domain/folder-tree";
 import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
-import { FolderBackBar } from "@/features/folders/ui/folder-back-bar";
 import { FolderCard } from "@/features/folders/ui/folder-card";
-import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type {
   EntityId,
   Folder,
@@ -59,9 +61,10 @@ import { locationRepository } from "../infra/dexie-location-repository";
 import { loreEntryRepository } from "../infra/dexie-lore-entry-repository";
 import { partitionLoreEntries } from "../domain/lore-entry-collections";
 
-import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { LocationDialog } from "./location-dialog";
 import { LoreDialog } from "./lore-dialog";
+import { WorldFolderBoard } from "./world-folder-board";
+import { LocationViewDialog, LoreViewDialog } from "./world-view-dialogs";
 
 export function WorldPage() {
   const { projectId } = useSelectedProject();
@@ -565,6 +568,35 @@ export function WorldPage() {
     }
   }
 
+  /** Pasta vazia da categoria carregada, dentro da pasta aberta. */
+  async function createFolderForTab() {
+    if (!projectId) return;
+    const kind =
+      worldTab === "locations"
+        ? "location"
+        : worldTab === "items"
+          ? "item"
+          : "lore";
+    const parentId =
+      kind === "location"
+        ? openLocationFolderId
+        : kind === "item"
+          ? openItemFolderId
+          : openLoreFolderId;
+    try {
+      // Não abre a pasta nova: o liveQuery das pastas chega depois, e o
+      // guard de "pasta morta" a fecharia de volta (a pasta aparecia, mas a
+      // navegação sumia). O card novo fica na lista do nível atual.
+      await folderRepository.create({
+        projectId,
+        kind,
+        ...(parentId ? { parentId } : {}),
+      });
+    } catch {
+      toast.error("Falha ao criar a pasta");
+    }
+  }
+
   function exitFolder(
     current: Folder | null | undefined,
     liveIds: Set<string>,
@@ -591,54 +623,52 @@ export function WorldPage() {
             ? `${locations.length} ${locations.length === 1 ? "local" : "locais"} · ${allLoreEntries.length} ${allLoreEntries.length === 1 ? "entrada" : "entradas"}`
             : undefined
         }
-      >
-        {projectId !== null ? (
-          worldTab === "locations" ? (
-            <NewFolderButton
-              kind="location"
-              projectId={projectId}
-              parentId={openLocationFolderId ?? undefined}
-              onCreated={(folder) => setOpenLocationFolderId(folder.id)}
-            />
-          ) : worldTab === "items" ? (
-            <NewFolderButton
-              kind="item"
-              projectId={projectId}
-              parentId={openItemFolderId ?? undefined}
-              onCreated={(folder) => setOpenItemFolderId(folder.id)}
-            />
-          ) : (
-            <NewFolderButton
-              kind="lore"
-              projectId={projectId}
-              parentId={openLoreFolderId ?? undefined}
-              onCreated={(folder) => setOpenLoreFolderId(folder.id)}
-            />
-          )
-        ) : null}
-        {projectId !== null ? (
-          worldTab === "locations" ? (
-            <Button onClick={() => setLocationDialog({ open: true })}>
-              <Plus aria-hidden />
-              Novo local
-            </Button>
-          ) : worldTab === "items" ? (
+      />
+
+      <PageActionBar>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
             <Button
-              onClick={() =>
-                setLoreDialog({ open: true, isTrackableItem: true })
-              }
+              size="icon"
+              className="rounded-full"
+              aria-label="Adicionar ao mundo"
+              title="Adicionar ao mundo"
+              disabled={projectId === null}
             >
               <Plus aria-hidden />
-              Novo objeto
             </Button>
-          ) : (
-            <Button onClick={() => setLoreDialog({ open: true })}>
-              <Plus aria-hidden />
-              Nova entrada
-            </Button>
-          )
-        ) : null}
-      </PageHeader>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            {worldTab === "locations" ? (
+              <DropdownMenuItem
+                onSelect={() => setLocationDialog({ open: true })}
+              >
+                Local
+              </DropdownMenuItem>
+            ) : null}
+            {worldTab === "lore" ? (
+              <DropdownMenuItem onSelect={() => setLoreDialog({ open: true })}>
+                Entrada
+              </DropdownMenuItem>
+            ) : null}
+            {worldTab === "items" ? (
+              <DropdownMenuItem
+                onSelect={() =>
+                  setLoreDialog({ open: true, isTrackableItem: true })
+                }
+              >
+                Objeto
+              </DropdownMenuItem>
+            ) : null}
+            <DropdownMenuItem
+              disabled={projectId === null}
+              onSelect={() => void createFolderForTab()}
+            >
+              Pasta
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </PageActionBar>
 
       {projectId === null ? (
         <EmptyState
@@ -646,49 +676,55 @@ export function WorldPage() {
           hint="Crie um projeto para mapear locais e o lore da sua história."
         />
       ) : (
-        <Tabs value={worldTab} onValueChange={setWorldTab}>
-          <TabsList>
-            <TabsTrigger value="locations">Locais</TabsTrigger>
-            <TabsTrigger value="lore">Lore</TabsTrigger>
-            <TabsTrigger value="items">Objetos</TabsTrigger>
-          </TabsList>
+        <>
+          <div className="mt-6 flex items-center justify-between gap-3">
+            <Select
+              value={worldTab}
+              onValueChange={(value) => {
+                setWorldTab(value);
+                // Trocar de categoria volta para a raiz de pastas.
+                setOpenLocationFolderId(null);
+                setOpenLoreFolderId(null);
+                setOpenItemFolderId(null);
+              }}
+            >
+              <SelectTrigger className="h-9 w-48" aria-label="O que carregar">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="locations">Locais</SelectItem>
+                <SelectItem value="lore">Lore</SelectItem>
+                <SelectItem value="items">Objetos</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-          <TabsContent value="locations" className="mt-6 grid gap-3">
-            {locations.length === 0 ? (
+          {worldTab === "locations" ? (
+          <div className="mt-4 grid gap-3">
+            {locations.length === 0 && locationFolders.length === 0 ? (
               <EmptyState
                 title="Nenhum local ainda"
                 hint="Registre cidades, castelos e paisagens do seu universo."
               />
             ) : (
-              <DndContext
+              <WorldFolderBoard
                 sensors={sensors}
-                collisionDetection={closestCenter}
-                accessibility={{ announcements }}
-                onDragStart={(event) => {
-                  handleDragStart();
-                  locationHint.onDragStart(event);
-                }}
-                onDragMove={locationHint.onDragMove}
-                onDragOver={locationHint.onDragOver}
-                onDragEnd={(event) => {
-                  locationHint.onDragEnd();
-                  handleLocationDragEnd(event);
-                }}
-                onDragCancel={() => {
-                  locationHint.onDragCancel();
-                  handleDragCancel();
-                }}
+                announcements={announcements}
+                hint={locationHint}
+                viewIds={viewLocationIds}
+                currentFolder={currentLocationFolder}
+                onExitFolder={exitLocationFolder}
+                emptyFolderHint={
+                  openLocationFolderId !== null &&
+                  viewLocationFolders.length === 0 &&
+                  visibleLocations.length === 0
+                    ? "Pasta vazia. Arraste locais até aqui."
+                    : undefined
+                }
+                onDragStart={handleDragStart}
+                onDragEnd={handleLocationDragEnd}
+                onDragCancel={handleDragCancel}
               >
-                {currentLocationFolder ? (
-                  <FolderBackBar
-                    title={currentLocationFolder.name}
-                    onBack={exitLocationFolder}
-                  />
-                ) : null}
-                <SortableContext
-                  items={viewLocationIds}
-                  strategy={rectSortingStrategy}
-                >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
                     {viewLocationFolders.map((folder) => (
                       <FolderCard
@@ -719,53 +755,37 @@ export function WorldPage() {
                       />
                     ))}
                   </ul>
-                </SortableContext>
-                {openLocationFolderId !== null &&
-                viewLocationFolders.length === 0 &&
-                visibleLocations.length === 0 ? (
-                  <EmptyState hint="Pasta vazia. Arraste locais até aqui." />
-                ) : null}
-                {locationHint.hint}
-              </DndContext>
+              </WorldFolderBoard>
             )}
-          </TabsContent>
+          </div>
+          ) : null}
 
-          <TabsContent value="lore" className="mt-6 grid gap-3">
-            {loreEntries.length === 0 ? (
+          {worldTab === "lore" ? (
+          <div className="mt-4 grid gap-3">
+            {loreEntries.length === 0 && loreFolders.length === 0 ? (
               <EmptyState
                 title="Nenhuma entrada de lore"
                 hint="Documente história, mitologia e regras do seu mundo."
               />
             ) : (
-              <DndContext
+              <WorldFolderBoard
                 sensors={sensors}
-                collisionDetection={closestCenter}
-                accessibility={{ announcements }}
-                onDragStart={(event) => {
-                  handleDragStart();
-                  loreHint.onDragStart(event);
-                }}
-                onDragMove={loreHint.onDragMove}
-                onDragOver={loreHint.onDragOver}
-                onDragEnd={(event) => {
-                  loreHint.onDragEnd();
-                  handleLoreDragEnd(event);
-                }}
-                onDragCancel={() => {
-                  loreHint.onDragCancel();
-                  handleDragCancel();
-                }}
+                announcements={announcements}
+                hint={loreHint}
+                viewIds={viewLoreIds}
+                currentFolder={currentLoreFolder}
+                onExitFolder={exitLoreFolder}
+                emptyFolderHint={
+                  openLoreFolderId !== null &&
+                  viewLoreFolders.length === 0 &&
+                  visibleLoreEntries.length === 0
+                    ? "Pasta vazia. Arraste entradas até aqui."
+                    : undefined
+                }
+                onDragStart={handleDragStart}
+                onDragEnd={handleLoreDragEnd}
+                onDragCancel={handleDragCancel}
               >
-                {currentLoreFolder ? (
-                  <FolderBackBar
-                    title={currentLoreFolder.name}
-                    onBack={exitLoreFolder}
-                  />
-                ) : null}
-                <SortableContext
-                  items={viewLoreIds}
-                  strategy={rectSortingStrategy}
-                >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3">
                     {viewLoreFolders.map((folder) => (
                       <FolderCard
@@ -789,53 +809,37 @@ export function WorldPage() {
                       />
                     ))}
                   </ul>
-                </SortableContext>
-                {openLoreFolderId !== null &&
-                viewLoreFolders.length === 0 &&
-                visibleLoreEntries.length === 0 ? (
-                  <EmptyState hint="Pasta vazia. Arraste entradas até aqui." />
-                ) : null}
-                {loreHint.hint}
-              </DndContext>
+              </WorldFolderBoard>
             )}
-          </TabsContent>
+          </div>
+          ) : null}
 
-          <TabsContent value="items" className="mt-6 grid gap-3">
+          {worldTab === "items" ? (
+          <div className="mt-4 grid gap-3">
             {trackableItems.length === 0 && itemFolders.length === 0 ? (
               <EmptyState
                 title="Nenhum objeto rastreável"
                 hint="Cadastre objetos para acompanhar posse e estado na linha do tempo."
               />
             ) : (
-              <DndContext
+              <WorldFolderBoard
                 sensors={sensors}
-                collisionDetection={closestCenter}
-                accessibility={{ announcements }}
-                onDragStart={(event) => {
-                  handleDragStart();
-                  itemHint.onDragStart(event);
-                }}
-                onDragMove={itemHint.onDragMove}
-                onDragOver={itemHint.onDragOver}
-                onDragEnd={(event) => {
-                  itemHint.onDragEnd();
-                  handleItemDragEnd(event);
-                }}
-                onDragCancel={() => {
-                  itemHint.onDragCancel();
-                  handleDragCancel();
-                }}
+                announcements={announcements}
+                hint={itemHint}
+                viewIds={viewItemIds}
+                currentFolder={currentItemFolder}
+                onExitFolder={exitItemFolder}
+                emptyFolderHint={
+                  currentItemFolder &&
+                  viewItemFolders.length === 0 &&
+                  visibleTrackableItems.length === 0
+                    ? "Pasta vazia. Arraste objetos até aqui."
+                    : undefined
+                }
+                onDragStart={handleDragStart}
+                onDragEnd={handleItemDragEnd}
+                onDragCancel={handleDragCancel}
               >
-                {currentItemFolder ? (
-                  <FolderBackBar
-                    title={currentItemFolder.name}
-                    onBack={exitItemFolder}
-                  />
-                ) : null}
-                <SortableContext
-                  items={viewItemIds}
-                  strategy={rectSortingStrategy}
-                >
                   <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-3 lg:grid-cols-3">
                     {viewItemFolders.map((folder) => (
                       <FolderCard
@@ -866,17 +870,11 @@ export function WorldPage() {
                       />
                     ))}
                   </ul>
-                </SortableContext>
-                {currentItemFolder &&
-                viewItemFolders.length === 0 &&
-                visibleTrackableItems.length === 0 ? (
-                  <EmptyState hint="Pasta vazia. Arraste objetos até aqui." />
-                ) : null}
-                {itemHint.hint}
-              </DndContext>
+              </WorldFolderBoard>
             )}
-          </TabsContent>
-        </Tabs>
+          </div>
+          ) : null}
+        </>
       )}
 
       <LocationDialog
@@ -899,87 +897,27 @@ export function WorldPage() {
         isTrackableItemDefault={loreDialog.isTrackableItem ?? false}
       />
 
-      <EntityViewDialog
-        open={viewLocation !== null}
-        title={viewLocation?.name ?? ""}
-        subtitle={
-          viewLocation
-            ? `Atualizado ${formatRelativeTime(viewLocation.updatedAt)}`
-            : undefined
-        }
-        sections={
-          viewLocation
-            ? [
-                { label: "Tipo", value: viewLocation.type },
-                {
-                  label: "Ficha-mãe",
-                  value:
-                    locations.find(
-                      (item) => item.id === viewLocation.parentId,
-                    )?.name ?? "",
-                },
-                { label: "Descrição", value: viewLocation.description ?? "" },
-              ].filter((section) => section.value.length > 0)
-            : []
-        }
-        onEdit={() => {
-          if (!viewLocation) return;
-          const location = viewLocation;
+      <LocationViewDialog
+        location={viewLocation}
+        locations={locations}
+        onEdit={(location) => {
           setViewLocation(null);
           setLocationDialog({ open: true, location });
         }}
-        onTrash={() => {
-          if (!viewLocation) return;
-          const location = viewLocation;
+        onTrash={(location) => {
           setViewLocation(null);
           void removeLocation(location);
         }}
-        onOpenChange={(open) => {
-          if (!open) setViewLocation(null);
-        }}
-        gallery={
-          <ImageAttachments
-            readOnly
-            entityType="location"
-            entityId={viewLocation?.id}
-          />
-        }
+        onClose={() => setViewLocation(null)}
       />
 
-      <EntityViewDialog
-        open={viewLore !== null}
-        title={viewLore?.title ?? ""}
-        subtitle={
-          viewLore ? `Atualizada ${formatRelativeTime(viewLore.updatedAt)}` : undefined
-        }
-        sections={
-          viewLore
-            ? [
-                { label: "Categoria", value: viewLore.category },
-                {
-                  label: "Conteúdo",
-                  value:
-                    typeof viewLore.content === "string" ? viewLore.content : "",
-                },
-              ].filter((section) => section.value.length > 0)
-            : []
-        }
-        onEdit={() => {
-          if (!viewLore) return;
-          const entry = viewLore;
+      <LoreViewDialog
+        entry={viewLore}
+        onEdit={(entry) => {
           setViewLore(null);
           setLoreDialog({ open: true, entry });
         }}
-        onOpenChange={(open) => {
-          if (!open) setViewLore(null);
-        }}
-        gallery={
-          <ImageAttachments
-            readOnly
-            entityType="lore"
-            entityId={viewLore?.id}
-          />
-        }
+        onClose={() => setViewLore(null)}
       />
     </div>
   );

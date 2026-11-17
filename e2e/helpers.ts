@@ -45,7 +45,8 @@ export async function createChapter(page: Page, title?: string) {
   // editor; guardamos o rótulo (já depois da troca acima) para restaurar.
   const tabs = page.getByRole("tab", { selected: true });
   const activeTab = (await tabs.count()) ? await tabs.first().textContent() : null;
-  const links = page.locator('a[href^="/write/"]');
+  // Na lista do projeto o capítulo abre a leitura; na Estrutura ainda é /write.
+  const links = page.locator('a[href^="/write/"], a[href*="chapter="]');
   const before = await links.count();
   if (await projectButton.count()) {
     await projectButton.last().click();
@@ -60,14 +61,23 @@ export async function createChapter(page: Page, title?: string) {
   if (!title) return;
 
   await link.click();
-  await page.waitForURL(/\/write\//);
+  // A lista de capítulos abre a leitura; a Estrutura vai direto ao editor.
+  await page.waitForURL(
+    (url) => url.pathname === "/read" || url.pathname.startsWith("/write/"),
+  );
+  if (new URL(page.url()).pathname === "/read") {
+    await page.getByRole("button", { name: "Editar capítulo" }).click();
+    await page.waitForURL(/\/write\//);
+  }
   // O autosave só agenda quando o editor Tiptap está montado.
   await expect(page.locator(".ProseMirror")).toBeVisible();
   await page.getByLabel("Título do capítulo").fill(title);
   // Debounce de 800ms do autosave.
   await page.waitForTimeout(1_400);
 
-  await page.goBack();
+  // `goto` em vez de `goBack`: a leitura limpa a query com `replaceState` e
+  // deixa uma entrada extra no histórico, então voltar caía em /read.
+  await page.goto(origin);
   const originPath = new URL(origin).pathname;
   await page.waitForURL((url) => url.pathname === originPath);
   if (activeTab && originPath === "/outline") {
@@ -106,6 +116,68 @@ export async function openAdvancedSettings(page: Page) {
   );
   if (!isOpen) await details.locator("summary").click();
   await expect(details).toHaveAttribute("open", "");
+}
+
+/**
+ * Abre a home sem disputar com a retomada do último capítulo: a guarda é
+ * marcada antes do primeiro script da página, então o redirecionamento
+ * assíncrono não pode chegar no meio do teste.
+ */
+export async function gotoHome(page: Page) {
+  await page.addInitScript(() => {
+    try {
+      window.sessionStorage.setItem("autor-resume-done", "1");
+    } catch {
+      // sessionStorage indisponível: o teste segue sem a guarda.
+    }
+  });
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Início" })).toBeVisible();
+}
+
+/**
+ * Abre a busca global pelo cartão "Localizar arquivos" da Início e devolve o
+ * campo de busca do popup, pronto para receber texto.
+ */
+export async function openSearch(page: Page) {
+  await page.getByRole("button", { name: /Localizar arquivos/ }).click();
+  const input = page.getByPlaceholder("Personagens, capítulos, configurações...");
+  await expect(input).toBeVisible();
+  return input;
+}
+
+/**
+ * Abre o editor de um capítulo a partir da lista do projeto (a lista em si
+ * leva à leitura; aqui pulamos direto para a escrita).
+ */
+export async function openChapterEditor(page: Page, title: string) {
+  await chapterLink(page, title).first().click();
+  await page.waitForURL(
+    (url) => url.pathname === "/read" || url.pathname.startsWith("/write/"),
+  );
+  if (new URL(page.url()).pathname === "/read") {
+    await page.getByRole("button", { name: "Editar capítulo" }).click();
+    await page.waitForURL(/\/write\//);
+  }
+  await expect(page.locator(".ProseMirror")).toBeVisible();
+}
+
+/** Escolhe a categoria carregada na página Mundo (uma por vez). */
+export async function chooseWorldCategory(
+  page: Page,
+  label: "Locais" | "Lore" | "Objetos",
+) {
+  await page.getByRole("combobox", { name: "O que carregar" }).click();
+  await page.getByRole("option", { name: label, exact: true }).click();
+}
+
+/** Abre o menu "+" do Mundo e escolhe o que criar. */
+export async function addWorldEntry(
+  page: Page,
+  kind: "Local" | "Entrada" | "Objeto",
+) {
+  await page.getByRole("button", { name: "Adicionar ao mundo" }).click();
+  await page.getByRole("menuitem", { name: kind, exact: true }).click();
 }
 
 /** Create a character through the UI and wait for the dialog to close. */

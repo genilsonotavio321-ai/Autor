@@ -2,7 +2,11 @@ import fs from "node:fs";
 
 import { expect, test } from "@playwright/test";
 
-import { chapterLink, createChapter, createProject } from "./helpers";
+import {
+  createChapter,
+  createProject,
+  openChapterEditor,
+} from "./helpers";
 
 test.describe("Fase 9 — celular e PDF", () => {
   test("renomear um capítulo preserva a última letra (autosave)", async ({
@@ -10,8 +14,7 @@ test.describe("Fase 9 — celular e PDF", () => {
   }) => {
     const url = await createProject(page, "Projeto Nome");
     await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
-    await expect(page.locator(".ProseMirror")).toBeVisible();
+    await openChapterEditor(page, "Capítulo 1");
 
     const title = page.getByLabel("Título do capítulo");
     await title.fill("");
@@ -83,7 +86,7 @@ test.describe("Fase 9 — celular e PDF", () => {
     test.setTimeout(90_000);
     await createProject(page, "Projeto PDF");
     await createChapter(page, "Capítulo 1");
-    await chapterLink(page, "Capítulo 1").click();
+    await openChapterEditor(page, "Capítulo 1");
 
     const editor = page.locator(".ProseMirror");
     await editor.click();
@@ -98,15 +101,11 @@ test.describe("Fase 9 — celular e PDF", () => {
     await expect(editor.locator("strong")).toHaveText("Negrito");
     await expect(editor.locator("em")).toHaveText("Italico");
 
-    // Centraliza o capítulo inteiro: o PDF precisa sair deslocado da margem.
-    // No Editor Simplificado a formatação vive no menu da seleção.
+    // Centraliza o parágrafo: o PDF precisa sair deslocado da margem.
+    // O botão de alinhamento alterna a cada clique: esquerda → centro.
     await page.keyboard.press("Home");
     await page.keyboard.press("Shift+End");
     await page.getByRole("button", { name: "Alinhamento" }).click();
-    await page
-      .getByRole("switch", { name: "Aplicar alinhamento ao capítulo inteiro" })
-      .click();
-    await page.getByRole("menuitem", { name: "Centro" }).click();
     await expect(editor.locator('p[style*="text-align: center"]')).toHaveCount(1);
     await expect(page.getByTestId("save-status")).toContainText("Salvo", {
       timeout: 5_000,

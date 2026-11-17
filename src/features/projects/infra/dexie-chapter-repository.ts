@@ -62,6 +62,13 @@ export class DexieChapterRepository implements ChapterRepository {
     return all.sort((a, b) => a.order - b.order);
   }
 
+  async listAll(): Promise<Chapter[]> {
+    await ensureDbReady();
+    return getDatabase()
+      .chapters.filter((chapter) => !chapter.deletedAt)
+      .toArray();
+  }
+
   async update(id: EntityId, patch: ChapterUpdateInput): Promise<Chapter> {
     await ensureDbReady();
     await getDatabase().chapters.update(id, { ...patch, updatedAt: nowIso() });

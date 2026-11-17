@@ -1,6 +1,6 @@
 import { useSortable } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import type { UniqueIdentifier } from "@dnd-kit/core";
+import type { Announcements, UniqueIdentifier } from "@dnd-kit/core";
 
 /**
  * `useSortable` com o "abre espaço" congelado: só o card arrastado se move, o
@@ -35,4 +35,23 @@ export function useCardSortable(
 /** Opacidade do card enquanto ele está sendo arrastado. */
 export function dragOpacity(isDragging: boolean): string {
   return isDragging ? "opacity-60" : "";
+}
+
+/**
+ * Anúncios para leitores de tela num arraste dnd-kit. O texto é contrato dos
+ * testes E2E, então vive num lugar só.
+ */
+export function buildAnnouncements(
+  labels: Map<UniqueIdentifier, string>,
+  fallback: string,
+): Announcements {
+  const labelFor = (id: UniqueIdentifier) => labels.get(id) ?? fallback;
+  return {
+    onDragStart: ({ active }) => `Arrastando ${labelFor(active.id)}.`,
+    onDragOver: ({ over }) =>
+      over ? `Sobre ${labelFor(over.id)}.` : "Fora de um destino.",
+    onDragEnd: ({ over }) =>
+      over ? `Solto sobre ${labelFor(over.id)}.` : "Fora de um destino.",
+    onDragCancel: () => "Arraste cancelado.",
+  };
 }

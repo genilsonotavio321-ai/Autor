@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { ensureDbReady } from "@/infra/db/ready";
 import { createId } from "@/shared/lib/id";
+import { applyOrderMoves, nextOrder } from "@/shared/lib/dexie-order";
 import { listDeletedRows, nowIso, restoreRow, softDeleteRow } from "@/shared/lib/dexie-trash";
 import type { EntityId, LastEdit, Project } from "@/shared/types/database";
 
@@ -14,6 +15,9 @@ export class DexieProjectRepository implements ProjectRepository {
   async create(input: ProjectCreateInput): Promise<Project> {
     await ensureDbReady();
     const now = nowIso();
+    const live = await getDatabase()
+      .projects.filter((project) => !project.deletedAt)
+      .toArray();
     const project: Project = {
       id: createId(),
       title: input.title,
@@ -22,6 +26,7 @@ export class DexieProjectRepository implements ProjectRepository {
       description: input.description,
       status: input.status,
       settings: {},
+      order: nextOrder(live),
       createdAt: now,
       updatedAt: now,
     };
@@ -53,6 +58,14 @@ export class DexieProjectRepository implements ProjectRepository {
     const updated = await getDatabase().projects.get(id);
     if (!updated) throw new Error(`Project not found: ${id}`);
     return updated;
+  }
+
+  async applyMoves(updates: { id: EntityId; order: number }[]): Promise<void> {
+    await ensureDbReady();
+    // Arrastar é organização: preserva `updatedAt` (ordenação por atividade).
+    await applyOrderMoves(getDatabase(), "projects", updates, {
+      touchUpdatedAt: false,
+    });
   }
 
   async updateLastEdit(id: EntityId, lastEdit: LastEdit): Promise<void> {

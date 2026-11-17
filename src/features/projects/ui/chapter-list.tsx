@@ -8,7 +8,6 @@ import {
   closestCenter,
   useSensor,
   useSensors,
-  type Announcements,
   type DragEndEvent,
   type DragOverEvent,
   type UniqueIdentifier,
@@ -23,7 +22,7 @@ import Link from "next/link";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
-import { useCardSortable } from "@/shared/lib/sortable";
+import { buildAnnouncements, useCardSortable } from "@/shared/lib/sortable";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -54,9 +53,11 @@ import { chapterRepository } from "../infra/dexie-chapter-repository";
 
 interface ChapterListProps {
   chapters: Chapter[];
+  /** Arquivados ficam estáticos: só a lista de ativos reordena. */
+  sortable?: boolean;
 }
 
-export function ChapterList({ chapters }: ChapterListProps) {
+export function ChapterList({ chapters, sortable = true }: ChapterListProps) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(KeyboardSensor, {
@@ -72,18 +73,10 @@ export function ChapterList({ chapters }: ChapterListProps) {
     return map;
   }, [chapters]);
 
-  const announcements = useMemo<Announcements>(() => {
-    const labelFor = (id: UniqueIdentifier) =>
-      titlesById.get(id) ?? "capítulo";
-    return {
-      onDragStart: ({ active }) => `Arrastando ${labelFor(active.id)}.`,
-      onDragOver: ({ over }) =>
-        over ? `Sobre ${labelFor(over.id)}.` : "Fora de um destino.",
-      onDragEnd: ({ over }) =>
-        over ? `Solto sobre ${labelFor(over.id)}.` : "Fora de um destino.",
-      onDragCancel: () => "Arraste cancelado.",
-    };
-  }, [titlesById]);
+  const announcements = useMemo(
+    () => buildAnnouncements(titlesById, "capítulo"),
+    [titlesById],
+  );
 
   function handleDragOver(event: DragOverEvent) {
     if (event.over) draggedOverId.current = String(event.over.id);
@@ -114,6 +107,18 @@ export function ChapterList({ chapters }: ChapterListProps) {
     );
   }
 
+  if (!sortable) {
+    return (
+      <ul className="surface divide-y divide-border/60 overflow-hidden">
+        {chapters.map((chapter, index) => (
+          <li key={chapter.id} className="relative">
+            <ChapterRow chapter={chapter} number={index + 1} />
+          </li>
+        ))}
+      </ul>
+    );
+  }
+
   return (
     <DndContext
       sensors={sensors}
@@ -128,7 +133,7 @@ export function ChapterList({ chapters }: ChapterListProps) {
       >
         <ul className="surface divide-y divide-border/60 overflow-hidden">
           {chapters.map((chapter, index) => (
-            <ChapterRow
+            <SortableChapterRow
               key={chapter.id}
               chapter={chapter}
               number={index + 1}
@@ -140,17 +145,40 @@ export function ChapterList({ chapters }: ChapterListProps) {
   );
 }
 
-function ChapterRow({
+function SortableChapterRow({
   chapter,
   number,
 }: {
   chapter: Chapter;
-  /** Posição na lista (não a `order` bruta: arquivados no meio deixam buracos). */
   number: number;
 }) {
-  const { setNodeRef, dragProps, style, isDragging } =
-    useCardSortable(chapter.id);
+  const { setNodeRef, dragProps, style, isDragging } = useCardSortable(
+    chapter.id,
+  );
+  return (
+    <li
+      ref={setNodeRef}
+      style={style}
+      data-dragging={isDragging || undefined}
+      className={`relative select-none transition-colors hover:bg-accent/30 ${
+        isDragging ? "opacity-60" : ""
+      }`}
+    >
+      <ChapterRow chapter={chapter} number={number} dragProps={dragProps} />
+    </li>
+  );
+}
 
+function ChapterRow({
+  chapter,
+  number,
+  dragProps,
+}: {
+  chapter: Chapter;
+  /** Posição na lista (não a `order` bruta: arquivados no meio deixam buracos). */
+  number: number;
+  dragProps?: Record<string, unknown>;
+}) {
   async function changeStatus(status: ChapterStatus) {
     try {
       await chapterRepository.update(chapter.id, { status });
@@ -197,13 +225,8 @@ function ChapterRow({
   }
 
   return (
-    <li
-      ref={setNodeRef}
-      style={style}
-      data-dragging={isDragging || undefined}
-      className={`relative select-none transition-colors hover:bg-accent/30 ${isDragging ? "opacity-60" : ""}`}
-    >
-      <div className="flex items-start gap-2 px-3 py-3.5">
+    <div className="flex items-start gap-2 px-3 py-3.5">
+      {dragProps ? (
         <button
           type="button"
           {...dragProps}
@@ -212,82 +235,79 @@ function ChapterRow({
         >
           <GripVertical aria-hidden />
         </button>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
-            <Link
-              href={`/write/${chapter.id}`}
-              className="block min-w-0 flex-1 font-serif text-base font-medium tracking-tight after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
-            >
-              <span className="mr-2 font-serif text-sm text-muted-foreground">
-                {number}.{" "}
-              </span>
-              {chapter.title}
-              {chapter.archived ? (
-                <Badge
-                  variant="outline"
-                  className="ml-2 align-middle text-[10px] font-normal"
-                >
-                  Arquivado
-                </Badge>
-              ) : null}
-            </Link>
-            <Select
-              value={chapter.status}
-              onValueChange={(value) =>
-                void changeStatus(value as ChapterStatus)
-              }
-            >
-              <SelectTrigger
-                className={`relative z-10 h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
-                aria-label={`Status de ${chapter.title}`}
+      ) : (
+        <span aria-hidden className="size-8 shrink-0" />
+      )}
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <Link
+            href={`/read?project=${chapter.projectId}&chapter=${chapter.id}`}
+            className="block min-w-0 flex-1 font-serif text-base font-medium tracking-tight after:absolute after:inset-0 after:content-[''] hover:underline focus-visible:underline focus-visible:outline-none"
+          >
+            <span className="mr-2 font-serif text-sm text-muted-foreground">
+              {number}.{" "}
+            </span>
+            {chapter.title}
+            {chapter.archived ? (
+              <Badge
+                variant="outline"
+                className="ml-2 align-middle text-[10px] font-normal"
               >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
-                  <SelectItem key={value} value={value}>
-                    <span
-                      aria-hidden
-                      className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
-                    />
-                    {label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
-            {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
-            {formatRelativeTime(chapter.updatedAt)}
-          </p>
+                Arquivado
+              </Badge>
+            ) : null}
+          </Link>
+          <Select
+            value={chapter.status}
+            onValueChange={(value) => void changeStatus(value as ChapterStatus)}
+          >
+            <SelectTrigger
+              className={`relative z-10 h-7 w-auto gap-2 rounded-full px-2 py-0 text-xs ${CHAPTER_STATUS_COLORS[chapter.status]}`}
+              aria-label={`Status de ${chapter.title}`}
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(CHAPTER_STATUS_LABELS).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  <span
+                    aria-hidden
+                    className={`size-2 rounded-full ${CHAPTER_STATUS_DOT[value as ChapterStatus]}`}
+                  />
+                  {label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="relative z-10 shrink-0"
-              aria-label={`Ações de ${chapter.title}`}
-            >
-              <MoreHorizontal aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => void toggleArchive()}>
-              <Archive aria-hidden />
-              {chapter.archived ? "Desarquivar" : "Arquivar"}
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              variant="destructive"
-              onClick={() => void remove()}
-            >
-              <Trash2 aria-hidden />
-              Excluir
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <p className="mt-0.5 text-xs text-muted-foreground">
+          {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
+          {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
+          {formatRelativeTime(chapter.updatedAt)}
+        </p>
       </div>
-    </li>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="relative z-10 shrink-0"
+            aria-label={`Ações de ${chapter.title}`}
+          >
+            <MoreHorizontal aria-hidden />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onClick={() => void toggleArchive()}>
+            <Archive aria-hidden />
+            {chapter.archived ? "Desarquivar" : "Arquivar"}
+          </DropdownMenuItem>
+          <DropdownMenuItem variant="destructive" onClick={() => void remove()}>
+            <Trash2 aria-hidden />
+            Excluir
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </div>
   );
 }

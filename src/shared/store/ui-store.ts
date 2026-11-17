@@ -9,6 +9,7 @@ export const EDITOR_FONT_SIZE_MAX = 24;
 
 /** Ordenação da lista de projetos (plan §7.10). */
 export type ProjectsSort =
+  | "manual"
   | "updated-desc"
   | "created-desc"
   | "created-asc"
@@ -17,6 +18,7 @@ export type ProjectsSort =
   | "reading-desc";
 
 export const PROJECTS_SORT_LABELS: Record<ProjectsSort, string> = {
+  manual: "Ordem manual (arraste)",
   "updated-desc": "Alterados recentemente",
   "created-desc": "Mais recentes",
   "created-asc": "Mais antigos",
@@ -43,15 +45,6 @@ export type ThemeVariantDark =
   | "ameixa"
   | "oceano"
   | "musgo";
-
-/** Seções oferecidas na página inicial (item 10). */
-export type HomeSection =
-  | "search"
-  | "projects"
-  | "dashboard"
-  | "data"
-  | "canvas"
-  | "continue";
 
 function clamp(value: number, min: number, max: number): number {
   if (Number.isNaN(value)) return min;
@@ -94,9 +87,9 @@ export const STALE_DAYS_MAX = 60;
 
 interface UiState {
   sidebarCollapsed: boolean;
+  /** Sidebar de ações do editor minimizada (vira um botão no cabeçalho). */
+  editorSidebarCollapsed: boolean;
   commandPaletteOpen: boolean;
-  /** Hides app chrome while writing (plan: focus mode). Not persisted. */
-  focusMode: boolean;
   /** Project currently shown in planning pages (outline, timeline, notes). */
   selectedProjectId: string | null;
   /** Personalização: fonte e tamanho do editor. */
@@ -104,17 +97,6 @@ interface UiState {
   editorFontSize: number;
   /** Meta diária de palavras. */
   dailyWordGoal: number;
-  /** Duração de uma sessão de sprint (minutos). */
-  sprintMinutes: number;
-  /** Cronômetro de sprint (transiente, não persiste). */
-  sprintRemaining: number;
-  sprintRunning: boolean;
-  sprintCompleted: number;
-  sprintAnnouncement: string;
-  /** Focus mode ligado pelo sprint — restaurado ao pausar/concluir. */
-  sprintFocusEngaged: boolean;
-  /** Tempo de exibição do botão "Continuar de onde parou" (segundos). */
-  resumeNoticeSeconds: number;
   /** Ordenação e disposição da lista de projetos. */
   projectsSort: ProjectsSort;
   projectsLayout: ProjectsLayout;
@@ -147,12 +129,8 @@ interface UiState {
   animationDuration: number;
   /** Transição de entrada ao trocar de seção/página. */
   pageTransitionEnabled: boolean;
-  /** Layout do editor enxuto: formatação só na seleção, botões dentro do editor. */
-  editorSimplified: boolean;
   /** Busca inclui seções/opções do app (item 3). */
   searchGlobalEnabled: boolean;
-  /** Seções da página inicial (item 4). */
-  homeSections: HomeSection[];
   /** Sorteios citam personagens do projeto. */
   promptCiteCharacters: boolean;
   /** Sorteios citam locais do projeto. */
@@ -185,20 +163,15 @@ interface UiState {
   setNotificationsStaleDays: (days: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
+  setEditorSidebarCollapsed: (collapsed: boolean) => void;
+  toggleEditorSidebarCollapsed: () => void;
   openCommandPalette: () => void;
   closeCommandPalette: () => void;
   toggleCommandPalette: () => void;
-  setFocusMode: (enabled: boolean) => void;
-  toggleFocusMode: () => void;
   setSelectedProjectId: (projectId: string | null) => void;
   setEditorFontFamily: (family: EditorFontFamily) => void;
   setEditorFontSize: (size: number) => void;
   setDailyWordGoal: (goal: number) => void;
-  setSprintMinutes: (minutes: number) => void;
-  toggleSprintRunning: () => void;
-  resetSprint: () => void;
-  completeSprint: () => void;
-  setResumeNoticeSeconds: (seconds: number) => void;
   setProjectsSort: (sort: ProjectsSort) => void;
   setProjectsLayout: (layout: ProjectsLayout) => void;
   setMentionHighlightEnabled: (enabled: boolean) => void;
@@ -218,9 +191,7 @@ interface UiState {
   setThemeVariantDark: (variant: ThemeVariantDark) => void;
   setAnimationDuration: (duration: number) => void;
   setPageTransitionEnabled: (enabled: boolean) => void;
-  setEditorSimplified: (enabled: boolean) => void;
   setSearchGlobalEnabled: (enabled: boolean) => void;
-  setHomeSections: (sections: HomeSection[]) => void;
   setPromptCiteCharacters: (enabled: boolean) => void;
   setPromptCiteLocations: (enabled: boolean) => void;
   setPanelTabVisible: (visible: boolean) => void;
@@ -254,19 +225,12 @@ export const useUiStore = create<UiState>()(
   persist(
     (set) => ({
       sidebarCollapsed: false,
+      editorSidebarCollapsed: false,
       commandPaletteOpen: false,
-      focusMode: false,
       selectedProjectId: null,
       editorFontFamily: "serif",
       editorFontSize: 18,
       dailyWordGoal: 500,
-      sprintMinutes: 25,
-      sprintRemaining: 25 * 60,
-      sprintRunning: false,
-      sprintCompleted: 0,
-      sprintAnnouncement: "",
-      sprintFocusEngaged: false,
-      resumeNoticeSeconds: 5,
       projectsSort: "updated-desc",
       projectsLayout: "grid",
       mentionHighlightEnabled: true,
@@ -283,11 +247,9 @@ export const useUiStore = create<UiState>()(
       animationsEnabled: true,
       animationDuration: 150,
       pageTransitionEnabled: true,
-      editorSimplified: true,
       themeVariantLight: "papel",
       themeVariantDark: "tinta",
       searchGlobalEnabled: true,
-      homeSections: ["search", "projects", "data"],
       promptCiteCharacters: true,
       promptCiteLocations: false,
       panelTabVisible: false,
@@ -304,13 +266,16 @@ export const useUiStore = create<UiState>()(
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
+      setEditorSidebarCollapsed: (collapsed) =>
+        set({ editorSidebarCollapsed: collapsed }),
+      toggleEditorSidebarCollapsed: () =>
+        set((state) => ({
+          editorSidebarCollapsed: !state.editorSidebarCollapsed,
+        })),
       openCommandPalette: () => set({ commandPaletteOpen: true }),
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
       toggleCommandPalette: () =>
         set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
-      setFocusMode: (enabled) => set({ focusMode: enabled }),
-      toggleFocusMode: () =>
-        set((state) => ({ focusMode: !state.focusMode })),
       setSelectedProjectId: (projectId) => set({ selectedProjectId: projectId }),
       setEditorFontFamily: (family) => set({ editorFontFamily: family }),
       setEditorFontSize: (size) =>
@@ -318,49 +283,6 @@ export const useUiStore = create<UiState>()(
           editorFontSize: clamp(size, EDITOR_FONT_SIZE_MIN, EDITOR_FONT_SIZE_MAX),
         }),
       setDailyWordGoal: (goal) => set({ dailyWordGoal: Math.max(0, goal || 0) }),
-      setSprintMinutes: (minutes) =>
-        set({ sprintMinutes: clamp(minutes, 1, 120) }),
-      toggleSprintRunning: () =>
-        set((state) => {
-          if (!state.sprintRunning) {
-            return {
-              sprintRunning: true,
-              sprintAnnouncement: "Sprint iniciado.",
-              focusMode: true,
-              // Só restaura o focus mode se o sprint foi quem ligou.
-              sprintFocusEngaged:
-                state.sprintFocusEngaged || !state.focusMode,
-            };
-          }
-          return {
-            sprintRunning: false,
-            sprintAnnouncement: "Sprint pausado.",
-            ...(state.sprintFocusEngaged
-              ? { focusMode: false, sprintFocusEngaged: false }
-              : {}),
-          };
-        }),
-      resetSprint: () =>
-        set((state) => ({
-          sprintRunning: false,
-          sprintRemaining: Math.max(1, state.sprintMinutes) * 60,
-          sprintAnnouncement: "Sprint reiniciado.",
-          ...(state.sprintFocusEngaged
-            ? { focusMode: false, sprintFocusEngaged: false }
-            : {}),
-        })),
-      completeSprint: () =>
-        set((state) => ({
-          sprintRunning: false,
-          sprintRemaining: Math.max(1, state.sprintMinutes) * 60,
-          sprintCompleted: state.sprintCompleted + 1,
-          sprintAnnouncement: "Sprint concluído. Faça uma pausa.",
-          ...(state.sprintFocusEngaged
-            ? { focusMode: false, sprintFocusEngaged: false }
-            : {}),
-        })),
-      setResumeNoticeSeconds: (seconds) =>
-        set({ resumeNoticeSeconds: clamp(seconds, 0, 30) }),
       setProjectsSort: (sort) => set({ projectsSort: sort }),
       setProjectsLayout: (layout) => set({ projectsLayout: layout }),
       setMentionHighlightEnabled: (enabled) =>
@@ -388,10 +310,8 @@ export const useUiStore = create<UiState>()(
         set({ animationDuration: clamp(duration, 50, 1000) }),
       setPageTransitionEnabled: (enabled) =>
         set({ pageTransitionEnabled: enabled }),
-      setEditorSimplified: (enabled) => set({ editorSimplified: enabled }),
       setSearchGlobalEnabled: (enabled) =>
         set({ searchGlobalEnabled: enabled }),
-      setHomeSections: (sections) => set({ homeSections: sections }),
       setPromptCiteCharacters: (enabled) =>
         set({ promptCiteCharacters: enabled }),
       setPromptCiteLocations: (enabled) =>
@@ -426,8 +346,6 @@ export const useUiStore = create<UiState>()(
     }),
     {
       name: "autor-ui",
-      // Quem já usava o app (estado salvo sem o campo) fica na toolbar
-      // clássica; o Editor Simplificado é o padrão de quem nunca configurou.
       merge: (persisted, current) => {
         const saved = persisted as Partial<UiState> | undefined;
         return {
@@ -435,20 +353,16 @@ export const useUiStore = create<UiState>()(
           ...saved,
           themeVariantLight: migrateLightVariant(saved?.themeVariantLight),
           themeVariantDark: migrateDarkVariant(saved?.themeVariantDark),
-          editorSimplified:
-            saved?.editorSimplified ??
-            (saved ? false : current.editorSimplified),
         } as UiState;
       },
-      // Transient state (palette, focus mode) must not persist across sessions.
+      // Transient state (palette, search) must not persist across sessions.
       partialize: (state) => ({
         sidebarCollapsed: state.sidebarCollapsed,
+        editorSidebarCollapsed: state.editorSidebarCollapsed,
         selectedProjectId: state.selectedProjectId,
         editorFontFamily: state.editorFontFamily,
         editorFontSize: state.editorFontSize,
         dailyWordGoal: state.dailyWordGoal,
-        sprintMinutes: state.sprintMinutes,
-        resumeNoticeSeconds: state.resumeNoticeSeconds,
         projectsSort: state.projectsSort,
         projectsLayout: state.projectsLayout,
         mentionHighlightEnabled: state.mentionHighlightEnabled,
@@ -464,11 +378,9 @@ export const useUiStore = create<UiState>()(
         animationsEnabled: state.animationsEnabled,
         animationDuration: state.animationDuration,
         pageTransitionEnabled: state.pageTransitionEnabled,
-        editorSimplified: state.editorSimplified,
         themeVariantLight: state.themeVariantLight,
         themeVariantDark: state.themeVariantDark,
         searchGlobalEnabled: state.searchGlobalEnabled,
-        homeSections: state.homeSections,
         promptCiteCharacters: state.promptCiteCharacters,
         promptCiteLocations: state.promptCiteLocations,
         panelTabVisible: state.panelTabVisible,

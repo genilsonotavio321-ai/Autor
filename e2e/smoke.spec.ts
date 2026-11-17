@@ -43,11 +43,16 @@ test.describe("smoke", () => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
 
-    await page.getByRole("button", { name: "Abrir mais opções" }).click();
+    await page.getByRole("button", { name: "Abrir mais seções" }).click();
 
     const sheet = page.getByRole("dialog");
     await expect(sheet).toBeVisible();
-    await expect(sheet.getByRole("link", { name: "Notas" })).toBeVisible();
     await expect(sheet.getByRole("link", { name: "Configurações" })).toBeVisible();
+    await expect(sheet.getByRole("link", { name: "Painel" })).toBeVisible();
+    // Atalhos que saíram do menu expandido.
+    await expect(sheet.getByRole("link", { name: "Notas" })).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: "Mundo" })).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: "Canvas" })).toHaveCount(0);
+    await expect(sheet.getByRole("link", { name: "Ler" })).toHaveCount(0);
   });
 });

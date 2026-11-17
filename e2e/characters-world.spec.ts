@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-import { createProject } from "./helpers";
+import { addWorldEntry, chooseWorldCategory, createProject } from "./helpers";
 
 test.describe("Fase 3: personagens e mundo", () => {
   test("cria personagens, registra relação e desfaz exclusão", async ({
@@ -49,7 +49,7 @@ test.describe("Fase 3: personagens e mundo", () => {
     await createProject(page, "Projeto Mundo");
     await page.goto("/world");
 
-    await page.getByRole("button", { name: "Novo local" }).click();
+    await addWorldEntry(page, "Local");
     await page.getByLabel("Nome", { exact: true }).fill("Castelo Norte");
     await page.getByLabel("Tipo").fill("Castelo");
     await page.getByRole("button", { name: "Salvar" }).click();
@@ -57,8 +57,8 @@ test.describe("Fase 3: personagens e mundo", () => {
     await expect(page.getByText("Castelo Norte")).toBeVisible();
     await expect(page.getByText("Castelo", { exact: true }).first()).toBeVisible();
 
-    await page.getByRole("tab", { name: /Lore/ }).click();
-    await page.getByRole("button", { name: "Nova entrada" }).click();
+    await chooseWorldCategory(page, "Lore");
+    await addWorldEntry(page, "Entrada");
     await page.getByLabel("Título", { exact: true }).fill("A Coroa Antiga");
     await page.getByLabel("Categoria").fill("História");
     await page.getByLabel("Conteúdo").fill("Forjada na Primeira Era.");
@@ -68,7 +68,7 @@ test.describe("Fase 3: personagens e mundo", () => {
     await expect(page.getByText("Forjada na Primeira Era.")).toBeVisible();
 
     // Exclusão de local com desfazer.
-    await page.getByRole("tab", { name: /Locais/ }).click();
+    await chooseWorldCategory(page, "Locais");
     await page
       .getByRole("button", { name: "Excluir Castelo Norte", exact: true })
       .click();

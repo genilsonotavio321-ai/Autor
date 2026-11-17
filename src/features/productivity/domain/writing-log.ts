@@ -1,5 +1,5 @@
 /**
- * Per-day writing activity (plan §7.5): palavras por dia, sprints e streak.
+ * Per-day writing activity (plan §7.5): palavras por dia e streak.
  * Persistido como um único valor JSON na tabela `settings` do Dexie,
  * portanto não exige bump de schema.
  */
@@ -7,8 +7,6 @@
 export type DayActivity = {
   /** Palavras líquidas escritas no dia (apenas deltas positivos). */
   words: number;
-  /** Sessões de sprint concluídas no dia. */
-  sprints: number;
 };
 
 export type WritingLog = Record<string, DayActivity>;
@@ -41,13 +39,8 @@ export function addWords(
   words: number,
 ): WritingLog {
   if (words <= 0) return log;
-  const current = log[dayKey] ?? { words: 0, sprints: 0 };
+  const current = log[dayKey] ?? { words: 0 };
   return { ...log, [dayKey]: { ...current, words: current.words + words } };
-}
-
-export function addSprint(log: WritingLog, dayKey: string): WritingLog {
-  const current = log[dayKey] ?? { words: 0, sprints: 0 };
-  return { ...log, [dayKey]: { ...current, sprints: current.sprints + 1 } };
 }
 
 export interface WritingSummary {
@@ -56,7 +49,6 @@ export interface WritingSummary {
   /** Dias consecutivos com escrita, terminando hoje (ou ontem, se hoje ainda vazio). */
   streak: number;
   total: number;
-  sprintsToday: number;
 }
 
 export function summariseWriting(
@@ -84,7 +76,6 @@ export function summariseWriting(
     week,
     streak,
     total,
-    sprintsToday: log[todayKey]?.sprints ?? 0,
   };
 }
 

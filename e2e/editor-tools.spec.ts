@@ -1,6 +1,11 @@
 import { expect, test } from "@playwright/test";
 
-import { addCharacter, chapterLink, createChapter, createProject } from "./helpers";
+import {
+  addCharacter,
+  createChapter,
+  createProject,
+  openChapterEditor,
+} from "./helpers";
 
 test("a fonte e o tamanho do editor acompanham as configurações", async ({
   page,
@@ -9,7 +14,7 @@ test("a fonte e o tamanho do editor acompanham as configurações", async ({
   const url = await createProject(page, "Projeto Fonte");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Uma frase qualquer.");
@@ -25,7 +30,7 @@ test("a fonte e o tamanho do editor acompanham as configurações", async ({
   await page.getByLabel("Tamanho da fonte — valor exato").fill("24");
 
   await page.goto(url);
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editorAfter = page.locator(".ProseMirror");
   await expect(editorAfter).toBeVisible();
   await expect(editorAfter).toHaveCSS("font-size", "24px");
@@ -38,7 +43,7 @@ test("o editor tem altura estática com rolagem interna", async ({ page }) => {
   const url = await createProject(page, "Projeto Altura");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
 
@@ -63,7 +68,7 @@ test("ferramentas do editor: Revisar, Substituir e Ler", async ({ page }) => {
   const url = await createProject(page, "Projeto Ferramentas");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("eu vi o o gato");
@@ -86,21 +91,21 @@ test("ferramentas do editor: Revisar, Substituir e Ler", async ({ page }) => {
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
-  // F1: "Ler" abre o modo leitura no capítulo atual (?chapter=).
-  await page.getByRole("button", { name: "Ler" }).click();
+  // F1: "Ler capítulo" abre o modo leitura no capítulo atual (?chapter=).
+  await page.getByRole("button", { name: "Ler capítulo" }).click();
   await expect(page).toHaveURL(/\/read/);
   await expect(page.getByRole("heading", { name: "Capítulo 1" })).toBeVisible();
   await expect(page.locator(".ProseMirror")).toContainText("eu vi o cão");
 });
 
-test("alinhamento do capítulo inteiro aplica a todos os parágrafos", async ({
+test("alinhamento alterna o modo e atinge os parágrafos selecionados", async ({
   page,
 }) => {
   test.setTimeout(60_000);
   const url = await createProject(page, "Projeto Alinhamento");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Primeiro parágrafo.");
@@ -108,16 +113,73 @@ test("alinhamento do capítulo inteiro aplica a todos os parágrafos", async ({
   await page.keyboard.type("Segundo parágrafo.");
   await expect(editor.locator("p")).toHaveCount(2);
 
-  // F5: com "Capítulo inteiro" ligado, centralizar atinge os parágrafos.
-  // No Editor Simplificado a formatação vive no menu da seleção.
-  await page.keyboard.press("Home");
-  await page.keyboard.press("Shift+End");
+  // F5: o botão de alinhamento alterna a cada clique: esquerda → centro.
+  await page.keyboard.press("Control+a");
+  await expect(
+    page.getByRole("complementary", { name: "Formatação da seleção" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Alinhamento" }).click();
-  await page
-    .getByRole("switch", { name: "Aplicar alinhamento ao capítulo inteiro" })
-    .click();
-  await page.getByRole("menuitem", { name: "Centro" }).click();
   await expect(editor.locator('p[style*="text-align: center"]')).toHaveCount(2);
+});
+
+test("sidebar de seleção desliza com o texto e a principal minimiza", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const url = await createProject(page, "Projeto Sidebars");
+  await page.goto(url);
+  await createChapter(page, "Capítulo 1");
+  await openChapterEditor(page, "Capítulo 1");
+  const editor = page.locator(".ProseMirror");
+  await editor.click();
+  await page.keyboard.type("Trecho para formatar.");
+
+  // O status do capítulo é um ponto colorido na sidebar, com sub-menu.
+  await page.getByRole("button", { name: /^Status do capítulo: / }).click();
+  await page.getByRole("menuitem", { name: "Revisão" }).click();
+  await expect(
+    page.getByRole("button", { name: "Status do capítulo: Revisão" }),
+  ).toBeVisible();
+
+  const selectionBar = page.getByRole("complementary", {
+    name: "Formatação da seleção",
+  });
+  // Sem seleção a coluna fica fechada (invisible + aria-hidden).
+  await expect(selectionBar).toBeHidden();
+
+  // Seleção real de texto (o mesmo caminho do usuário com o mouse).
+  await editor.selectText();
+  await expect(selectionBar).toBeVisible();
+  await expect(
+    selectionBar.getByRole("button", { name: "Negrito" }),
+  ).toBeVisible();
+
+  // Esc esconde; a próxima seleção abre de novo.
+  await page.keyboard.press("Escape");
+  await expect(selectionBar).toBeHidden();
+  // Qualquer mudança de seleção abre de novo.
+  await page.keyboard.press("Shift+ArrowLeft");
+  await expect(selectionBar).toBeVisible();
+
+  // Minimizar desliza a coluna para fora da tela e revela a aba da borda.
+  const sidebar = page.locator('[data-slot="editor-sidebar"]');
+  await page.getByRole("button", { name: "Minimizar ações do capítulo" }).click();
+  const expand = page.getByRole("button", { name: "Expandir ações do capítulo" });
+  await expect(sidebar).toHaveAttribute("aria-hidden", "true");
+  await expect(expand).toBeVisible();
+  await expect(expand).toBeInViewport();
+
+  // A preferência sobrevive ao reload.
+  await page.reload();
+  await expect(expand).toBeVisible();
+  await expect(page.locator('[data-slot="editor-sidebar"]')).toHaveAttribute(
+    "aria-hidden",
+    "true",
+  );
+  await expand.click();
+  await expect(
+    page.getByRole("button", { name: "Minimizar ações do capítulo" }),
+  ).toBeInViewport();
 });
 
 test("renomear um personagem atualiza o destaque nos capítulos", async ({
@@ -129,7 +191,7 @@ test("renomear um personagem atualiza o destaque nos capítulos", async ({
 
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   await page.locator(".ProseMirror").click();
   await page.keyboard.type("Aurora Nova chegou.");
   // Enquanto a ficha se chama "Aurora", só a primeira palavra é destacada.
@@ -146,7 +208,7 @@ test("renomear um personagem atualiza o destaque nos capítulos", async ({
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.goto(url);
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   await expect(page.locator(".ProseMirror")).toContainText("Aurora Nova chegou.");
   await expect(page.locator(".mention")).toHaveText("Aurora Nova");
 });
@@ -158,7 +220,7 @@ test("renomear uma ficha reescreve o nome nos capítulos", async ({ page }) => {
 
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("Davi chegou.");
@@ -177,7 +239,7 @@ test("renomear uma ficha reescreve o nome nos capítulos", async ({ page }) => {
   await expect(page.getByRole("dialog")).toHaveCount(0);
 
   await page.goto(url);
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   await expect(page.locator(".ProseMirror")).toHaveText("Davi Silva chegou.");
   await expect(page.locator(".ProseMirror .mention")).toHaveText("Davi Silva");
 });
@@ -187,7 +249,7 @@ test("substituir realça as ocorrências e mostra o contexto", async ({ page }) 
   const url = await createProject(page, "Projeto Realce");
   await page.goto(url);
   await createChapter(page, "Capítulo 1");
-  await chapterLink(page, "Capítulo 1").click();
+  await openChapterEditor(page, "Capítulo 1");
   const editor = page.locator(".ProseMirror");
   await editor.click();
   await page.keyboard.type("O gato viu o gato e o gato fugiu.");
