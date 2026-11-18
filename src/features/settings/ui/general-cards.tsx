@@ -105,6 +105,41 @@ export function ReadingCard() {
   );
 }
 
+/** Deslize lateral no celular: capítulos e volta ao projeto. */
+export function NavigationCard() {
+  const swipeNavigationEnabled = useUiStore(
+    (state) => state.swipeNavigationEnabled,
+  );
+  const setSwipeNavigationEnabled = useUiStore(
+    (state) => state.setSwipeNavigationEnabled,
+  );
+
+  return (
+    <Card id="navegacao">
+      <CardHeader>
+        <CardTitle>Navegação</CardTitle>
+        <CardDescription>
+          Deslize a tela para o lado no celular para trocar de capítulo e
+          voltar ao projeto.
+        </CardDescription>
+      </CardHeader>
+      <CardContent>
+        <SettingRow
+          label="Deslizar para navegar"
+          description="Na leitura, troca de capítulo. Nas páginas secundárias, volta ao projeto."
+          htmlFor="swipe-navigation"
+        >
+          <Switch
+            id="swipe-navigation"
+            checked={swipeNavigationEnabled}
+            onCheckedChange={setSwipeNavigationEnabled}
+          />
+        </SettingRow>
+      </CardContent>
+    </Card>
+  );
+}
+
 /** Meta de escrita. */
 export function WritingCard() {
   const dailyWordGoal = useUiStore((state) => state.dailyWordGoal);

@@ -84,6 +84,10 @@ export function ReadPage() {
   const [bookmarkDocSize, setBookmarkDocSize] = useState<number | null>(null);
   const readGrifarEnabled = useUiStore((state) => state.readGrifarEnabled);
   const readFontSize = useUiStore((state) => state.readFontSize);
+  // Deslize lateral: pode ser desligado nas Configurações.
+  const swipeNavigationEnabled = useUiStore(
+    (state) => state.swipeNavigationEnabled,
+  );
   const bookmarks = useChapterBookmarks(chapterId);
 
   useEffect(() => {
@@ -203,18 +207,13 @@ export function ReadPage() {
         chapterIndex,
         chapterCount: chapters.length,
       });
-      if (result.type === "chapter") {
-        const target = chapters[result.index];
-        if (!target) return;
-        setChapterId(target.id);
-        window.scrollTo({ top: 0 });
-        return;
-      }
-      if (result.type === "project" && projectId) {
-        router.push(`/projects/${projectId}`);
-      }
+      if (result.type !== "chapter") return;
+      const target = chapters[result.index];
+      if (!target) return;
+      setChapterId(target.id);
+      window.scrollTo({ top: 0 });
     },
-  });
+  }, swipeNavigationEnabled);
 
   const ready =
     !chaptersLoading && (chapters.length === 0 || chapter !== null);

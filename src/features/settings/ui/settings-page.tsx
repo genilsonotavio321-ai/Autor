@@ -25,6 +25,7 @@ import {
   AnimationsCard,
   EditorCard,
   MentionsCard,
+  NavigationCard,
   ReadingCard,
   SearchCard,
   TrashCard,
@@ -60,6 +61,7 @@ export function SettingsPage() {
           <AppearanceCard />
           <EditorCard />
           <ReadingCard />
+          <NavigationCard />
           <WritingCard />
           <AnimationsCard />
           <MentionsCard />

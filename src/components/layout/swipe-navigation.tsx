@@ -21,7 +21,11 @@ export function SwipeNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const selectedProjectId = useUiStore((state) => state.selectedProjectId);
-  const enabled = isGlobalSwipePath(pathname);
+  const swipeNavigationEnabled = useUiStore(
+    (state) => state.swipeNavigationEnabled,
+  );
+  const enabled =
+    swipeNavigationEnabled && isGlobalSwipePath(pathname);
 
   const navigate = useCallback(
     (direction: SwipeDirection) => {

@@ -96,6 +96,8 @@ interface UiState {
   editorFontSize: number;
   /** Tamanho do texto no modo leitura (independente do editor). */
   readFontSize: number;
+  /** Deslize lateral no celular para trocar capítulo e voltar ao projeto. */
+  swipeNavigationEnabled: boolean;
   /** Meta diária de palavras. */
   dailyWordGoal: number;
   /** Ordenação e disposição da lista de projetos. */
@@ -159,6 +161,7 @@ interface UiState {
   setEditorFontFamily: (family: EditorFontFamily) => void;
   setEditorFontSize: (size: number) => void;
   setReadFontSize: (size: number) => void;
+  setSwipeNavigationEnabled: (enabled: boolean) => void;
   setDailyWordGoal: (goal: number) => void;
   setProjectsSort: (sort: ProjectsSort) => void;
   setProjectsLayout: (layout: ProjectsLayout) => void;
@@ -219,6 +222,7 @@ export const useUiStore = create<UiState>()(
       editorFontFamily: "serif",
       editorFontSize: 18,
       readFontSize: 17,
+      swipeNavigationEnabled: true,
       dailyWordGoal: 500,
       projectsSort: "updated-desc",
       projectsLayout: "grid",
@@ -276,6 +280,8 @@ export const useUiStore = create<UiState>()(
         set({
           readFontSize: clamp(size, READ_FONT_SIZE_MIN, READ_FONT_SIZE_MAX),
         }),
+      setSwipeNavigationEnabled: (enabled) =>
+        set({ swipeNavigationEnabled: enabled }),
       setDailyWordGoal: (goal) => set({ dailyWordGoal: Math.max(0, goal || 0) }),
       setProjectsSort: (sort) => set({ projectsSort: sort }),
       setProjectsLayout: (layout) => set({ projectsLayout: layout }),
@@ -347,6 +353,7 @@ export const useUiStore = create<UiState>()(
         editorFontFamily: state.editorFontFamily,
         editorFontSize: state.editorFontSize,
         readFontSize: state.readFontSize,
+        swipeNavigationEnabled: state.swipeNavigationEnabled,
         dailyWordGoal: state.dailyWordGoal,
         projectsSort: state.projectsSort,
         projectsLayout: state.projectsLayout,

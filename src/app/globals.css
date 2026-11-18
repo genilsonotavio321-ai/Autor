@@ -418,6 +418,9 @@ html[data-theme-variant="musgo"] {
     @apply font-sans;
     -webkit-text-size-adjust: 100%;
     scroll-behavior: smooth;
+    /* O deslize lateral é navegação do app: o navegador não deve voltar
+       sozinho quando o gesto chega à borda. */
+    overscroll-behavior-x: none;
     /* O canvas do iOS (área além do conteúdo, overscroll e barras do Safari)
        usa o fundo do tema em vez de branco. */
     background-color: var(--background);

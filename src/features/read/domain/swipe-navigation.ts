@@ -7,12 +7,51 @@ export type SwipeDirection = "left" | "right";
 
 export type ReadingSwipeResult =
   | { type: "chapter"; index: number }
-  | { type: "project" }
   | { type: "none" };
 
+/** Distancia minima do gesto, em px. */
+export const SWIPE_MIN_DISTANCE = 60;
+/** Gesto mais longo que isso e rolagem/leitura, nao navegacao. */
+export const SWIPE_MAX_DURATION_MS = 800;
+/** O deslocamento horizontal precisa dominar o vertical. */
+export const SWIPE_DIRECTION_RATIO = 1.8;
+/** Faixa da borda deixada para o "voltar" do sistema operacional. */
+export const SWIPE_EDGE_GUARD_PX = 24;
+
 /**
- * Deslize no modo leitura: direita volta um capitulo (e sai para o projeto a
- * partir do primeiro), esquerda avanca; no ultimo capitulo a esquerda trava.
+ * Limites do gesto: distancia minima, duracao maxima e dominio horizontal.
+ * Devolve a direcao reconhecida ou `null` quando o toque nao e navegacao.
+ */
+export function resolveSwipeGesture(input: {
+  dx: number;
+  dy: number;
+  durationMs: number;
+}): SwipeDirection | null {
+  const { dx, dy, durationMs } = input;
+  if (durationMs > SWIPE_MAX_DURATION_MS) return null;
+  if (Math.abs(dx) < SWIPE_MIN_DISTANCE) return null;
+  if (Math.abs(dx) <= Math.abs(dy) * SWIPE_DIRECTION_RATIO) return null;
+  return dx > 0 ? "right" : "left";
+}
+
+/**
+ * Toque que comeca colado na borda pertence ao gesto do sistema (voltar).
+ * Sem essa trava, o arrasto cancela a navegacao do app e alterna paginas.
+ */
+export function isEdgeTouch(
+  clientX: number,
+  viewportWidth: number,
+): boolean {
+  return (
+    clientX <= SWIPE_EDGE_GUARD_PX ||
+    clientX >= viewportWidth - SWIPE_EDGE_GUARD_PX
+  );
+}
+
+/**
+ * Deslize no modo leitura: esquerda avanca, direita volta. Nas duas pontas o
+ * gesto trava — sair da leitura e papel de botao/link, nunca do deslize (era o
+ * que empilhava historico e alimentava o vai-e-vem entre leitura e projeto).
  */
 export function resolveReadingSwipe(input: {
   direction: SwipeDirection;
@@ -31,7 +70,7 @@ export function resolveReadingSwipe(input: {
 
   return chapterIndex > 0
     ? { type: "chapter", index: chapterIndex - 1 }
-    : { type: "project" };
+    : { type: "none" };
 }
 
 /** Paginas que cuidam do proprio gesto (ou onde ele nao deve existir). */

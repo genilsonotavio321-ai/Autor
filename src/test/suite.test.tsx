@@ -11,8 +11,10 @@ import type { Json, Location } from "@/shared/types/database";
 import { extractDocText } from "@/shared/lib/text";
 import {
   globalSwipeHref,
+  isEdgeTouch,
   isGlobalSwipePath,
   resolveReadingSwipe,
+  resolveSwipeGesture,
 } from "@/features/read/domain/swipe-navigation";
 import { docToMarkdown, markdownToDoc } from "@/features/export/domain/markdown";
 
@@ -235,7 +237,7 @@ describe("editor", () => {
 });
 
 describe("deslize de navegação", () => {
-  it("navega capítulos e trava nas pontas", () => {
+  it("navega capítulos e trava nas duas pontas", () => {
     expect(
       resolveReadingSwipe({ direction: "left", chapterIndex: 0, chapterCount: 3 }),
     ).toEqual({ type: "chapter", index: 1 });
@@ -245,12 +247,28 @@ describe("deslize de navegação", () => {
     expect(
       resolveReadingSwipe({ direction: "right", chapterIndex: 1, chapterCount: 3 }),
     ).toEqual({ type: "chapter", index: 0 });
+    // Direita no primeiro capítulo não sai da leitura: era o gesto que
+    // empilhava histórico e alternava entre leitura e projeto.
     expect(
       resolveReadingSwipe({ direction: "right", chapterIndex: 0, chapterCount: 3 }),
-    ).toEqual({ type: "project" });
+    ).toEqual({ type: "none" });
     expect(
       resolveReadingSwipe({ direction: "left", chapterIndex: -1, chapterCount: 3 }),
     ).toEqual({ type: "none" });
+  });
+
+  it("reconhece o gesto só com distância, tempo e eixo válidos", () => {
+    expect(resolveSwipeGesture({ dx: -120, dy: 8, durationMs: 220 })).toBe("left");
+    expect(resolveSwipeGesture({ dx: 120, dy: 8, durationMs: 220 })).toBe("right");
+    expect(resolveSwipeGesture({ dx: 40, dy: 4, durationMs: 200 })).toBeNull();
+    expect(resolveSwipeGesture({ dx: 120, dy: 8, durationMs: 900 })).toBeNull();
+    expect(resolveSwipeGesture({ dx: 60, dy: 80, durationMs: 200 })).toBeNull();
+  });
+
+  it("deixa a borda da tela para o voltar do sistema", () => {
+    expect(isEdgeTouch(10, 390)).toBe(true);
+    expect(isEdgeTouch(380, 390)).toBe(true);
+    expect(isEdgeTouch(195, 390)).toBe(false);
   });
 
   it("define o gesto global fora de projetos, leitura e editor", () => {
@@ -1166,6 +1184,11 @@ describe("ui-store", () => {
     expect(useUiStore.getState().readFontSize).toBe(28);
     useUiStore.getState().setReadFontSize(2);
     expect(useUiStore.getState().readFontSize).toBe(14);
+
+    expect(useUiStore.getState().swipeNavigationEnabled).toBe(true);
+    useUiStore.getState().setSwipeNavigationEnabled(false);
+    expect(useUiStore.getState().swipeNavigationEnabled).toBe(false);
+    expect(localStorage.getItem("autor-ui")).toContain("swipeNavigationEnabled");
 
     useUiStore.getState().setPromptCustomWeight(2);
     expect(useUiStore.getState().promptCustomWeight).toBe(1);
