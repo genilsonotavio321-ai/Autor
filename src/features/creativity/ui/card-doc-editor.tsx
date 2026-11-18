@@ -19,7 +19,6 @@ import {
   TextQuote,
 } from "lucide-react";
 import { useRef } from "react";
-import { toast } from "sonner";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 
@@ -120,9 +119,7 @@ export function CardDocEditor({
       const src = await readImageAsDataUrl(file);
       editor.chain().focus().setImage({ src }).run();
     } catch {
-      toast.error("Não foi possível inserir a imagem", {
-        description: "Use um arquivo de imagem menor (limite ~2MB).",
-      });
+
     }
   };
 

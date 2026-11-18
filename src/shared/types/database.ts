@@ -446,6 +446,18 @@ export interface Version {
   createdAt: string;
 }
 
+/** Marcador de posição no texto de um capítulo (editor e modo leitura). */
+export interface Bookmark {
+  id: EntityId;
+  projectId: EntityId;
+  chapterId: EntityId;
+  /** Offset ProseMirror do ponto marcado. */
+  position: number;
+  /** Trecho de referência exibido na lista. */
+  excerpt: string;
+  createdAt: string;
+}
+
 export interface Setting {
   key: string;
   value: Json;

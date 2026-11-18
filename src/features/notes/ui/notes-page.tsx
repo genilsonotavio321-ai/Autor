@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -20,7 +20,6 @@ import {
   sortableKeyboardCoordinates,
 } from "@dnd-kit/sortable";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageActionBar } from "@/components/layout/action-bar";
@@ -28,12 +27,12 @@ import { PageHeader } from "@/components/layout/page-header";
 import { downloadBlob, safeFilename } from "@/features/export/infra/download";
 import { notesToMd, notesToTxt, plainTextToDoc } from "@/features/export/domain/plain-text";
 import { ExportFormatDialog, type ExportFormat } from "@/features/export/ui/export-format-dialog";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { projectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
 import {
   deleteFolderCascade,
-  restoreFolderCascade,
 } from "@/features/folders/application/folder-service";
 import {
   directCounts,
@@ -105,6 +104,7 @@ export function NotesPage() {
     () => (projectId ? folderRepository.listByProject(projectId) : []),
     [projectId],
   );
+  useProjectReady(liveNotes !== null && liveFolders !== undefined, projectId);
   // Pastas da aba Notas (uma árvore por tipo de ficha).
   const folders = useMemo(
     () => (liveFolders ?? []).filter((folder) => folder.kind === "note"),
@@ -173,9 +173,9 @@ export function NotesPage() {
   }, [folders, openFolderId]);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 8 },
+      activationConstraint: { delay: 1000, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -226,12 +226,11 @@ export function NotesPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com as duas notas");
         } else if (outcome === "reorder") {
           reorderNotes(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   /** Reordenação de fichas (drop na borda): na raiz mantém o esquema
@@ -244,7 +243,7 @@ export function NotesPage() {
       const reordered = arrayMove(folderNoteIds, oldIndex, newIndex);
       void noteRepository
         .applyMoves(reordered.map((id, order) => ({ id, order })))
-        .catch(() => toast.error("Falha ao reordenar"));
+        .catch(() => undefined);
       return;
     }
     const activeNote = notes.find((note) => note.id === activeId);
@@ -265,7 +264,7 @@ export function NotesPage() {
     if (sort !== "manual") setSort("manual");
     void noteRepository
       .applyMoves(fullOrder.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
+      .catch(() => undefined);
   }
 
   function handleDragCancel() {
@@ -280,33 +279,19 @@ export function NotesPage() {
 
   async function remove(note: Note) {
     await noteRepository.softDelete(note.id);
-    toast(`"${note.title}" movida para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void noteRepository.restore(note.id);
-        },
-      },
-    });
   }
 
   async function removeFolder(folder: Folder) {
+    // Excluir a pasta aberta devolve para a pasta pai, não para a raiz.
+    const parentId = effectiveParentId(folder, liveFolderIds);
     await deleteFolderCascade(folder);
-    toast(`Pasta "${folder.name}" movida para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void restoreFolderCascade(folder.id);
-        },
-      },
-    });
+    if (openFolderId === folder.id) setOpenFolderId(parentId);
   }
 
   async function renameFolder(folder: Folder, name: string) {
     try {
       await folderRepository.rename(folder.id, name);
     } catch {
-      toast.error("Falha ao renomear a pasta");
     }
   }
 
@@ -322,17 +307,6 @@ export function NotesPage() {
     if (!projectId) return;
     const ids = await noteRepository.softDeleteByProject(projectId);
     if (ids.length === 0) return;
-    toast(
-      `${ids.length} ${ids.length === 1 ? "nota movida" : "notas movidas"} para a lixeira`,
-      {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            void noteRepository.restoreMany(ids);
-          },
-        },
-      },
-    );
   }
 
   async function handleExport(format: ExportFormat) {
@@ -368,11 +342,7 @@ export function NotesPage() {
           filename,
         );
       }
-      toast.success(exportTarget.note ? "Nota baixada." : "Notas baixadas.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao exportar as notas.",
-      );
+    } catch {
     }
   }
 
@@ -396,7 +366,6 @@ export function NotesPage() {
           sort={sort}
           onSortChange={setSort}
           openFolderId={openFolderId}
-          onFolderCreated={(folder) => setOpenFolderId(folder.id)}
           onExportAll={() => setExportTarget({ open: true })}
           onClearAll={() => void clearNotes()}
           onNewNote={() => setDialog({ open: true })}
@@ -532,6 +501,7 @@ export function NotesPage() {
         onOpenChange={(open) => setDialog((state) => ({ ...state, open }))}
         note={dialog.note ?? null}
         projectId={projectId}
+        folderId={openFolderId}
       />
 
       <ExportFormatDialog

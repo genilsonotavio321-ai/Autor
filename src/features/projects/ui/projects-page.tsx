@@ -4,7 +4,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -21,7 +21,6 @@ import {
 import { ChevronDown, FolderPlus, LayoutGrid, List, Plus } from "lucide-react";
 import { useRouter } from "@/infra/navigation/use-app-router";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type RefObject } from "react";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageActionBar } from "@/components/layout/action-bar";
@@ -42,7 +41,6 @@ import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag
 import {
   deleteFolderCascade,
   PROJECT_FOLDER_SCOPE,
-  restoreFolderCascade,
 } from "@/features/folders/application/folder-service";
 import {
   directCounts,
@@ -189,9 +187,9 @@ export function ProjectsPage() {
 
   const folderHint = useFolderDragHint({ viewFolderIds });
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 8 },
+      activationConstraint: { delay: 1000, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -231,7 +229,7 @@ export function ProjectsPage() {
     );
     void projectRepository
       .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
+      .catch(() => undefined);
   }
 
   function handleDragEnd(event: DragEndEvent) {
@@ -261,44 +259,37 @@ export function ProjectsPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com os dois projetos");
+
         } else if (outcome === "reorder") {
           reorderProjects(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   async function createFolder() {
     try {
-      const folder = await folderRepository.create({
+      await folderRepository.create({
         projectId: PROJECT_FOLDER_SCOPE,
         kind: "project",
         ...(openFolderId ? { parentId: openFolderId } : {}),
       });
-      toast.success(`Pasta "${folder.name}" criada`);
+
     } catch {
-      toast.error("Falha ao criar a pasta");
+
     }
   }
 
   async function removeFolder(folder: Folder) {
     await deleteFolderCascade(folder);
-    toast(`Pasta "${folder.name}" movida para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void restoreFolderCascade(folder.id);
-        },
-      },
-    });
+
   }
 
   async function renameFolder(folder: Folder, name: string) {
     try {
       await folderRepository.rename(folder.id, name);
     } catch {
-      toast.error("Falha ao renomear a pasta");
+
     }
   }
 
@@ -561,7 +552,7 @@ function SortableProject({
       }
       data-dragging={isDragging || undefined}
       {...dragProps}
-      className={`relative touch-none select-none ${
+      className={`relative touch-pan-y select-none ${
         isDragging ? "opacity-60" : ""
       } ${isOver ? "rounded-2xl ring-2 ring-primary" : ""}`}
       onClickCapture={(event) => {

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   useSensor,
   useSensors,
@@ -14,17 +14,10 @@ import {
 import { arrayMove, sortableKeyboardCoordinates } from "@dnd-kit/sortable";
 import { Plus } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import {
   Select,
   SelectContent,
@@ -33,11 +26,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { PageActionBar } from "@/components/layout/action-bar";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
 import {
   deleteFolderCascade,
-  restoreFolderCascade,
 } from "@/features/folders/application/folder-service";
 import {
   directCounts,
@@ -48,6 +41,7 @@ import {
 import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
 import { useFolderDragHint } from "@/features/folders/ui/drag-hint";
 import { FolderCard } from "@/features/folders/ui/folder-card";
+import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
 import type {
   EntityId,
   Folder,
@@ -112,6 +106,12 @@ export function WorldPage() {
   const liveFolders = useLiveQuery(
     () => (projectId ? folderRepository.listByProject(projectId) : []),
     [projectId],
+  );
+  useProjectReady(
+    liveLocations !== undefined &&
+      liveLoreEntries !== undefined &&
+      liveFolders !== undefined,
+    projectId,
   );
   // Uma árvore de pastas por aba: locais, lore e objetos são independentes.
   const locationFolders = useMemo(
@@ -246,9 +246,9 @@ export function WorldPage() {
   const suppressClick = useRef(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 8 },
+      activationConstraint: { delay: 1000, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -418,12 +418,11 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com os dois locais");
         } else if (outcome === "reorder") {
           reorderLocations(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   function handleLoreDragEnd(event: DragEndEvent) {
@@ -447,12 +446,11 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com as duas entradas");
         } else if (outcome === "reorder") {
           reorderLoreEntries(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   function handleItemDragEnd(event: DragEndEvent) {
@@ -476,12 +474,11 @@ export function WorldPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com os dois objetos");
         } else if (outcome === "reorder") {
           reorderItems(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   /** Reordenação de fichas (drop na borda do card) — pastas ficam de fora. */
@@ -500,7 +497,7 @@ export function WorldPage() {
       (id) => !folders.has(id),
     );
     void apply(reordered.map((id, order) => ({ id, order }))).catch(() =>
-      toast.error("Falha ao reordenar"),
+      undefined,
     );
   }
 
@@ -521,79 +518,32 @@ export function WorldPage() {
 
   async function removeLocation(location: Location) {
     await locationRepository.softDelete(location.id);
-    toast(`"${location.name}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void locationRepository.restore(location.id);
-        },
-      },
-    });
   }
 
   async function removeLore(entry: LoreEntry) {
     await loreEntryRepository.softDelete(entry.id);
-    toast(
-      entry.isTrackableItem
-        ? `Objeto "${entry.title}" removido para a lixeira`
-        : `"${entry.title}" movida para a lixeira`,
-      {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void loreEntryRepository.restore(entry.id);
-        },
-      },
-      },
-    );
   }
 
   async function removeFolder(folder: Folder) {
+    // Excluir a pasta aberta devolve para a pasta pai, não para a raiz.
+    const parentId = effectiveParentId(
+      folder,
+      folder.kind === "lore"
+        ? liveLoreFolderIds
+        : folder.kind === "item"
+          ? liveItemFolderIds
+          : liveLocationFolderIds,
+    );
     await deleteFolderCascade(folder);
-    toast(`Pasta "${folder.name}" movida para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void restoreFolderCascade(folder.id);
-        },
-      },
-    });
+    if (openLocationFolderId === folder.id) setOpenLocationFolderId(parentId);
+    if (openLoreFolderId === folder.id) setOpenLoreFolderId(parentId);
+    if (openItemFolderId === folder.id) setOpenItemFolderId(parentId);
   }
 
   async function renameFolder(folder: Folder, name: string) {
     try {
       await folderRepository.rename(folder.id, name);
     } catch {
-      toast.error("Falha ao renomear a pasta");
-    }
-  }
-
-  /** Pasta vazia da categoria carregada, dentro da pasta aberta. */
-  async function createFolderForTab() {
-    if (!projectId) return;
-    const kind =
-      worldTab === "locations"
-        ? "location"
-        : worldTab === "items"
-          ? "item"
-          : "lore";
-    const parentId =
-      kind === "location"
-        ? openLocationFolderId
-        : kind === "item"
-          ? openItemFolderId
-          : openLoreFolderId;
-    try {
-      // Não abre a pasta nova: o liveQuery das pastas chega depois, e o
-      // guard de "pasta morta" a fecharia de volta (a pasta aparecia, mas a
-      // navegação sumia). O card novo fica na lista do nível atual.
-      await folderRepository.create({
-        projectId,
-        kind,
-        ...(parentId ? { parentId } : {}),
-      });
-    } catch {
-      toast.error("Falha ao criar a pasta");
     }
   }
 
@@ -612,6 +562,26 @@ export function WorldPage() {
   const exitItemFolder = () =>
     exitFolder(currentItemFolder, liveItemFolderIds, setOpenItemFolderId);
 
+  // Ação rápida da barra flutuante: pasta e ficha da categoria carregada.
+  const tabKind = worldTab === "items" ? "item" : worldTab === "lore" ? "lore" : "location";
+  const currentTabFolderId =
+    worldTab === "locations"
+      ? openLocationFolderId
+      : worldTab === "items"
+        ? openItemFolderId
+        : openLoreFolderId;
+  const tabCreateLabel =
+    worldTab === "items"
+      ? "Novo objeto"
+      : worldTab === "lore"
+        ? "Nova entrada de lore"
+        : "Novo local";
+  function createTabItem() {
+    if (worldTab === "items") setLoreDialog({ open: true, isTrackableItem: true });
+    else if (worldTab === "lore") setLoreDialog({ open: true });
+    else setLocationDialog({ open: true });
+  }
+
   return (
     <div className="flex flex-col gap-8">
       <PageHeader
@@ -626,48 +596,21 @@ export function WorldPage() {
       />
 
       <PageActionBar>
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              className="rounded-full"
-              aria-label="Adicionar ao mundo"
-              title="Adicionar ao mundo"
-              disabled={projectId === null}
-            >
-              <Plus aria-hidden />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {worldTab === "locations" ? (
-              <DropdownMenuItem
-                onSelect={() => setLocationDialog({ open: true })}
-              >
-                Local
-              </DropdownMenuItem>
-            ) : null}
-            {worldTab === "lore" ? (
-              <DropdownMenuItem onSelect={() => setLoreDialog({ open: true })}>
-                Entrada
-              </DropdownMenuItem>
-            ) : null}
-            {worldTab === "items" ? (
-              <DropdownMenuItem
-                onSelect={() =>
-                  setLoreDialog({ open: true, isTrackableItem: true })
-                }
-              >
-                Objeto
-              </DropdownMenuItem>
-            ) : null}
-            <DropdownMenuItem
-              disabled={projectId === null}
-              onSelect={() => void createFolderForTab()}
-            >
-              Pasta
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <NewFolderButton
+          kind={tabKind}
+          projectId={projectId}
+          parentId={currentTabFolderId ?? undefined}
+        />
+        <Button
+          size="icon"
+          className="rounded-full"
+          aria-label={tabCreateLabel}
+          title={tabCreateLabel}
+          disabled={projectId === null}
+          onClick={createTabItem}
+        >
+          <Plus aria-hidden />
+        </Button>
       </PageActionBar>
 
       {projectId === null ? (
@@ -677,7 +620,7 @@ export function WorldPage() {
         />
       ) : (
         <>
-          <div className="mt-6 flex items-center justify-between gap-3">
+          <div className="mt-6 flex justify-center">
             <Select
               value={worldTab}
               onValueChange={(value) => {

@@ -9,6 +9,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getDatabase } from "@/infra/db";
 import type { Json, Location } from "@/shared/types/database";
 import { extractDocText } from "@/shared/lib/text";
+import {
+  globalSwipeHref,
+  isGlobalSwipePath,
+  resolveReadingSwipe,
+} from "@/features/read/domain/swipe-navigation";
 import { docToMarkdown, markdownToDoc } from "@/features/export/domain/markdown";
 
 import { createAutosave } from "@/features/editor/application/autosave";
@@ -60,7 +65,6 @@ import { emptyTrash } from "@/features/projects/application/trash-service";
 import { DexieChapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { DexieProjectRepository } from "@/features/projects/infra/dexie-project-repository";
 import { renameMentionsInContent } from "@/features/mentions/domain/rename-mentions";
-import { decideGoalNotification, decideStaleNotifications, latestCreatedAt } from "@/features/productivity/domain/notifications";
 import { EMPTY_WRITING_LOG, addWords, estimateReadingMinutes, summariseWriting, toDayKey } from "@/features/productivity/domain/writing-log";
 import { WRITING_LOG_KEY, getWritingLog, recordWords } from "@/features/productivity/infra/writing-log-repository";
 import { buildSearchDocs } from "@/features/search/domain/search-doc";
@@ -228,6 +232,38 @@ describe("editor", () => {
     });
   });
 
+});
+
+describe("deslize de navegação", () => {
+  it("navega capítulos e trava nas pontas", () => {
+    expect(
+      resolveReadingSwipe({ direction: "left", chapterIndex: 0, chapterCount: 3 }),
+    ).toEqual({ type: "chapter", index: 1 });
+    expect(
+      resolveReadingSwipe({ direction: "left", chapterIndex: 2, chapterCount: 3 }),
+    ).toEqual({ type: "none" });
+    expect(
+      resolveReadingSwipe({ direction: "right", chapterIndex: 1, chapterCount: 3 }),
+    ).toEqual({ type: "chapter", index: 0 });
+    expect(
+      resolveReadingSwipe({ direction: "right", chapterIndex: 0, chapterCount: 3 }),
+    ).toEqual({ type: "project" });
+    expect(
+      resolveReadingSwipe({ direction: "left", chapterIndex: -1, chapterCount: 3 }),
+    ).toEqual({ type: "none" });
+  });
+
+  it("define o gesto global fora de projetos, leitura e editor", () => {
+    expect(isGlobalSwipePath("/notes")).toBe(true);
+    expect(isGlobalSwipePath("/world")).toBe(true);
+    expect(isGlobalSwipePath("/projects")).toBe(false);
+    expect(isGlobalSwipePath("/projects/abc")).toBe(false);
+    expect(isGlobalSwipePath("/read")).toBe(false);
+    expect(isGlobalSwipePath("/write/abc")).toBe(false);
+    expect(globalSwipeHref("right", "abc")).toBe("/projects/abc");
+    expect(globalSwipeHref("right", null)).toBe("/projects");
+    expect(globalSwipeHref("left", "abc")).toBeNull();
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -570,40 +606,6 @@ describe("mentions", () => {
 });
 
 describe("productivity", () => {
-  it("decide notificações de meta e de escrita parada", () => {
-    const evening = new Date("2026-10-29T20:00:00");
-    expect(decideGoalNotification(100, 500, evening)).toEqual({
-      kind: "goal",
-      body: "Você ainda não bateu a meta de 500 palavras hoje.",
-    });
-    expect(decideGoalNotification(0, 500, new Date("2026-10-29T09:00:00"))).toBeNull();
-    expect(decideGoalNotification(500, 500, evening)).toBeNull();
-
-    const flags = { character: true, scene: true, chapter: true };
-    const results = decideStaleNotifications(
-      {
-        character: "2026-10-01T00:00:00.000Z",
-        scene: undefined,
-        chapter: "2026-10-28T00:00:00.000Z",
-      },
-      7,
-      evening,
-      flags,
-    );
-    expect(results.map((item) => item.kind)).toEqual(["character"]);
-    expect(
-      decideStaleNotifications(
-        { character: "2020-01-01T00:00:00.000Z" },
-        7,
-        evening,
-        { ...flags, character: false },
-      ),
-    ).toEqual([]);
-    expect(
-      latestCreatedAt([undefined, "2026-01-02T00:00:00.000Z", null, "2026-02-10T00:00:00.000Z"]),
-    ).toBe("2026-02-10T00:00:00.000Z");
-  });
-
   it("soma o diário de escrita, sequência e leitura", () => {
     expect(toDayKey(new Date(2026, 9, 17))).toBe("2026-10-17");
     let log = addWords(EMPTY_WRITING_LOG, "2026-10-17", 120);
@@ -1159,6 +1161,11 @@ describe("ui-store", () => {
     expect(useUiStore.getState().promptCustomWeight).toBe(0.5);
     expect(useUiStore.getState().panelTabVisible).toBe(false);
     expect(useUiStore.getState().unblockCloseOnSave).toBe(true);
+    expect(useUiStore.getState().readFontSize).toBe(17);
+    useUiStore.getState().setReadFontSize(99);
+    expect(useUiStore.getState().readFontSize).toBe(28);
+    useUiStore.getState().setReadFontSize(2);
+    expect(useUiStore.getState().readFontSize).toBe(14);
 
     useUiStore.getState().setPromptCustomWeight(2);
     expect(useUiStore.getState().promptCustomWeight).toBe(1);

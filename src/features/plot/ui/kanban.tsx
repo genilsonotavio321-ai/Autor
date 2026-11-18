@@ -17,7 +17,6 @@ import {
 } from "@dnd-kit/sortable";
 import { GripVertical, Pencil } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { useCardSortable } from "@/shared/lib/sortable";
@@ -78,11 +77,7 @@ export function Kanban({ projectId, chapters }: KanbanProps) {
 
     try {
       await sceneRepository.update(scene.id, { status: targetStatus });
-      toast.success(
-        `"${scene.title}" → ${SCENE_STATUS_LABELS[targetStatus]}`,
-      );
     } catch {
-      toast.error("Falha ao mover a cena");
     }
   }
 

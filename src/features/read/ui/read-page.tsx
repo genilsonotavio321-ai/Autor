@@ -1,10 +1,10 @@
 "use client";
 
 import { useLiveQuery } from "dexie-react-hooks";
-import { Eye, Highlighter, List, PenLine } from "lucide-react";
+import { Bookmark, Eye, Highlighter, List, PenLine } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { useRouter } from "@/infra/navigation/use-app-router";
@@ -19,12 +19,19 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useChapterBookmarks } from "@/features/bookmarks/application/use-chapter-bookmarks";
+import { bookmarkRepository } from "@/features/bookmarks/infra/dexie-bookmark-repository";
+import { BookmarksDialog } from "@/features/bookmarks/ui/bookmarks-dialog";
 import { estimateReadingMinutes } from "@/features/productivity/domain/writing-log";
 import type { MentionType } from "@/features/mentions/domain/entity-index";
 import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
+import { nextReadChapterId } from "@/features/read/domain/chapter-selection";
+import { resolveReadingSwipe } from "@/features/read/domain/swipe-navigation";
 import { formatRelativeTime } from "@/shared/lib/dates";
+import { useHorizontalSwipe } from "@/shared/lib/use-horizontal-swipe";
 import { useUiStore } from "@/shared/store/ui-store";
 import type { Chapter, Json } from "@/shared/types/database";
 
@@ -53,19 +60,31 @@ export function ReadPage() {
   const searchParams = useSearchParams();
   const projectParam = searchParams.get("project");
   const chapterParam = searchParams.get("chapter");
-  const [chapterId, setChapterId] = useState<string | null>(chapterParam);
+  const [chapterId, setChapterId] = useState<string | null>(null);
   // Capítulo pedido pelo link: pode estar arquivado e ainda assim ser lido.
   // Fica em estado porque a query é limpa da URL e o parâmetro some.
   const [requestedChapterId, setRequestedChapterId] = useState<string | null>(
     chapterParam,
   );
+  // O deep link é aplicado uma única vez; depois a troca de projeto manda.
+  const [deepLinkDone, setDeepLinkDone] = useState(() => !chapterParam);
   const [chooserOpen, setChooserOpen] = useState(false);
   // Destaque ampliado dos trechos grifados (toggle visual, sem navegação).
   const [grifarReveal, setGrifarReveal] = useState(false);
   // O botão de grifar vive na barra: a seleção acontece dentro do documento.
   const [hasSelection, setHasSelection] = useState(false);
   const [grifarRequest, setGrifarRequest] = useState(0);
+  // Marcadores: pedido de criação, salto pendente e tamanho do documento.
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [bookmarkAddRequest, setBookmarkAddRequest] = useState(0);
+  const [bookmarkJump, setBookmarkJump] = useState<{
+    position: number;
+    nonce: number;
+  } | null>(null);
+  const [bookmarkDocSize, setBookmarkDocSize] = useState<number | null>(null);
   const readGrifarEnabled = useUiStore((state) => state.readGrifarEnabled);
+  const readFontSize = useUiStore((state) => state.readFontSize);
+  const bookmarks = useChapterBookmarks(chapterId);
 
   useEffect(() => {
     if (!projectParam) return;
@@ -75,62 +94,131 @@ export function ReadPage() {
   // Trocar de capítulo zera a seleção do documento anterior.
   useEffect(() => setHasSelection(false), [chapterId]);
 
-  // Um novo capítulo pedido pelo link vence a seleção anterior.
+  // Deep link (`/read?project=…&chapter=…`): adota o projeto e o capítulo do
+  // link uma única vez. Nenhum efeito posterior volta o projeto selecionado.
+  const appliedChapterParam = useRef<string | null>(null);
+  // Troca de projeto causada pelo próprio deep link: não pode descartar o
+  // capítulo que o link pediu.
+  const deepLinkProjectId = useRef<string | null>(null);
   useEffect(() => {
-    if (!chapterParam) return;
-    setRequestedChapterId(chapterParam);
-    setChapterId(chapterParam);
-  }, [chapterParam]);
+    if (!chapterParam || appliedChapterParam.current === chapterParam) return;
+    appliedChapterParam.current = chapterParam;
+    void chapterRepository.getById(chapterParam).then((found) => {
+      // Resposta de um link anterior: o parâmetro atual é quem manda. Sem esse
+      // token, o cleanup do StrictMode cancelava a única requisição e o
+      // capítulo pedido nunca era selecionado (Editar capítulo ficava travado).
+      if (appliedChapterParam.current !== chapterParam) return;
+      if (found && !found.deletedAt) {
+        deepLinkProjectId.current = found.projectId;
+        setSelectedProjectId(found.projectId);
+        setRequestedChapterId(found.id);
+        setChapterId(found.id);
+      } else {
+        setRequestedChapterId(chapterParam);
+      }
+      setDeepLinkDone(true);
+    });
+  }, [chapterParam, setSelectedProjectId]);
 
   // A URL volta a ser só `/read` depois de aplicar os parâmetros.
   useEffect(() => {
     if (!projectParam && !chapterParam) return;
-    if (chapterParam && chapterId !== chapterParam) return;
+    if (!deepLinkDone) return;
     router.replace("/read", { scroll: false });
-  }, [chapterId, chapterParam, projectParam, router]);
+  }, [chapterParam, deepLinkDone, projectParam, router]);
+
+  // Troca de projeto (seletor/menu rápido): recomeça do primeiro capítulo do
+  // projeto novo. Preservar o capítulo anterior era o que fazia a leitura
+  // alternar entre os dois projetos.
+  const previousProjectId = useRef(projectId);
+  useEffect(() => {
+    if (previousProjectId.current === projectId) return;
+    previousProjectId.current = projectId;
+    setHasSelection(false);
+    // O deep link já escolheu projeto + capítulo: preserva o capítulo pedido.
+    if (deepLinkProjectId.current === projectId) {
+      deepLinkProjectId.current = null;
+      return;
+    }
+    setChapterId(null);
+    setRequestedChapterId(null);
+  }, [projectId]);
+
+  // Lista de outro projeto enquanto a live query reemite: trata como carregando.
+  const chaptersStale =
+    liveChapters !== undefined &&
+    liveChapters.length > 0 &&
+    liveChapters[0]!.projectId !== projectId;
+  const chaptersLoading = liveChapters === undefined || chaptersStale;
 
   // Capítulos arquivados ficam fora da leitura, exceto o pedido pelo link.
   const chapters = useMemo(
     () =>
-      (liveChapters ?? []).filter(
-        (chapter) => !chapter.archived || chapter.id === requestedChapterId,
-      ),
-    [liveChapters, requestedChapterId],
+      chaptersLoading
+        ? []
+        : (liveChapters ?? []).filter(
+            (chapter) =>
+              !chapter.archived || chapter.id === requestedChapterId,
+          ),
+    [chaptersLoading, liveChapters, requestedChapterId],
   );
 
-  // Keep a valid selection when the project or chapter list changes.
+  // Mantém uma seleção válida quando a lista de capítulos muda.
   useEffect(() => {
-    // Enquanto a live query carrega (`undefined`) ou o projeto ainda não foi
-    // selecionado, o capítulo pedido pelo link não está na lista: limpar aqui
-    // cairia no primeiro capítulo.
-    if (!projectId || !liveChapters) return;
-    if (!chapterId) {
-      setChapterId(chapters[0]?.id ?? null);
-      return;
-    }
-    // Lista vazia pode ser "ainda carregando": preserva o capítulo pedido.
-    if (chapters.length === 0) return;
-    if (chapters.some((chapter) => chapter.id === chapterId)) return;
-    // Fora da lista: um link direto pode apontar para outro projeto. Busca o
-    // capítulo antes de cair no primeiro do projeto selecionado.
-    let cancelled = false;
-    void chapterRepository.getById(chapterId).then((found) => {
-      if (cancelled) return;
-      if (found && !found.deletedAt && found.projectId !== projectId) {
-        setSelectedProjectId(found.projectId);
-        return;
-      }
-      setChapterId(chapters[0]?.id ?? null);
+    if (!deepLinkDone) return;
+    const next = nextReadChapterId({
+      loading: chaptersLoading,
+      chapterIds: chapters.map((chapter) => chapter.id),
+      currentChapterId: chapterId,
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [chapters, chapterId, liveChapters, projectId, setSelectedProjectId]);
+    if (next === undefined) return;
+    setChapterId(next);
+  }, [chapters, chapterId, chaptersLoading, deepLinkDone]);
 
   const chapter: Chapter | null = useMemo(
     () => chapters.find((item) => item.id === chapterId) ?? null,
     [chapters, chapterId],
   );
+
+  const chapterIndex = chapterId
+    ? chapters.findIndex((item) => item.id === chapterId)
+    : -1;
+
+  // Deslize (celular): avança/volta capítulos; no primeiro, volta ao projeto.
+  useHorizontalSwipe({
+    onSwipeLeft: () => {
+      const result = resolveReadingSwipe({
+        direction: "left",
+        chapterIndex,
+        chapterCount: chapters.length,
+      });
+      const target = result.type === "chapter" ? chapters[result.index] : null;
+      if (!target) return;
+      setChapterId(target.id);
+      window.scrollTo({ top: 0 });
+    },
+    onSwipeRight: () => {
+      const result = resolveReadingSwipe({
+        direction: "right",
+        chapterIndex,
+        chapterCount: chapters.length,
+      });
+      if (result.type === "chapter") {
+        const target = chapters[result.index];
+        if (!target) return;
+        setChapterId(target.id);
+        window.scrollTo({ top: 0 });
+        return;
+      }
+      if (result.type === "project" && projectId) {
+        router.push(`/projects/${projectId}`);
+      }
+    },
+  });
+
+  const ready =
+    !chaptersLoading && (chapters.length === 0 || chapter !== null);
+  useProjectReady(ready, projectId);
 
   function openMention(type: MentionType, id: string) {
     if (!projectId) return;
@@ -150,6 +238,26 @@ export function ReadPage() {
     void chapterRepository
       .update(chapter.id, { content: json })
       .catch(() => undefined);
+  }
+
+  async function handleBookmarkAt(position: number, excerpt: string) {
+    if (!chapter) return;
+    try {
+      await bookmarkRepository.create({
+        projectId: chapter.projectId,
+        chapterId: chapter.id,
+        position,
+        excerpt,
+      });
+
+    } catch {
+
+    }
+  }
+
+  function handleJumpToBookmark(position: number) {
+    setBookmarkJump({ position, nonce: Date.now() });
+    setBookmarksOpen(false);
   }
 
   return (
@@ -195,6 +303,17 @@ export function ReadPage() {
           variant="outline"
           size="icon"
           className="rounded-full"
+          aria-label="Marcadores"
+          title="Marcadores"
+          disabled={!chapter}
+          onClick={() => setBookmarksOpen(true)}
+        >
+          <Bookmark aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
           aria-label="Escolher capítulo"
           title="Escolher capítulo"
           disabled={chapters.length === 0}
@@ -219,6 +338,8 @@ export function ReadPage() {
           title="Nenhum projeto ativo"
           hint="Selecione ou crie um projeto para ler o manuscrito."
         />
+      ) : chaptersLoading ? (
+        <Skeleton className="h-96 w-full rounded-lg" />
       ) : chapters.length === 0 ? (
         <EmptyState
           title="Nenhum capítulo ainda"
@@ -237,7 +358,10 @@ export function ReadPage() {
             {estimateReadingMinutes(chapter.wordCount)} min de leitura ·
             atualizado {formatRelativeTime(chapter.updatedAt)}
           </p>
-          <div className={grifarReveal ? "grifar-reveal" : undefined}>
+          <div
+            className={grifarReveal ? "grifar-reveal" : undefined}
+            style={{ fontSize: `${readFontSize}px` }}
+          >
             <ReadingDocument
               content={chapter.content}
               mentions={mentionEntities}
@@ -245,10 +369,28 @@ export function ReadPage() {
               onGrifarChange={handleGrifarChange}
               onSelectionChange={setHasSelection}
               grifarRequest={grifarRequest}
+              bookmarkAddRequest={bookmarkAddRequest}
+              onBookmarkAt={handleBookmarkAt}
+              onDocSize={setBookmarkDocSize}
+              jumpToBookmark={bookmarkJump}
             />
           </div>
         </article>
       ) : null}
+
+      <BookmarksDialog
+        open={bookmarksOpen}
+        onOpenChange={setBookmarksOpen}
+        bookmarks={bookmarks}
+        docSize={bookmarkDocSize}
+        onAdd={() => setBookmarkAddRequest((value) => value + 1)}
+        onJump={(bookmark) => handleJumpToBookmark(bookmark.position)}
+        onRemove={(bookmark) => {
+          void bookmarkRepository
+            .remove(bookmark.id)
+            .catch(() => undefined);
+        }}
+      />
 
       <Dialog open={chooserOpen} onOpenChange={setChooserOpen}>
         <DialogContent className="sm:max-w-md">

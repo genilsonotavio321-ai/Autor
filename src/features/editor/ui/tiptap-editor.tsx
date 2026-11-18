@@ -11,7 +11,6 @@ import type { Editor } from "@tiptap/react";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
-import { toast } from "sonner";
 
 import { GrifarMark } from "@/features/editor/domain/grifar-mark";
 import { readImageAsDataUrl } from "@/features/editor/domain/image-file";
@@ -86,9 +85,7 @@ export async function insertImageFiles(
         view.state.tr.replaceSelectionWith(imageType.create({ src })),
       );
     } catch {
-      toast.error("Não foi possível inserir a imagem", {
-        description: "Use um arquivo de imagem menor (limite ~2MB).",
-      });
+
     }
   }
   view.focus();

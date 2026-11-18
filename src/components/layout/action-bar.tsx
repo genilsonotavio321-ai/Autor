@@ -139,11 +139,7 @@ export function ActionBar() {
       <nav
         aria-label="Navegação principal"
         data-slot="app-action-bar"
-        className={cn(
-          "fixed inset-x-0 bottom-0 z-40 flex flex-col items-center gap-2 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]",
-          // Sem ações no desktop a barra inteira desaparece.
-          !hasActions && "md:hidden",
-        )}
+        className="fixed inset-x-0 bottom-0 z-40 flex flex-col items-center gap-2 px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))]"
       >
         {/* Sub-barra superior: só as ações da página atual. */}
         <div

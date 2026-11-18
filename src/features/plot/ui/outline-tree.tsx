@@ -23,7 +23,6 @@ import { CSS } from "@dnd-kit/utilities";
 import { GripVertical, Pencil, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { Badge } from "@/components/ui/badge";
@@ -186,18 +185,18 @@ export function OutlineTree({
         await sceneRepository.applyMoves(updates);
       }
     } catch {
-      toast.error("Falha ao reordenar");
+
     }
   }
 
   async function addChapter() {
-    const chapter = await chapterRepository.create({ projectId });
-    toast.success(`"${chapter.title}" criado`);
+    await chapterRepository.create({ projectId });
+
   }
 
   async function addScene(chapterId: EntityId) {
-    const scene = await sceneRepository.create({ chapterId });
-    toast.success(`"${scene.title}" criada`);
+    await sceneRepository.create({ chapterId });
+
   }
 
   return (
@@ -287,14 +286,7 @@ function ChapterRow({
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
-    toast(`"${chapter.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void chapterRepository.restore(chapter.id);
-        },
-      },
-    });
+
   }
 
   return (

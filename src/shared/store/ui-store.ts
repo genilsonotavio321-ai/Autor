@@ -1,11 +1,17 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 
+import { useProjectLoadStore } from "./project-load-store";
+
 /** Fontes disponíveis para o editor (plan §7.8). */
 export type EditorFontFamily = "serif" | "sans";
 
 export const EDITOR_FONT_SIZE_MIN = 14;
 export const EDITOR_FONT_SIZE_MAX = 24;
+
+/** Tamanho do texto no modo leitura: independente do editor. */
+export const READ_FONT_SIZE_MIN = 14;
+export const READ_FONT_SIZE_MAX = 28;
 
 /** Ordenação da lista de projetos (plan §7.10). */
 export type ProjectsSort =
@@ -78,13 +84,6 @@ export const DEFAULT_TRASH_RETENTION_MS = 30 * MS_DAY;
 /** Frequência de checagem da expiração da lixeira enquanto o app está aberto. */
 export const TRASH_PURGE_CHECK_INTERVAL_MS = MS_HOUR;
 
-/** Intervalo de checagem das notificações de escrita enquanto o app está aberto. */
-export const NOTIFICATIONS_CHECK_INTERVAL_MS = 15 * 60_000;
-
-/** Dias sem criar personagem/cena/capítulo até o aviso disparar (para o slider). */
-export const STALE_DAYS_MIN = 1;
-export const STALE_DAYS_MAX = 60;
-
 interface UiState {
   sidebarCollapsed: boolean;
   /** Sidebar de ações do editor minimizada (vira um botão no cabeçalho). */
@@ -95,6 +94,8 @@ interface UiState {
   /** Personalização: fonte e tamanho do editor. */
   editorFontFamily: EditorFontFamily;
   editorFontSize: number;
+  /** Tamanho do texto no modo leitura (independente do editor). */
+  readFontSize: number;
   /** Meta diária de palavras. */
   dailyWordGoal: number;
   /** Ordenação e disposição da lista de projetos. */
@@ -145,22 +146,8 @@ interface UiState {
   canvasButtonsHidden: boolean;
   /** Tempo que um item fica na lixeira antes de ser apagado de vez. */
   trashRetentionMs: number;
-  /** Notificações do app (meta do dia aviso e criatividade parada). */
-  notificationsEnabled: boolean;
-  notifyGoalNotMet: boolean;
-  notifyNoNewCharacters: boolean;
-  notifyNoNewScenes: boolean;
-  notifyNoNewChapters: boolean;
-  /** Dias sem criar personagem/cena/capítulo até avisar. */
-  notificationsStaleDays: number;
   setCanvasButtonsHidden: (enabled: boolean) => void;
   setTrashRetentionMs: (value: number) => void;
-  setNotificationsEnabled: (enabled: boolean) => void;
-  setNotifyGoalNotMet: (enabled: boolean) => void;
-  setNotifyNoNewCharacters: (enabled: boolean) => void;
-  setNotifyNoNewScenes: (enabled: boolean) => void;
-  setNotifyNoNewChapters: (enabled: boolean) => void;
-  setNotificationsStaleDays: (days: number) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setEditorSidebarCollapsed: (collapsed: boolean) => void;
@@ -171,6 +158,7 @@ interface UiState {
   setSelectedProjectId: (projectId: string | null) => void;
   setEditorFontFamily: (family: EditorFontFamily) => void;
   setEditorFontSize: (size: number) => void;
+  setReadFontSize: (size: number) => void;
   setDailyWordGoal: (goal: number) => void;
   setProjectsSort: (sort: ProjectsSort) => void;
   setProjectsLayout: (layout: ProjectsLayout) => void;
@@ -223,13 +211,14 @@ function migrateDarkVariant(value?: string): ThemeVariantDark {
 
 export const useUiStore = create<UiState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       sidebarCollapsed: false,
       editorSidebarCollapsed: false,
       commandPaletteOpen: false,
       selectedProjectId: null,
       editorFontFamily: "serif",
       editorFontSize: 18,
+      readFontSize: 17,
       dailyWordGoal: 500,
       projectsSort: "updated-desc",
       projectsLayout: "grid",
@@ -257,12 +246,6 @@ export const useUiStore = create<UiState>()(
       unblockCloseOnSave: true,
       canvasButtonsHidden: false,
       trashRetentionMs: DEFAULT_TRASH_RETENTION_MS,
-      notificationsEnabled: false,
-      notifyGoalNotMet: true,
-      notifyNoNewCharacters: true,
-      notifyNoNewScenes: true,
-      notifyNoNewChapters: true,
-      notificationsStaleDays: 7,
       setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
       toggleSidebar: () =>
         set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
@@ -276,11 +259,22 @@ export const useUiStore = create<UiState>()(
       closeCommandPalette: () => set({ commandPaletteOpen: false }),
       toggleCommandPalette: () =>
         set((state) => ({ commandPaletteOpen: !state.commandPaletteOpen })),
-      setSelectedProjectId: (projectId) => set({ selectedProjectId: projectId }),
+      setSelectedProjectId: (projectId) => {
+        // Trocar/abrir um projeto liga a tela de carregamento; as páginas
+        // encerram quando os dados resolvem (useProjectReady).
+        if (projectId && projectId !== get().selectedProjectId) {
+          useProjectLoadStore.getState().start(projectId);
+        }
+        set({ selectedProjectId: projectId });
+      },
       setEditorFontFamily: (family) => set({ editorFontFamily: family }),
       setEditorFontSize: (size) =>
         set({
           editorFontSize: clamp(size, EDITOR_FONT_SIZE_MIN, EDITOR_FONT_SIZE_MAX),
+        }),
+      setReadFontSize: (size) =>
+        set({
+          readFontSize: clamp(size, READ_FONT_SIZE_MIN, READ_FONT_SIZE_MAX),
         }),
       setDailyWordGoal: (goal) => set({ dailyWordGoal: Math.max(0, goal || 0) }),
       setProjectsSort: (sort) => set({ projectsSort: sort }),
@@ -333,16 +327,6 @@ export const useUiStore = create<UiState>()(
             : DEFAULT_TRASH_RETENTION_MS,
         });
       },
-      setNotificationsEnabled: (enabled) =>
-        set({ notificationsEnabled: enabled }),
-      setNotifyGoalNotMet: (enabled) => set({ notifyGoalNotMet: enabled }),
-      setNotifyNoNewCharacters: (enabled) =>
-        set({ notifyNoNewCharacters: enabled }),
-      setNotifyNoNewScenes: (enabled) => set({ notifyNoNewScenes: enabled }),
-      setNotifyNoNewChapters: (enabled) =>
-        set({ notifyNoNewChapters: enabled }),
-      setNotificationsStaleDays: (days) =>
-        set({ notificationsStaleDays: clamp(days, STALE_DAYS_MIN, STALE_DAYS_MAX) }),
     }),
     {
       name: "autor-ui",
@@ -362,6 +346,7 @@ export const useUiStore = create<UiState>()(
         selectedProjectId: state.selectedProjectId,
         editorFontFamily: state.editorFontFamily,
         editorFontSize: state.editorFontSize,
+        readFontSize: state.readFontSize,
         dailyWordGoal: state.dailyWordGoal,
         projectsSort: state.projectsSort,
         projectsLayout: state.projectsLayout,
@@ -388,12 +373,6 @@ export const useUiStore = create<UiState>()(
         unblockCloseOnSave: state.unblockCloseOnSave,
         canvasButtonsHidden: state.canvasButtonsHidden,
         trashRetentionMs: state.trashRetentionMs,
-        notificationsEnabled: state.notificationsEnabled,
-        notifyGoalNotMet: state.notifyGoalNotMet,
-        notifyNoNewCharacters: state.notifyNoNewCharacters,
-        notifyNoNewScenes: state.notifyNoNewScenes,
-        notifyNoNewChapters: state.notifyNoNewChapters,
-        notificationsStaleDays: state.notificationsStaleDays,
       }),
     },
   ),

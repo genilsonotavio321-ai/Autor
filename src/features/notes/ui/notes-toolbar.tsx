@@ -4,12 +4,11 @@ import { useRef, useState, type ChangeEvent } from "react";
 import {
   ArrowUpDown,
   Check,
-  FileDown,
-  FileUp,
+  Download,
   Plus,
   Trash2,
+  Upload,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -29,7 +28,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { NewFolderButton } from "@/features/folders/ui/new-folder-button";
-import type { EntityId, Folder } from "@/shared/types/database";
+import type { EntityId } from "@/shared/types/database";
 
 import { NOTES_SORT_LABELS, type NotesSort } from "../domain/sort";
 import { importNotesFile } from "../infra/notes-import";
@@ -40,7 +39,6 @@ interface NotesToolbarProps {
   sort: NotesSort;
   onSortChange: (sort: NotesSort) => void;
   openFolderId: EntityId | null;
-  onFolderCreated: (folder: Folder) => void;
   /** Abre o diálogo de formato para exportar todas as notas visíveis. */
   onExportAll: () => void;
   /** Já confirmado pelo AlertDialog interno: move todas para a lixeira. */
@@ -58,7 +56,6 @@ export function NotesToolbar({
   sort,
   onSortChange,
   openFolderId,
-  onFolderCreated,
   onExportAll,
   onClearAll,
   onNewNote,
@@ -74,14 +71,9 @@ export function NotesToolbar({
       const text = await file.text();
       const { created } = await importNotesFile(projectId, file.name, text);
       if (created === 0) {
-        toast.error("Nenhuma nota encontrada no arquivo.");
         return;
       }
-      toast.success(
-        created === 1 ? "1 nota importada" : `${created} notas importadas`,
-      );
     } catch {
-      toast.error("Falha ao importar as notas.");
     }
   }
 
@@ -91,7 +83,6 @@ export function NotesToolbar({
         kind="note"
         projectId={projectId}
         parentId={openFolderId ?? undefined}
-        onCreated={onFolderCreated}
       />
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
@@ -130,7 +121,7 @@ export function NotesToolbar({
         disabled={noteCount === 0}
         onClick={onExportAll}
       >
-        <FileDown aria-hidden />
+        <Upload aria-hidden />
       </Button>
       <Button
         variant="outline"
@@ -141,7 +132,7 @@ export function NotesToolbar({
         disabled={!projectId}
         onClick={() => importInputRef.current?.click()}
       >
-        <FileUp aria-hidden />
+        <Download aria-hidden />
       </Button>
       <Button
         variant="outline"

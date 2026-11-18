@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -72,9 +71,7 @@ export function LocationDialog({
       const byId = new Map(locations.map((item) => [item.id, item]));
       const parent = byId.get(parentId);
       if (parent && locationDepth(parent, byId) >= MAX_LOCATION_DEPTH) {
-        toast.error(
-          `Hierarquia limitada a ${MAX_LOCATION_DEPTH} níveis: "${parent.name}" já está no nível máximo`,
-        );
+
         return;
       }
     }
@@ -89,23 +86,18 @@ export function LocationDialog({
           parentId,
         });
         // Item 16: renomear a ficha reescreve as menções nos capítulos/cenas.
-        let renamed = 0;
         if (location.name !== nextName) {
           try {
-            renamed = await renameMentionsInProject(
+            await renameMentionsInProject(
               location.projectId,
               location.name,
               nextName,
             );
           } catch {
-            toast.error("Não foi possível atualizar o nome nos capítulos");
+
           }
         }
-        toast.success(
-          renamed > 0
-            ? `Local atualizado · ${renamed} ${renamed === 1 ? "trecho" : "trechos"} com o novo nome`
-            : "Local atualizado",
-        );
+
       } else {
         await locationRepository.create({
           projectId,
@@ -114,11 +106,11 @@ export function LocationDialog({
           description: description.trim() || undefined,
           parentId,
         });
-        toast.success("Local criado");
+
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar o local");
+
     } finally {
       setSaving(false);
     }

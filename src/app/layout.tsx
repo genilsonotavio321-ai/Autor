@@ -5,7 +5,6 @@ import "./globals.css";
 import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/shared/ui/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Toaster } from "@/components/ui/sonner";
 
 // Newsreader: serifa editorial com pesos reais (Instrument Serif só tem 400,
 // o que obrigaria a sintetizar negrito nos títulos).
@@ -66,9 +65,6 @@ export default function RootLayout({
       <body className="antialiased">
         <ThemeProvider>
           <TooltipProvider delayDuration={300}>{children}</TooltipProvider>
-          {/* Notificações no topo: a barra inferior de navegação (mobile)
-              não pode ser coberta pelo toast. */}
-          <Toaster position="top-center" />
         </ThemeProvider>
       </body>
     </html>

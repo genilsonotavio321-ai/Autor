@@ -22,6 +22,8 @@ import { SettingSlider } from "@/features/settings/ui/setting-slider";
 import {
   EDITOR_FONT_SIZE_MAX,
   EDITOR_FONT_SIZE_MIN,
+  READ_FONT_SIZE_MAX,
+  READ_FONT_SIZE_MIN,
   TRASH_RETENTION_OPTIONS,
   useUiStore,
 } from "@/shared/store/ui-store";
@@ -70,6 +72,33 @@ export function EditorCard() {
           max={EDITOR_FONT_SIZE_MAX}
           step={1}
           onValueChange={setEditorFontSize}
+        />
+      </CardContent>
+    </Card>
+  );
+}
+
+/** Tamanho do texto no modo leitura (independente do editor). */
+export function ReadingCard() {
+  const readFontSize = useUiStore((state) => state.readFontSize);
+  const setReadFontSize = useUiStore((state) => state.setReadFontSize);
+
+  return (
+    <Card id="leitura">
+      <CardHeader>
+        <CardTitle>Leitura</CardTitle>
+        <CardDescription>Tamanho do texto no modo leitura.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        <SettingSlider
+          id="read-size"
+          label="Tamanho da fonte"
+          unit="px"
+          value={readFontSize}
+          min={READ_FONT_SIZE_MIN}
+          max={READ_FONT_SIZE_MAX}
+          step={1}
+          onValueChange={setReadFontSize}
         />
       </CardContent>
     </Card>

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -195,7 +194,6 @@ export function EventDialog({
   async function submit() {
     if (!projectId || !title.trim()) return;
     if (!validDate) {
-      toast.error("Use uma data no formato AAAA, AAAA-MM ou AAAA-MM-DD.");
       return;
     }
     setSaving(true);
@@ -219,7 +217,6 @@ export function EventDialog({
           arcIds,
           stateChanges: validStateChanges,
         });
-        toast.success("Evento atualizado");
       } else {
         await timelineEventRepository.create({
           projectId,
@@ -234,11 +231,9 @@ export function EventDialog({
           arcIds,
           stateChanges: validStateChanges,
         });
-        toast.success("Evento criado");
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar o evento");
     } finally {
       setSaving(false);
     }

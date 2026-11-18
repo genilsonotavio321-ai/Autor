@@ -1,7 +1,6 @@
 "use client";
 
 import { Folder as FolderIcon } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import type { EntityId, Folder, FolderKind } from "@/shared/types/database";
@@ -39,7 +38,7 @@ export function NewFolderButton({
       });
       onCreated?.(folder);
     } catch {
-      toast.error("Falha ao criar a pasta");
+
     }
   }
   const disabledForReal = Boolean(disabled) || !projectId;

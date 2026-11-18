@@ -1,11 +1,8 @@
 "use client";
 
-import { toast } from "sonner";
-
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { requestNotificationPermission } from "@/features/productivity/infra/notification-service";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { SHORTCUTS } from "@/features/settings/ui/settings-options";
 import { SettingRow } from "@/features/settings/ui/setting-row";
@@ -162,124 +159,6 @@ export function ReadingSection() {
           max={30}
           step={1}
           onValueChange={setMentionBackToTextSeconds}
-        />
-      </div>
-    </Section>
-  );
-}
-
-/** Avisos dentro do app e quando cada tipo deve disparar. */
-export function NotificationsSection() {
-  const notificationsEnabled = useUiStore(
-    (state) => state.notificationsEnabled,
-  );
-  const setNotificationsEnabled = useUiStore(
-    (state) => state.setNotificationsEnabled,
-  );
-  const notifyGoalNotMet = useUiStore((state) => state.notifyGoalNotMet);
-  const setNotifyGoalNotMet = useUiStore(
-    (state) => state.setNotifyGoalNotMet,
-  );
-  const notifyNoNewCharacters = useUiStore(
-    (state) => state.notifyNoNewCharacters,
-  );
-  const setNotifyNoNewCharacters = useUiStore(
-    (state) => state.setNotifyNoNewCharacters,
-  );
-  const notifyNoNewScenes = useUiStore((state) => state.notifyNoNewScenes);
-  const setNotifyNoNewScenes = useUiStore(
-    (state) => state.setNotifyNoNewScenes,
-  );
-  const notifyNoNewChapters = useUiStore(
-    (state) => state.notifyNoNewChapters,
-  );
-  const setNotifyNoNewChapters = useUiStore(
-    (state) => state.setNotifyNoNewChapters,
-  );
-  const notificationsStaleDays = useUiStore(
-    (state) => state.notificationsStaleDays,
-  );
-  const setNotificationsStaleDays = useUiStore(
-    (state) => state.setNotificationsStaleDays,
-  );
-
-  return (
-    <Section title="Notificações" bordered>
-      <p className="text-xs leading-relaxed text-muted-foreground">
-        Avisos enquanto o app está em uso; cada tipo avisa uma vez por dia.
-      </p>
-      <SettingRow
-        label="Ativar notificações"
-        htmlFor="notifications-enabled"
-      >
-        <Switch
-          id="notifications-enabled"
-          checked={notificationsEnabled}
-          onCheckedChange={async (checked) => {
-            if (checked) {
-              const result = await requestNotificationPermission();
-              if (result === "denied") {
-                toast.warning(
-                  "Notificações do sistema bloqueadas; os avisos aparecem dentro do app.",
-                );
-              }
-            }
-            setNotificationsEnabled(checked);
-          }}
-        />
-      </SettingRow>
-      <SettingRow
-        label="Meta do dia não batida"
-        description="Avisa a partir das 19h."
-        htmlFor="notify-goal-not-met"
-      >
-        <Switch
-          id="notify-goal-not-met"
-          disabled={!notificationsEnabled}
-          checked={notifyGoalNotMet}
-          onCheckedChange={setNotifyGoalNotMet}
-        />
-      </SettingRow>
-      <SettingRow
-        label="Tempo sem criar personagem"
-        htmlFor="notify-no-new-characters"
-      >
-        <Switch
-          id="notify-no-new-characters"
-          disabled={!notificationsEnabled}
-          checked={notifyNoNewCharacters}
-          onCheckedChange={setNotifyNoNewCharacters}
-        />
-      </SettingRow>
-      <SettingRow label="Tempo sem criar cena" htmlFor="notify-no-new-scenes">
-        <Switch
-          id="notify-no-new-scenes"
-          disabled={!notificationsEnabled}
-          checked={notifyNoNewScenes}
-          onCheckedChange={setNotifyNoNewScenes}
-        />
-      </SettingRow>
-      <SettingRow
-        label="Tempo sem criar capítulo"
-        htmlFor="notify-no-new-chapters"
-      >
-        <Switch
-          id="notify-no-new-chapters"
-          disabled={!notificationsEnabled}
-          checked={notifyNoNewChapters}
-          onCheckedChange={setNotifyNoNewChapters}
-        />
-      </SettingRow>
-      <div className="max-w-xs">
-        <SettingSlider
-          id="notifications-stale-days"
-          label="Considerar parado a partir de"
-          unit="dias"
-          value={notificationsStaleDays}
-          min={1}
-          max={60}
-          step={1}
-          onValueChange={setNotificationsStaleDays}
         />
       </div>
     </Section>

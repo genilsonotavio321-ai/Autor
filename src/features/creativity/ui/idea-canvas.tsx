@@ -40,7 +40,6 @@ import {
   ZoomIn,
   ZoomOut,
 } from "lucide-react";
-import { toast } from "sonner";
 
 import {
   DropdownMenu,
@@ -651,7 +650,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     const timer = window.setTimeout(() => {
       void ideaBoardRepository
         .updateItems(activeBoardId, items)
-        .catch(() => toast.error("Falha ao atualizar o quadro"));
+        .catch(() => undefined);
     }, 800);
     return () => window.clearTimeout(timer);
   }, [activeBoardId, cards]);
@@ -711,7 +710,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       setUndoStack((stack) => [...stack, ops]);
       setRedoStack([]);
     } catch {
-      toast.error("Falha ao mover a ideia");
+
     }
   }
 
@@ -807,7 +806,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         burst.positions.set(id, to);
         return ideaCardRepository.move(id, to.x, to.y);
       }),
-    ).catch(() => toast.error("Falha ao mover a ideia"));
+    ).catch(() => undefined);
     window.clearTimeout(nudgeTimerRef.current);
     nudgeTimerRef.current = window.setTimeout(() => {
       const current = nudgeRef.current;
@@ -979,9 +978,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     if (!targetId || targetId === fromId) return;
     try {
       await ideaCardRepository.link(fromId, targetId);
-      toast.success("Conexão criada");
+
     } catch {
-      toast.error("Falha ao criar a conexão");
+
     }
   }
 
@@ -1016,7 +1015,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         if (latest && (latest.w !== startW || latest.h !== startH)) {
           void ideaCardRepository
             .update(card.id, { w: latest.w, h: latest.h })
-            .catch(() => toast.error("Falha ao redimensionar a ideia"));
+            .catch(() => undefined);
         }
       },
       onDragCancel: () => setResize(null),
@@ -1034,7 +1033,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       setUndoStack((stack) => stack.slice(0, -1));
       setRedoStack((stack) => [...stack, ops]);
     } catch {
-      toast.error("Falha ao desfazer");
+
     }
   }
 
@@ -1048,7 +1047,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       setRedoStack((stack) => stack.slice(0, -1));
       setUndoStack((stack) => [...stack, ops]);
     } catch {
-      toast.error("Falha ao refazer");
+
     }
   }
 
@@ -1064,7 +1063,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       setUndoStack((stack) => [...stack, moves]);
       setRedoStack([]);
     } catch {
-      toast.error("Falha ao alinhar");
+
     }
   }
 
@@ -1104,7 +1103,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       });
       setEditingId(card.id);
     } catch {
-      toast.error("Falha ao criar a ideia");
+
     }
   }
 
@@ -1137,11 +1136,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         x: 16 + (n % 5) * 24,
         y: 16 + (n % 5) * 40,
       });
-      toast.success("Node adicionado ao canvas");
+
       setFichaDialogOpen(false);
       setRefPicker(null);
     } catch {
-      toast.error("Falha ao adicionar o node");
+
     }
   }
 
@@ -1161,7 +1160,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         ? await characterRepository.getById(card.refId)
         : await locationRepository.getById(card.refId);
     if (!found) {
-      toast.error("Ficha não encontrada");
+
       return;
     }
     setFichaTarget({ type: card.refType, id: card.refId });
@@ -1182,9 +1181,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         h: card.h,
         doc: card.doc,
       });
-      toast.success("Ideia duplicada");
+
     } catch {
-      toast.error("Falha ao duplicar a ideia");
+
     }
   }
 
@@ -1194,23 +1193,16 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     colorTimerRef.current = window.setTimeout(() => {
       void ideaCardRepository
         .update(cardId, { color })
-        .catch(() => toast.error("Falha ao alterar a cor"));
+        .catch(() => undefined);
     }, 250);
   }
 
   async function removeLink(a: IdeaCard, b: IdeaCard) {
     try {
       await ideaCardRepository.unlink(a.id, b.id);
-      toast("Conexão removida", {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            void ideaCardRepository.link(a.id, b.id);
-          },
-        },
-      });
+
     } catch {
-      toast.error("Falha ao remover a conexão");
+
     }
   }
 
@@ -1226,7 +1218,7 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
   async function createGroup() {
     const name = groupName.trim();
     if (!name) {
-      toast.error("Dê um nome ao grupo");
+
       return;
     }
     if (selectedCards.length < 2) return;
@@ -1237,11 +1229,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           ideaCardRepository.update(card.id, { groupId: group.id }),
         ),
       );
-      toast.success(`Grupo "${name}" criado`);
+
       setGroupDialogOpen(false);
       setSelection(new Set());
     } catch {
-      toast.error("Falha ao criar o grupo");
+
     }
   }
 
@@ -1269,9 +1261,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
           await ideaGroupRepository.hardDelete(groupId);
         }
       }
-      toast("Grupo desfeito");
+
     } catch {
-      toast.error("Falha ao desagrupar");
+
     }
   }
 
@@ -1283,25 +1275,16 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
         members.map((card) => ideaCardRepository.softDelete(card.id)),
       );
       setSelection(new Set());
-      toast(`${members.length} ideia(s) movidas para a lixeira`, {
-        action: {
-          label: "Desfazer",
-          onClick: () => {
-            void Promise.all(
-              members.map((card) => ideaCardRepository.restore(card.id)),
-            );
-          },
-        },
-      });
+
     } catch {
-      toast.error("Falha ao excluir as ideias");
+
     }
   }
 
   async function saveBoard() {
     const name = boardName.trim();
     if (!name) {
-      toast.error("Dê um nome ao quadro");
+
       return;
     }
     try {
@@ -1313,11 +1296,11 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       // Quadro novo vira o "arquivo" ativo: o canvas passa a salvar nele
       // até que outro quadro seja criado ou carregado.
       setActiveBoardId(board.id);
-      toast.success(`Quadro "${name}" criado — salvando automaticamente`);
+
       setSaveDialogOpen(false);
       setBoardName("");
     } catch {
-      toast.error("Falha ao criar o quadro");
+
     }
   }
 
@@ -1367,16 +1350,10 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
 
   async function importBoardFile(file: File) {
     try {
-      const count = await createFromItems(parseBoardExport(JSON.parse(await file.text())));
-      toast.success(
-        `Quadro importado (${count} ideia${count === 1 ? "" : "s"})`,
-      );
-    } catch (error) {
-      toast.error(
-        error instanceof Error && error.message
-          ? error.message
-          : "Falha ao importar o quadro",
-      );
+      await createFromItems(parseBoardExport(JSON.parse(await file.text())));
+
+    } catch {
+
     }
   }
 
@@ -1389,16 +1366,14 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
       await Promise.all(
         cards.map((card) => ideaCardRepository.softDelete(card.id)),
       );
-      const count = await createFromItems(board.items);
+      await createFromItems(board.items);
       setSelection(new Set());
       // O quadro carregado assume o autosave; a primeira gravação dele é
       // idêntica ao conteúdo carregado (inofensiva).
       setActiveBoardId(board.id);
-      toast.success(
-        `Quadro "${board.name}" carregado (${count} ideia${count === 1 ? "" : "s"})`,
-      );
+
     } catch {
-      toast.error("Falha ao carregar o quadro");
+
     }
   }
 
@@ -1406,21 +1381,9 @@ export function IdeaCanvas({ projectId, chapters }: IdeaCanvasProps) {
     try {
       await ideaBoardRepository.hardDelete(board.id);
       if (activeBoardId === board.id) setActiveBoardId(null);
-      toast(`Quadro "${board.name}" excluído`, {
-        action: {
-          label: "Desfazer",
-          // Novo id, mesmo conteúdo — o quadro volta à lista.
-          onClick: () => {
-            void ideaBoardRepository.create({
-              projectId,
-              name: board.name,
-              items: board.items,
-            });
-          },
-        },
-      });
+
     } catch {
-      toast.error("Falha ao excluir o quadro");
+
     }
   }
 

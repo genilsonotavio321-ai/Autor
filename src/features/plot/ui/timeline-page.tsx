@@ -4,7 +4,6 @@ import { useMemo, useState } from "react";
 import { CalendarRange, Layers, Plus, Trash2 } from "lucide-react";
 import Link from "next/link";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { PageHeader } from "@/components/layout/page-header";
@@ -20,6 +19,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
@@ -47,11 +47,12 @@ const EMPTY_LORE_ENTRIES: LoreEntry[] = [];
 
 export function TimelinePage() {
   const { projectId } = useSelectedProject();
-  const chapters =
-    useLiveQuery(
-      () => (projectId ? chapterRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveChapters = useLiveQuery(
+    () => (projectId ? chapterRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  useProjectReady(liveChapters !== undefined, projectId);
+  const chapters = liveChapters ?? [];
   const events =
     useLiveQuery(
       () => (projectId ? timelineEventRepository.listByProject(projectId) : []),
@@ -159,26 +160,10 @@ export function TimelinePage() {
 
   async function remove(event: TimelineEvent) {
     await timelineEventRepository.softDelete(event.id);
-    toast(`"${event.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void timelineEventRepository.restore(event.id);
-        },
-      },
-    });
   }
 
   async function removeArc(arc: NarrativeArc) {
     await narrativeArcRepository.softDelete(arc.id);
-    toast(`"${arc.name}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void narrativeArcRepository.restore(arc.id);
-        },
-      },
-    });
   }
 
   return (

@@ -19,7 +19,6 @@ import {
 } from "@dnd-kit/sortable";
 import { Archive, GripVertical, MoreHorizontal, Trash2 } from "lucide-react";
 import Link from "next/link";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { buildAnnouncements, useCardSortable } from "@/shared/lib/sortable";
@@ -38,7 +37,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { formatRelativeTime } from "@/shared/lib/dates";
 import type { Chapter, ChapterStatus } from "@/shared/types/database";
 
 import { computeChapterOrder } from "@/features/plot/domain/ordering";
@@ -94,7 +92,6 @@ export function ChapterList({ chapters, sortable = true }: ChapterListProps) {
         await chapterRepository.update(update.id, { order: update.order });
       }
     } catch {
-      toast.error("Falha ao reordenar");
     }
   }
 
@@ -183,7 +180,6 @@ function ChapterRow({
     try {
       await chapterRepository.update(chapter.id, { status });
     } catch {
-      toast.error("Falha ao atualizar o status");
     }
   }
 
@@ -192,36 +188,12 @@ function ChapterRow({
     const archived = !chapter.archived;
     try {
       await chapterRepository.update(chapter.id, { archived });
-      toast.success(
-        archived
-          ? `"${chapter.title}" arquivado`
-          : `"${chapter.title}" desarquivado`,
-        {
-          action: {
-            label: "Desfazer",
-            onClick: () => {
-              void chapterRepository.update(chapter.id, {
-                archived: !archived,
-              });
-            },
-          },
-        },
-      );
     } catch {
-      toast.error("Falha ao arquivar o capítulo");
     }
   }
 
   async function remove() {
     await chapterRepository.softDelete(chapter.id);
-    toast(`"${chapter.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void chapterRepository.restore(chapter.id);
-        },
-      },
-    });
   }
 
   return (
@@ -282,8 +254,7 @@ function ChapterRow({
         </div>
         <p className="mt-0.5 text-xs text-muted-foreground">
           {chapter.wordCount.toLocaleString("pt-BR")} palavras · ~
-          {estimateReadingMinutes(chapter.wordCount)} min · atualizado{" "}
-          {formatRelativeTime(chapter.updatedAt)}
+          {estimateReadingMinutes(chapter.wordCount)} min
         </p>
       </div>
       <DropdownMenu>

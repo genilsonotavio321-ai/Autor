@@ -6,11 +6,12 @@ import { useEffect, useRef } from "react";
 
 import { CommandPalette } from "@/components/command-palette";
 import { ActionBar, ActionBarProvider } from "@/components/layout/action-bar";
+import { LoadingOverlay } from "@/components/layout/loading-overlay";
 import { Sidebar } from "@/components/layout/sidebar";
+import { SwipeNavigation } from "@/components/layout/swipe-navigation";
 import { Topbar } from "@/components/layout/topbar";
 import { usePageTransition } from "@/components/layout/use-page-transition";
 import { SearchDialog } from "@/features/search/ui/search-dialog";
-import { NotificationMonitor } from "@/features/productivity/ui/notification-monitor";
 import { TrashAutoPurge } from "@/features/projects/ui/trash-auto-purge";
 import {
   resolveResumeRoute,
@@ -92,19 +93,15 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     </a>
   );
 
-  // Serviços persistentes do shell: expiração da lixeira e notificações.
-  const backgroundServices = (
-    <>
-      <TrashAutoPurge />
-      <NotificationMonitor />
-    </>
-  );
+  // Serviço persistente do shell: expiração da lixeira.
+  const backgroundServices = <TrashAutoPurge />;
 
   // O editor ocupa a tela inteira: sem sidebar, topbar nem barras flutuantes.
   if (isEditor) {
     return (
       <ActionBarProvider>
         <div className="min-h-dvh w-full">
+          <LoadingOverlay />
           {backgroundServices}
           <SearchDialog />
           {skipLink}
@@ -123,6 +120,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <ActionBarProvider>
       <div className="flex min-h-dvh w-full">
+        <LoadingOverlay />
         {backgroundServices}
         <SearchDialog />
         {skipLink}
@@ -145,6 +143,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           </main>
         </div>
         <ActionBar />
+        <SwipeNavigation />
         <CommandPalette />
       </div>
     </ActionBarProvider>

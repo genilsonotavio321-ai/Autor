@@ -201,6 +201,7 @@ export const TABLE_NAMES = [
   "ideaBoards",
   "promptItems",
   "folders",
+  "bookmarks",
 ] as const;
 
 /** Full JSON dump of every table (used by the backup feature). */

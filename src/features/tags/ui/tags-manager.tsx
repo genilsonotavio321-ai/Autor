@@ -3,7 +3,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -48,15 +47,15 @@ export function TagsManager({ projectId }: { projectId: EntityId | null }) {
   async function create() {
     if (!projectId) return;
     if (!name.trim()) {
-      toast.error("Dê um nome à tag.");
+
       return;
     }
     try {
       await tagRepository.create({ projectId, name, color });
       setName("");
-      toast.success("Tag criada");
+
     } catch {
-      toast.error("Falha ao criar a tag");
+
     }
   }
 
@@ -157,7 +156,7 @@ function TagRow({ tag, others }: { tag: Tag; others: Tag[] }) {
       await tagRepository.update(tag.id, { name: next });
       setName(next);
     } catch {
-      toast.error("Falha ao renomear a tag");
+
     }
   }
 
@@ -165,16 +164,16 @@ function TagRow({ tag, others }: { tag: Tag; others: Tag[] }) {
     try {
       await tagRepository.update(tag.id, { color });
     } catch {
-      toast.error("Falha ao recolorir a tag");
+
     }
   }
 
   async function mergeInto(targetId: string) {
     try {
       await tagRepository.merge(tag.id, targetId);
-      toast.success(`"${tag.name}" mesclada`);
+
     } catch {
-      toast.error("Falha ao mesclar a tag");
+
     }
   }
 
@@ -243,7 +242,7 @@ function TagRow({ tag, others }: { tag: Tag; others: Tag[] }) {
             <AlertDialogAction
               onClick={() => {
                 void tagRepository.remove(tag.id).catch(() => {
-                  toast.error("Falha ao excluir a tag");
+
                 });
               }}
             >

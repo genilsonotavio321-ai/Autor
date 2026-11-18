@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Shuffle } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -82,10 +81,10 @@ export function UnblockPanel({ projectId, onSaved }: UnblockPanelProps) {
   async function saveToCanvas(title: string, content: string) {
     try {
       await ideaCardRepository.create({ projectId, title, content, ...cascade() });
-      toast.success("Ideia guardada no canvas");
+
       onSaved?.();
     } catch {
-      toast.error("Falha ao guardar a ideia");
+
     }
   }
 

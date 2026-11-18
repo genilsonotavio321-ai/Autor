@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { ImagePlus, X } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { readImageAsDataUrl } from "@/features/editor/domain/image-file";
@@ -64,11 +63,9 @@ export function ImageAttachments({
           name: file.name,
         });
       }
-      toast.success(
-        list.length === 1 ? "Imagem anexada" : `${list.length} imagens anexadas`,
-      );
+
     } catch {
-      toast.error("Não foi possível anexar a imagem");
+
     } finally {
       setUploading(false);
     }

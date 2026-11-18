@@ -1,8 +1,6 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "@/infra/navigation/use-app-router";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -40,7 +38,6 @@ export function SendCardDialog({
   open,
   onOpenChange,
 }: SendCardDialogProps) {
-  const router = useRouter();
   const [chapterId, setChapterId] = useState("");
   const [sending, setSending] = useState(false);
   const submitRef = useRef<HTMLButtonElement | null>(null);
@@ -60,15 +57,8 @@ export function SendCardDialog({
         summary: card.content || undefined,
       });
       await ideaCardRepository.update(card.id, { sentSceneId: scene.id });
-      toast.success(`Cena "${scene.title}" criada na Estrutura`, {
-        action: {
-          label: "Ver em Estrutura",
-          onClick: () => router.push("/outline"),
-        },
-      });
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao criar a cena");
     } finally {
       setSending(false);
     }

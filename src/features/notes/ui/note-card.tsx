@@ -55,7 +55,7 @@ export function NoteCard({
           openView();
         }
       }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+      className={`flex cursor-pointer touch-pan-y select-none flex-col rounded-lg border bg-card p-4 hover:border-primary/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         isDragging ? "z-10 opacity-60" : ""
       } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >

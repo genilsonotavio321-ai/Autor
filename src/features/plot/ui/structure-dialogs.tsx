@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -45,7 +44,6 @@ import { sceneRepository } from "../infra/dexie-scene-repository";
 
 const NO_LINK = "__none__";
 
-
 export interface CustomStructureDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -77,11 +75,9 @@ export function CustomStructureDialog({
   async function save() {
     setSaving(true);
     try {
-      const result = await applyCustomStructure(projectId, rows);
-      toast.success(`Estrutura própria salva (${result.sections} seções)`);
+      await applyCustomStructure(projectId, rows);
       onOpenChange(false);
     } catch {
-      toast.error("A estrutura precisa de pelo menos uma seção");
     } finally {
       setSaving(false);
     }
@@ -308,10 +304,8 @@ export function BeatEditDialog({
         }
       }
 
-      toast.success("Beat atualizado");
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao atualizar o beat");
     } finally {
       setSaving(false);
     }

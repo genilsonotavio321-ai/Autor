@@ -16,7 +16,6 @@ import { DataSection } from "@/features/export/ui/export-page";
 import {
   CanvasSection,
   NavigationSection,
-  NotificationsSection,
   ReadingSection,
   ShortcutsSection,
   TagsSection,
@@ -26,6 +25,7 @@ import {
   AnimationsCard,
   EditorCard,
   MentionsCard,
+  ReadingCard,
   SearchCard,
   TrashCard,
   WritingCard,
@@ -59,6 +59,7 @@ export function SettingsPage() {
         <TabsContent value="geral" className="mt-6 flex flex-col gap-5">
           <AppearanceCard />
           <EditorCard />
+          <ReadingCard />
           <WritingCard />
           <AnimationsCard />
           <MentionsCard />
@@ -76,7 +77,6 @@ export function SettingsPage() {
 
             <div className="grid gap-6 border-t border-border/60 px-5 py-5">
               <ReadingSection />
-              <NotificationsSection />
               <NavigationSection />
               <CanvasSection />
               <TagsSection />

@@ -17,6 +17,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { UnblockPanel } from "@/features/creativity/ui/unblock-panel";
 import { useUiStore } from "@/shared/store/ui-store";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 
@@ -26,11 +27,12 @@ import { StructurePanel } from "./structure-panel";
 
 export function OutlinePage() {
   const { projectId } = useSelectedProject();
-  const chapters =
-    useLiveQuery(
-      () => (projectId ? chapterRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveChapters = useLiveQuery(
+    () => (projectId ? chapterRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  useProjectReady(liveChapters !== undefined, projectId);
+  const chapters = liveChapters ?? [];
   const [tab, setTab] = useState("structure");
   // Deep links: /outline?scene=<id> abre o SceneDialog no Roteiro;
   // /outline?beat=<id> abre o beat na Estrutura (padrão house).

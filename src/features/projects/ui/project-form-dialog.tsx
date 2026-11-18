@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -85,13 +84,11 @@ export function ProjectFormDialog({
       const saved = project
         ? await updateProject(project.id, values)
         : await createProject(values);
-      toast.success(isEditing ? "Projeto atualizado" : "Projeto criado");
+
       onOpenChange(false);
       onSaved?.(saved);
-    } catch (error) {
-      toast.error("Falha ao salvar o projeto", {
-        description: error instanceof Error ? error.message : undefined,
-      });
+    } catch {
+
     }
   };
 

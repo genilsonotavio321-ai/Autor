@@ -152,8 +152,8 @@ export function SelectionSidebar({ editor }: { editor: Editor }) {
       className={cn(
         "fixed top-1/2 z-30 flex -translate-y-1/2 flex-col items-center gap-0.5 rounded-full border border-border/70 bg-background/85 p-1 shadow-lg backdrop-blur-xl",
         // Tailwind v4 anima `translate` (não `transform`); a visibilidade troca
-        // só no fim do slide, para a coluna deslizar de verdade ao fechar.
-        "motion-reduce:transition-none",
+        // só no fim do slide, para a coluna deslizar de verdade ao fechar. O
+        // toggle de Configurações (data-animations) desliga as animações.
         // Lado a lado com a principal em qualquer largura: abre na coluna
         // dela só quando ela está minimizada (aí o espaço fica livre).
         mainCollapsed ? "right-1 md:right-3" : "right-[4.25rem] md:right-[4.75rem]",

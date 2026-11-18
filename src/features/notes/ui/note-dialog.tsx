@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -25,10 +24,18 @@ interface NoteDialogProps {
   onOpenChange: (open: boolean) => void;
   note: Note | null;
   projectId: EntityId | null;
+  /** Pasta aberta: uma nota nova nasce dentro dela. */
+  folderId?: EntityId | null;
 }
 
 /** Cria ou edita uma nota (título + conteúdo + imagens anexadas). */
-export function NoteDialog({ open, onOpenChange, note, projectId }: NoteDialogProps) {
+export function NoteDialog({
+  open,
+  onOpenChange,
+  note,
+  projectId,
+  folderId,
+}: NoteDialogProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [saving, setSaving] = useState(false);
@@ -48,18 +55,16 @@ export function NoteDialog({ open, onOpenChange, note, projectId }: NoteDialogPr
           title: title.trim() || "Sem título",
           content,
         });
-        toast.success("Nota atualizada");
       } else {
         await noteRepository.create({
           projectId,
           title: title.trim() || undefined,
           content,
+          ...(folderId ? { folderId } : {}),
         });
-        toast.success("Nota criada");
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar a nota");
     } finally {
       setSaving(false);
     }

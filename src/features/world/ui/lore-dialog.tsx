@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -98,7 +97,7 @@ export function LoreDialog({
         if (entry.isTrackableItem !== isTrackableItem) {
           await setEntityFolderId("lore", entry.id, undefined);
         }
-        toast.success("Entrada atualizada");
+
       } else {
         await loreEntryRepository.create({
           projectId,
@@ -111,11 +110,11 @@ export function LoreDialog({
             ? { initialOwnerId }
             : {}),
         });
-        toast.success("Entrada criada");
+
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar a entrada de lore");
+
     } finally {
       setSaving(false);
     }

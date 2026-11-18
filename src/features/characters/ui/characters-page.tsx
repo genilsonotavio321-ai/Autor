@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import {
   DndContext,
   KeyboardSensor,
-  PointerSensor,
+  MouseSensor,
   TouchSensor,
   closestCenter,
   useSensor,
@@ -21,7 +21,6 @@ import {
 } from "@dnd-kit/sortable";
 import { Dices, Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { useCardSortable } from "@/shared/lib/sortable";
@@ -38,6 +37,7 @@ import {
 } from "@/components/ui/select";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { EntityViewDialog } from "@/shared/ui/entity-view-dialog";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { ImageAttachments } from "@/features/attachments/ui/image-attachments";
 import { resolveTagColor } from "@/features/tags/domain/repository";
@@ -45,7 +45,6 @@ import { tagRepository } from "@/features/tags/infra/dexie-tag-repository";
 import { resolveFolderDragEnd } from "@/features/folders/application/folder-drag";
 import {
   deleteFolderCascade,
-  restoreFolderCascade,
 } from "@/features/folders/application/folder-service";
 import {
   directCounts,
@@ -95,6 +94,10 @@ export function CharactersPage() {
   const liveFolders = useLiveQuery(
     () => (projectId ? folderRepository.listByProject(projectId) : []),
     [projectId],
+  );
+  useProjectReady(
+    liveCharacters !== undefined && liveFolders !== undefined,
+    projectId,
   );
   // Pastas da aba Personagens (uma árvore por tipo de ficha).
   const folders = useMemo(
@@ -149,9 +152,9 @@ export function CharactersPage() {
   const suppressClick = useRef(false);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, {
-      activationConstraint: { delay: 250, tolerance: 8 },
+      activationConstraint: { delay: 1000, tolerance: 8 },
     }),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
@@ -226,33 +229,19 @@ export function CharactersPage() {
 
   async function remove(character: Character) {
     await characterRepository.softDelete(character.id);
-    toast(`"${character.name}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void characterRepository.restore(character.id);
-        },
-      },
-    });
   }
 
   async function removeFolder(folder: Folder) {
+    // Excluir a pasta aberta devolve para a pasta pai, não para a raiz.
+    const parentId = effectiveParentId(folder, liveFolderIds);
     await deleteFolderCascade(folder);
-    toast(`Pasta "${folder.name}" movida para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void restoreFolderCascade(folder.id);
-        },
-      },
-    });
+    if (openFolderId === folder.id) setOpenFolderId(parentId);
   }
 
   async function renameFolder(folder: Folder, name: string) {
     try {
       await folderRepository.rename(folder.id, name);
     } catch {
-      toast.error("Falha ao renomear a pasta");
     }
   }
 
@@ -269,9 +258,7 @@ export function CharactersPage() {
     try {
       const input = buildRandomCharacter(characters);
       await characterRepository.create({ ...input, projectId });
-      toast.success(`Ficha aleatória "${input.name}" criada`);
     } catch {
-      toast.error("Falha ao criar a ficha aleatória");
     }
   }
 
@@ -300,12 +287,11 @@ export function CharactersPage() {
     })
       .then((outcome) => {
         if (outcome === "created") {
-          toast.success("Pasta criada com os dois personagens");
         } else if (outcome === "reorder") {
           reorderCharacters(activeId, overId);
         }
       })
-      .catch(() => toast.error("Falha ao mover"));
+      .catch(() => undefined);
   }
 
   /** Reordenação de fichas (drop na borda do card) — pastas ficam de fora. */
@@ -319,7 +305,7 @@ export function CharactersPage() {
     );
     void characterRepository
       .applyMoves(reordered.map((id, order) => ({ id, order })))
-      .catch(() => toast.error("Falha ao reordenar"));
+      .catch(() => undefined);
   }
 
   function handleDragCancel() {
@@ -344,7 +330,48 @@ export function CharactersPage() {
             ? `${characters.length} ${characters.length === 1 ? "personagem" : "personagens"}`
             : undefined
         }
-      />
+      >
+        {projectId !== null && characters.length > 0 ? (
+          <>
+            <Select
+              value={roleFilter}
+              onValueChange={(value) =>
+                setRoleFilter(value as CharacterRole | typeof ALL)
+              }
+            >
+              <SelectTrigger className="h-9 w-40" aria-label="Filtrar por papel">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>Todos os papéis</SelectItem>
+                {Object.entries(CHARACTER_ROLE_LABELS).map(([value, label]) => (
+                  <SelectItem key={value} value={value}>
+                    {label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {tags.length > 0 ? (
+              <Select value={tagFilter} onValueChange={setTagFilter}>
+                <SelectTrigger className="h-9 w-40" aria-label="Filtrar por tag">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>Todas as tags</SelectItem>
+                  {tags.map((tag) => (
+                    <SelectItem key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : null}
+            <span className="text-sm text-muted-foreground" aria-live="polite">
+              {visible.length} de {characters.length}
+            </span>
+          </>
+        ) : null}
+      </PageHeader>
 
       <PageActionBar>
         <Button
@@ -362,7 +389,6 @@ export function CharactersPage() {
           kind="character"
           projectId={projectId}
           parentId={openFolderId ?? undefined}
-          onCreated={(folder) => setOpenFolderId(folder.id)}
         />
         <Button
           size="icon"
@@ -375,47 +401,6 @@ export function CharactersPage() {
           <Plus aria-hidden />
         </Button>
       </PageActionBar>
-
-      {projectId !== null && characters.length > 0 ? (
-        <div className="flex flex-wrap items-center gap-2">
-          <Select
-            value={roleFilter}
-            onValueChange={(value) =>
-              setRoleFilter(value as CharacterRole | typeof ALL)
-            }
-          >
-            <SelectTrigger className="h-9 w-40" aria-label="Filtrar por papel">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value={ALL}>Todos os papéis</SelectItem>
-              {Object.entries(CHARACTER_ROLE_LABELS).map(([value, label]) => (
-                <SelectItem key={value} value={value}>
-                  {label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {tags.length > 0 ? (
-            <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="h-9 w-40" aria-label="Filtrar por tag">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>Todas as tags</SelectItem>
-                {tags.map((tag) => (
-                  <SelectItem key={tag.id} value={tag.id}>
-                    {tag.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          ) : null}
-          <span className="text-sm text-muted-foreground" aria-live="polite">
-            {visible.length} de {characters.length}
-          </span>
-        </div>
-      ) : null}
 
       {projectId === null ? (
         <EmptyState
@@ -576,7 +561,7 @@ function CharacterCard({
           openView();
         }
       }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:p-4 ${
+      className={`flex cursor-pointer touch-pan-y select-none flex-col rounded-lg border bg-card p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none sm:p-4 ${
         isDragging ? "opacity-60" : ""
       } ${isOver && folderDropActive ? "ring-2 ring-primary bg-primary/5" : ""}`}
     >

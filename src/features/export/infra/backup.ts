@@ -46,6 +46,7 @@ const REQUIRED_STRING_FIELDS: Record<string, readonly string[]> = {
   tags: ["projectId", "name"],
   versions: ["entityType", "entityId"],
   folders: ["projectId", "kind"],
+  bookmarks: ["projectId", "chapterId"],
 };
 
 /**
@@ -127,7 +128,8 @@ export async function buildBackupBlob(): Promise<{ blob: Blob; filename: string 
 
 /**
  * Valida JSON não confiável como backup do Autor (lança erro pt-BR).
- * Confere o envelope, exige todas as tabelas e valida cada linha.
+ * Confere o envelope, valida cada linha e tolera tabelas que ainda não
+ * existiam quando o backup foi gerado (ex.: marcadores).
  */
 export function parseBackup(raw: unknown): BackupFile {
   if (raw === null || typeof raw !== "object" || Array.isArray(raw)) {
@@ -144,6 +146,11 @@ export function parseBackup(raw: unknown): BackupFile {
   const rawTables = tables as Record<string, unknown>;
   for (const name of TABLE_NAMES) {
     const rows = rawTables[name];
+    if (rows === undefined) {
+      // Backup antigo, anterior à tabela: restaura vazio em vez de recusar.
+      rawTables[name] = [];
+      continue;
+    }
     if (!Array.isArray(rows)) invalidBackup();
     validateRows(name, rows);
   }

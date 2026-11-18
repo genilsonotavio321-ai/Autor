@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -161,23 +160,18 @@ export function CharacterDialog({
           tags: selectedTags,
         });
         // Item 16: renomear a ficha reescreve as menções nos capítulos/cenas.
-        let renamed = 0;
         if (character.name !== nextName) {
           try {
-            renamed = await renameMentionsInProject(
+            await renameMentionsInProject(
               character.projectId,
               character.name,
               nextName,
             );
           } catch {
-            toast.error("Não foi possível atualizar o nome nos capítulos");
+
           }
         }
-        toast.success(
-          renamed > 0
-            ? `Personagem atualizado · ${renamed} ${renamed === 1 ? "trecho" : "trechos"} com o novo nome`
-            : "Personagem atualizado",
-        );
+
       } else {
         await characterRepository.create({
           projectId,
@@ -191,11 +185,11 @@ export function CharacterDialog({
           traits,
           tags: selectedTags,
         });
-        toast.success("Personagem criado");
+
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar o personagem");
+
     } finally {
       setSaving(false);
     }

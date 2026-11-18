@@ -1,6 +1,7 @@
 import { getDatabase } from "@/infra/db";
 import { versionRepository } from "@/features/editor/infra/dexie-version-repository";
 import { attachmentRepository } from "@/features/attachments/infra/dexie-attachment-repository";
+import { bookmarkRepository } from "@/features/bookmarks/infra/dexie-bookmark-repository";
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { ideaCardRepository } from "@/features/creativity/infra/dexie-idea-card-repository";
 import { folderRepository } from "@/features/folders/infra/dexie-folder-repository";
@@ -103,6 +104,7 @@ async function purgeChapter(chapterId: EntityId): Promise<void> {
     ...deleted.filter((scene) => scene.chapterId === chapterId),
   ];
   await purgeRows(sceneRepository, scenes);
+  await bookmarkRepository.removeByChapter(chapterId);
   await purgeEntity(chapterRepository, chapterId);
 }
 
@@ -138,6 +140,7 @@ async function purgeProject(projectId: EntityId): Promise<void> {
   await Promise.all([
     tagRepository.deleteByProject(projectId),
     snippetRepository.deleteByProject(projectId),
+    bookmarkRepository.removeByProject(projectId),
   ]);
 
   // Rede de segurança: anexos órfãos (entidade já apagada) também caem aqui.

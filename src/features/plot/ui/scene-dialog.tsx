@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Trash2 } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { handleDialogEnter } from "@/shared/lib/keyboard";
@@ -92,7 +91,7 @@ export function SceneDialog({
         if (chapterId !== scene.chapterId) {
           await moveSceneToChapterEnd(scene.id, chapterId);
         }
-        toast.success("Cena atualizada");
+
         onSaved?.(updated);
       } else {
         const created = await sceneRepository.create({
@@ -102,12 +101,12 @@ export function SceneDialog({
           status,
           ...(body.trim() ? { content: sceneBodyToDoc(body) } : {}),
         });
-        toast.success("Cena criada");
+
         onSaved?.(created);
       }
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar a cena");
+
     } finally {
       setSaving(false);
     }
@@ -116,14 +115,7 @@ export function SceneDialog({
   async function remove() {
     if (!scene) return;
     await sceneRepository.softDelete(scene.id);
-    toast(`"${scene.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void sceneRepository.restore(scene.id);
-        },
-      },
-    });
+
     onOpenChange(false);
   }
 

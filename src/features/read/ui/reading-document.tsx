@@ -7,6 +7,7 @@ import { EditorContent, useEditor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import { useEffect, useRef } from "react";
 
+import { bookmarkExcerpt } from "@/features/bookmarks/domain/bookmark-excerpt";
 import { GrifarMark } from "@/features/editor/domain/grifar-mark";
 
 import type {
@@ -33,6 +34,14 @@ interface ReadingDocumentProps {
   onSelectionChange?: (hasSelection: boolean) => void;
   /** Incrementa quando a página pede para grifar a seleção atual. */
   grifarRequest?: number;
+  /** Incrementa quando a página pede um marcador no ponto atual. */
+  bookmarkAddRequest?: number;
+  /** Recebe posição + trecho do marcador a ser criado. */
+  onBookmarkAt?: (position: number, excerpt: string) => void;
+  /** Informa o tamanho do documento (posição relativa dos marcadores). */
+  onDocSize?: (size: number) => void;
+  /** Marcador para onde rolar (nonce força repetir a mesma posição). */
+  jumpToBookmark?: { position: number; nonce: number } | null;
 }
 
 /** Renders Tiptap document JSON as read-only typographic prose (plan §7.6). */
@@ -43,6 +52,10 @@ export function ReadingDocument({
   onGrifarChange,
   onSelectionChange,
   grifarRequest = 0,
+  bookmarkAddRequest = 0,
+  onBookmarkAt,
+  onDocSize,
+  jumpToBookmark = null,
 }: ReadingDocumentProps) {
   const mentionHighlightReadEnabled = useUiStore(
     (state) => state.mentionHighlightReadEnabled,
@@ -93,7 +106,7 @@ export function ReadingDocument({
     content: content as Content,
     editorProps: {
       attributes: {
-        class: "px-1 py-2 font-serif text-[1.0625rem] leading-[1.9] outline-none",
+        class: "px-1 py-2 font-serif text-[1em] leading-[1.9] outline-none",
       },
     },
   });
@@ -136,6 +149,60 @@ export function ReadingDocument({
       editor.off("selectionUpdate", update);
     };
   }, [editor]);
+
+  // Canais de marcadores: os callbacks vivem em refs (mesmo padrão do grifar).
+  const onBookmarkAtRef = useRef(onBookmarkAt);
+  onBookmarkAtRef.current = onBookmarkAt;
+  const onDocSizeRef = useRef(onDocSize);
+  onDocSizeRef.current = onDocSize;
+
+  useEffect(() => {
+    if (!editor) return;
+    const report = () => onDocSizeRef.current?.(editor.state.doc.content.size);
+    report();
+    editor.on("update", report);
+    return () => {
+      editor.off("update", report);
+    };
+  }, [editor, content]);
+
+  const appliedBookmarkRequest = useRef(bookmarkAddRequest);
+  useEffect(() => {
+    if (!editor || bookmarkAddRequest === appliedBookmarkRequest.current) {
+      return;
+    }
+    appliedBookmarkRequest.current = bookmarkAddRequest;
+    const max = editor.state.doc.content.size;
+    let position: number | null = editor.state.selection.empty
+      ? null
+      : editor.state.selection.from;
+    if (position === null) {
+      // Sem seleção: marca o primeiro texto visível do documento.
+      const rect = editor.view.dom.getBoundingClientRect();
+      const coords = editor.view.posAtCoords({
+        left: rect.left + rect.width / 2,
+        top: rect.top + 16,
+      });
+      position = coords?.pos ?? 1;
+    }
+    const safe = Math.min(Math.max(position, 0), max);
+    onBookmarkAtRef.current?.(
+      safe,
+      bookmarkExcerpt(editor.state.doc, safe),
+    );
+  }, [editor, bookmarkAddRequest]);
+
+  useEffect(() => {
+    if (!editor || !jumpToBookmark) return;
+    const max = editor.state.doc.content.size;
+    const position = Math.min(Math.max(jumpToBookmark.position, 0), max);
+    const target = editor.view.domAtPos(position);
+    const element =
+      target.node.nodeType === 1
+        ? (target.node as HTMLElement)
+        : target.node.parentElement;
+    element?.scrollIntoView({ block: "center", behavior: "smooth" });
+  }, [editor, jumpToBookmark]);
 
   // A página pediu para grifar (clique na barra): aplica na seleção viva.
   const appliedRequest = useRef(grifarRequest);

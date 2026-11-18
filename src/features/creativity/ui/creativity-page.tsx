@@ -5,6 +5,7 @@ import { useLiveQuery } from "dexie-react-hooks";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 
@@ -13,11 +14,12 @@ import { IdeaCanvas } from "./idea-canvas";
 /** Rota /canvas: o board é a página inteira; ações vivem no menu flutuante. */
 export function CreativityPage() {
   const { projectId } = useSelectedProject();
-  const chapters =
-    useLiveQuery(
-      () => (projectId ? chapterRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveChapters = useLiveQuery(
+    () => (projectId ? chapterRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  useProjectReady(liveChapters !== undefined, projectId);
+  const chapters = liveChapters ?? [];
 
   if (projectId === null) {
     return (

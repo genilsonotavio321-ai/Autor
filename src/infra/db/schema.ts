@@ -2,6 +2,7 @@ import Dexie, { type EntityTable } from "dexie";
 
 import type {
   Attachment,
+  Bookmark,
   Chapter,
   Character,
   CustomPrompt,
@@ -53,6 +54,7 @@ export class AutorDatabase extends Dexie {
   ideaBoards!: EntityTable<IdeaBoard, "id">;
   promptItems!: EntityTable<CustomPrompt, "id">;
   folders!: EntityTable<Folder, "id">;
+  bookmarks!: EntityTable<Bookmark, "id">;
 
   constructor() {
     super("autor");
@@ -260,6 +262,35 @@ export class AutorDatabase extends Dexie {
       folders: "id, projectId, kind, deletedAt",
       storyArcs: "id, projectId, order",
       structureSections: "id, projectId, scope, arcId, order",
+    });
+
+    // v10: marcadores de posição no texto (editor e modo leitura). Copia
+    // TODAS as tabelas do v9 — a Dexie apaga tabelas omitidas entre versões.
+    this.version(10).stores({
+      projects:
+        "id, folderId, order, title, status, createdAt, updatedAt, deletedAt",
+      chapters: "id, projectId, title, order, status, updatedAt, deletedAt",
+      scenes: "id, chapterId, title, order, status, beatId, deletedAt",
+      characters: "id, projectId, name, role, updatedAt, deletedAt",
+      locations: "id, projectId, name, type",
+      loreEntries: "id, projectId, title, category",
+      plotBeats: "id, projectId, scope, arcId, sectionId, order",
+      timelineEvents: "id, projectId, date, title",
+      notes: "id, projectId, title, pinned, updatedAt, deletedAt",
+      tags: "id, projectId, name",
+      snippets: "id, projectId, title, createdAt",
+      templates: "id, name, scope, builtin",
+      versions: "id, [entityType+entityId], createdAt",
+      settings: "key",
+      attachments: "id, projectId, entityId, [entityType+entityId]",
+      ideaCards: "id, projectId, deletedAt",
+      ideaGroups: "id, projectId",
+      ideaBoards: "id, projectId, createdAt",
+      promptItems: "id, kind",
+      folders: "id, projectId, kind, deletedAt",
+      storyArcs: "id, projectId, order",
+      structureSections: "id, projectId, scope, arcId, order",
+      bookmarks: "id, chapterId, projectId, createdAt",
     });
   }
 }

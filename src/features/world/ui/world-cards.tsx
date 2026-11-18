@@ -62,7 +62,7 @@ function DragCard({
           onOpen();
         }
       }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${dragOpacity(
+      className={`flex cursor-pointer touch-pan-y select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${dragOpacity(
         isDragging,
       )} ${highlight ? "ring-2 ring-primary bg-primary/5" : ""} ${className}`}
     >

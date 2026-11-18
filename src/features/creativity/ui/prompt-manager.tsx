@@ -3,7 +3,6 @@
 import { useRef, useState } from "react";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Download, Pencil, Plus, Trash2, Upload } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -115,7 +114,7 @@ export function PromptManager() {
       .map((variant) => variant.trim())
       .filter((variant) => variant.length > 0);
     if (variants.length === 0) {
-      toast.error("Escreva ao menos uma variante");
+
       return;
     }
     try {
@@ -124,18 +123,18 @@ export function PromptManager() {
           category: kind === "question" ? category : undefined,
           variants,
         });
-        toast.success("Prompt atualizado");
+
       } else {
         await customPromptRepository.create({
           kind,
           category: kind === "question" ? category : undefined,
           variants,
         });
-        toast.success("Prompt criado");
+
       }
       closeDialog();
     } catch {
-      toast.error("Falha ao salvar o prompt");
+
     }
   }
 
@@ -147,23 +146,12 @@ export function PromptManager() {
     const prompt = prompts.find((item) => item.id === id);
     if (!prompt) return;
     await customPromptRepository.hardDelete(id);
-    toast("Prompt excluído", {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void customPromptRepository.create({
-            kind: prompt.kind,
-            category: prompt.category,
-            variants: prompt.variants,
-          });
-        },
-      },
-    });
+
   }
 
   function exportPrompts() {
     if (prompts.length === 0) {
-      toast.error("Nenhum prompt para exportar");
+
       return;
     }
     const blob = new Blob([JSON.stringify(buildPromptExport(prompts), null, 2)], {
@@ -183,11 +171,9 @@ export function PromptManager() {
         });
       }
       // atalho: imports chegam sempre ativados; desligue na lista se quiser
-      toast.success(`${items.length} prompt(s) importado(s)`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Arquivo de prompts inválido",
-      );
+
+    } catch {
+
     }
   }
 

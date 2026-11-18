@@ -1,10 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "@/infra/navigation/use-app-router";
 import { useLiveQuery } from "dexie-react-hooks";
 import { Send } from "lucide-react";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { Button } from "@/components/ui/button";
@@ -33,7 +31,6 @@ interface SceneBuilderProps {
 
 /** Formulário guiado que envia a cena finalizada direto para a Estrutura. */
 export function SceneBuilder({ projectId, chapters }: SceneBuilderProps) {
-  const router = useRouter();
   const characters =
     useLiveQuery(() => characterRepository.listByProject(projectId), [
       projectId,
@@ -75,25 +72,20 @@ export function SceneBuilder({ projectId, chapters }: SceneBuilderProps) {
     if (!chapterId) return;
     setSending(true);
     try {
-      const scene = await sendSceneToOutline({
+      await sendSceneToOutline({
         chapterId,
         title: title.trim() || undefined,
         summary: composeSceneSummary({ goal, conflict, turn }),
         povCharacterId: povId || undefined,
         locationId: locationId || undefined,
       });
-      toast.success(`Cena "${scene.title}" enviada para a Estrutura`, {
-        action: {
-          label: "Ver em Estrutura",
-          onClick: () => router.push("/outline"),
-        },
-      });
+
       setTitle("");
       setGoal("");
       setConflict("");
       setTurn("");
     } catch {
-      toast.error("Falha ao enviar a cena");
+
     } finally {
       setSending(false);
     }

@@ -7,8 +7,12 @@ import dynamic from "next/dynamic";
 import Link from "next/link";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { toast } from "sonner";
 
+import { useChapterBookmarks } from "@/features/bookmarks/application/use-chapter-bookmarks";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
+import { bookmarkExcerpt } from "@/features/bookmarks/domain/bookmark-excerpt";
+import { bookmarkRepository } from "@/features/bookmarks/infra/dexie-bookmark-repository";
+import { BookmarksDialog } from "@/features/bookmarks/ui/bookmarks-dialog";
 import { EmptyState } from "@/components/layout/empty-state";
 import { useRouter } from "@/infra/navigation/use-app-router";
 import { cn } from "@/lib/utils";
@@ -30,6 +34,7 @@ import type { MentionClickSource } from "@/features/mentions/domain/mention-clic
 import { useMentionEntities } from "@/features/mentions/ui/use-mention-entities";
 import { useUiStore } from "@/shared/store/ui-store";
 import type {
+  Bookmark,
   Chapter,
   ChapterStatus,
   Json,
@@ -45,7 +50,7 @@ import { toDayKey } from "@/features/productivity/domain/writing-log";
 import { recordWords } from "@/features/productivity/infra/writing-log-repository";
 import { EditorSidebar } from "./editor-sidebar";
 import { MentionConfirmDialog } from "./mention-confirm-dialog";
-import { SaveStatusIndicator, type SaveStatus } from "./save-status-indicator";
+import type { SaveStatus } from "./save-status-indicator";
 import { MentionSheet } from "./mention-sheet";
 import { VersionsDialog } from "./versions-dialog";
 
@@ -88,6 +93,8 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
   const [shareOpen, setShareOpen] = useState(false);
   const [reviewOpen, setReviewOpen] = useState(false);
   const [revealGrifar, setRevealGrifar] = useState(false);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [bookmarkDocSize, setBookmarkDocSize] = useState<number | null>(null);
   const [canUndo, setCanUndo] = useState(false);
   const [canRedo, setCanRedo] = useState(false);
   const [pendingMention, setPendingMention] = useState<{
@@ -123,6 +130,8 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
     (state) => state.mentionBackToTextSeconds,
   );
   const mentionEntities = useMentionEntities(chapter?.projectId ?? null);
+  const bookmarks = useChapterBookmarks(chapterId);
+  useProjectReady(chapter !== undefined, chapter?.projectId ?? null);
 
   const editorRef = useRef<Editor | null>(null);
   const lastContentRef = useRef<Json | null>(null);
@@ -197,15 +206,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         } catch (error) {
           setSaveStatus("error");
           if (isQuotaExceededError(error)) {
-            toast.error("Armazenamento do navegador cheio", {
-              description:
-                "Exporte ou exclua projetos para liberar espaço em disco.",
-            });
           } else {
-            toast.error("Falha ao salvar", {
-              description:
-                error instanceof Error ? error.message : undefined,
-            });
           }
         }
       }, AUTOSAVE_DELAY_MS),
@@ -222,7 +223,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         if (nextTitle === undefined) return;
         void chapterRepository
           .update(chapterId, { title: nextTitle.trim() || "Sem título" })
-          .catch(() => toast.error("Falha ao salvar o título"));
+          .catch(() => undefined);
         return;
       }
       const words = editor.storage.characterCount.words() as number;
@@ -305,9 +306,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       (otherTabPresent) => {
         if (otherTabPresent && !warned) {
           warned = true;
-          toast.info("Este projeto está aberto em outra aba", {
-            description: "Edições concorrentes podem se sobrescrever.",
-          });
         }
       },
     );
@@ -322,9 +320,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
         chapterId,
         editor.getJSON() as unknown as Json,
       );
-      toast.success("Versão salva");
     } catch {
-      toast.error("Falha ao salvar a versão");
     }
   }, [chapterId]);
 
@@ -335,16 +331,55 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       editor.commands.setContent(version.snapshot as unknown as Content);
       setVersionsOpen(false);
       scheduleSave();
-      toast.success("Versão restaurada");
     },
     [scheduleSave],
   );
+
+  const openBookmarks = useCallback(() => {
+    const editor = editorRef.current;
+    setBookmarkDocSize(editor ? editor.state.doc.content.size : null);
+    setBookmarksOpen(true);
+  }, []);
+
+  const addBookmark = useCallback(async () => {
+    const editor = editorRef.current;
+    if (!editor || !chapter) return;
+    const max = editor.state.doc.content.size;
+    const position = Math.min(editor.state.selection.from, max);
+    try {
+      await bookmarkRepository.create({
+        projectId: chapter.projectId,
+        chapterId,
+        position,
+        excerpt: bookmarkExcerpt(editor.state.doc, position),
+      });
+    } catch {
+    }
+  }, [chapter, chapterId]);
+
+  const jumpToBookmark = useCallback((bookmark: Bookmark) => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    const max = editor.state.doc.content.size;
+    editor
+      .chain()
+      .focus(Math.min(bookmark.position, max))
+      .scrollIntoView()
+      .run();
+    setBookmarksOpen(false);
+  }, []);
+
+  const removeBookmark = useCallback(async (bookmark: Bookmark) => {
+    try {
+      await bookmarkRepository.remove(bookmark.id);
+    } catch {
+    }
+  }, []);
 
   const changeStatus = useCallback(
     (next: ChapterStatus) => {
       setStatus(next);
       void chapterRepository.update(chapterId, { status: next }).catch(() => {
-        toast.error("Falha ao atualizar o status");
       });
     },
     [chapterId],
@@ -444,13 +479,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           filename,
         );
       }
-      toast.success("Capítulo baixado.");
-    } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Falha ao compartilhar o capítulo.",
-      );
+    } catch {
     }
   }
 
@@ -515,11 +544,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           aria-label="Título do capítulo"
         />
         <div className="mt-1 flex shrink-0 items-center gap-1.5">
-          <SaveStatusIndicator
-            status={saveStatus}
-            dirty={dirty}
-            savedAt={savedAt}
-          />
           {/* O botão de expandir entra deslizando pela borda direita. */}
           <div className="size-9 shrink-0 overflow-hidden">
             <Button
@@ -529,7 +553,7 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
               className={cn(
                 // `translate`: o Tailwind v4 não usa `transform` nas utilidades
                 // de deslocamento — animar `transform` não produzia efeito.
-                "rounded-full transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+                "rounded-full transition-[translate,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)]",
                 editorSidebarCollapsed
                   ? "visible translate-x-0 opacity-100"
                   : "pointer-events-none invisible translate-x-10 opacity-0",
@@ -579,6 +603,10 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
       <EditorSidebar
         status={status ?? chapter.status}
         onStatusChange={changeStatus}
+        saveStatus={saveStatus}
+        dirty={dirty}
+        savedAt={savedAt}
+        onBookmarks={openBookmarks}
         onRead={() =>
           router.push(`/read?project=${chapter.projectId}&chapter=${chapterId}`)
         }
@@ -605,6 +633,16 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           void insertImageFromInput(event.target.files);
           event.target.value = "";
         }}
+      />
+
+      <BookmarksDialog
+        open={bookmarksOpen}
+        onOpenChange={setBookmarksOpen}
+        bookmarks={bookmarks}
+        docSize={bookmarkDocSize}
+        onAdd={() => void addBookmark()}
+        onJump={jumpToBookmark}
+        onRemove={(bookmark) => void removeBookmark(bookmark)}
       />
 
       <VersionsDialog
@@ -654,7 +692,6 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
           if (pendingMention) {
             openMentionSheet(pendingMention.type, pendingMention.id);
           }
-          toast.info("Aviso desativado. Você pode reativar nas Configurações.");
         }}
       />
     </div>

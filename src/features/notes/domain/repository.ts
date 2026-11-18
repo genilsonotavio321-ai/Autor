@@ -4,6 +4,8 @@ export interface NoteCreateInput {
   projectId: EntityId;
   title?: string;
   content?: string;
+  /** Pasta de destino; sem valor a nota nasce na raiz da aba Notas. */
+  folderId?: EntityId;
 }
 
 export interface NoteUpdateInput {

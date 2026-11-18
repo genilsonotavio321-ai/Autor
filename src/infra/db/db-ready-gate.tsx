@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { LoadingScreen } from "@/components/layout/loading-overlay";
 import { Button } from "@/components/ui/button";
 
 import { ensureDbReady } from "./ready";
@@ -12,7 +13,7 @@ import { ensureDbReady } from "./ready";
  * As migrações abrem transações de escrita. O `liveQuery` executa o querier
  * dentro de uma transação somente-leitura e o Dexie recusa escrita ali
  * ("Readwrite transaction in liveQuery context"). Como o shell monta buscas,
- * lixeira e notificações (todos com `useLiveQuery`) assim que aparece, o banco
+ * lixeira e demais listas (todas com `useLiveQuery`) assim que aparece, o banco
  * precisa estar pronto antes de qualquer consulta existir.
  */
 export function DbReadyGate({ children }: { children: React.ReactNode }) {
@@ -35,11 +36,7 @@ export function DbReadyGate({ children }: { children: React.ReactNode }) {
   }, []);
 
   if (status === "loading") {
-    return (
-      <div className="flex min-h-dvh items-center justify-center p-6">
-        <p className="text-sm text-muted-foreground">Preparando seus dados…</p>
-      </div>
-    );
+    return <LoadingScreen label="Preparando seus dados…" />;
   }
 
   if (status === "error") {

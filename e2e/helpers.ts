@@ -87,27 +87,21 @@ export async function createChapter(page: Page, title?: string) {
 }
 
 /**
- * After an action that CREATES a toast: wait for it to actually render, then
- * for the whole stack to expire (sonner default = 4s). The two-step wait
- * closes the race where a bare toHaveCount(0) passes before the async success
- * toast appears — leaving it alive to intercept the next click.
+ * O app não exibe mais toasts: nada a esperar. Mantido para os specs que
+ * usavam essa pausa depois de uma ação assíncrona.
  */
-export async function waitForToastCycle(page: Page) {
-  const toasts = page.locator("[data-sonner-toast]");
-  await expect(toasts.first()).toBeVisible({ timeout: 3_000 });
-  await expect(toasts).toHaveCount(0, { timeout: 8_000 });
+export async function waitForToastCycle(page: Page): Promise<void> {
+  void page;
 }
 
-/** No toast on screen and none pending (safe when nothing creates one). */
-export async function waitNoToasts(page: Page) {
-  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, {
-    timeout: 8_000,
-  });
+/** Idem: sem toasts, não há o que aguardar. */
+export async function waitNoToasts(page: Page): Promise<void> {
+  void page;
 }
 
 /**
  * Abre o bloco "Avançado" das Configurações: as preferências menos usadas
- * (seções da Home, tags, notificações) vivem recolhidas ali.
+ * (seções da Home, tags, etc.) vivem recolhidas ali.
  */
 export async function openAdvancedSettings(page: Page) {
   const details = page.locator("details").filter({ hasText: "Avançado" }).first();

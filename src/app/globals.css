@@ -448,6 +448,26 @@ html[data-theme-variant="musgo"] {
   view-transition-name: page;
 }
 
+/* As barras flutuantes ganham nome próprio: sem isso elas ficam de fora do
+   snapshot e a página em transição (que entra na top layer) é pintada por
+   cima dos cards que passam pela região das barras. */
+[data-slot="app-action-bar"] {
+  view-transition-name: app-bar;
+}
+
+::view-transition-group(app-bar),
+::view-transition-old(app-bar),
+::view-transition-new(app-bar) {
+  animation: none;
+}
+
+/* Sem animação, o snapshot antigo continuava pintado por cima da barra nova
+   durante a troca de seção (a barra da seção anterior aparecia sobre a
+   atual). Esconder o snapshot antigo faz a barra trocar na hora. */
+::view-transition-old(app-bar) {
+  display: none;
+}
+
 ::view-transition-old(root),
 ::view-transition-new(root) {
   animation: none;

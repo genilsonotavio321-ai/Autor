@@ -3,7 +3,6 @@
 import { useLiveQuery } from "dexie-react-hooks";
 import { ArrowLeft, RotateCcw, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { toast } from "sonner";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -99,9 +98,9 @@ export function VersionsDialog({
   async function clearAll() {
     try {
       await clearVersions(chapterId);
-      toast.success("Histórico de versões apagado");
+
     } catch {
-      toast.error("Falha ao limpar o histórico");
+
     }
   }
 

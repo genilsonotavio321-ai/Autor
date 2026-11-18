@@ -19,7 +19,6 @@ import {
 } from "@dnd-kit/sortable";
 import { BookOpen, GripVertical, Plus, Trash2 } from "lucide-react";
 import { useLiveQuery } from "dexie-react-hooks";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
 import { useCardSortable } from "@/shared/lib/sortable";
@@ -79,7 +78,6 @@ import {
   CustomStructureDialog,
   DramaticCatalogDialog,
 } from "./structure-dialogs";
-
 
 const MAIN_SCOPE = "main";
 
@@ -294,13 +292,11 @@ export function StructurePanel({
     try {
       await plotBeatRepository.applyMoves(updates);
     } catch {
-      toast.error("Falha ao mover o beat");
     }
   }
 
   function requestApply() {
     if (!draftTemplate) {
-      toast.error("Escolha uma teoria de estrutura primeiro.");
       return;
     }
     if (scopedBeats.length > 0) setConfirmOpen(true);
@@ -309,16 +305,12 @@ export function StructurePanel({
 
   async function apply() {
     try {
-      const result = await applyStructureTemplate(
+      await applyStructureTemplate(
         projectId,
         draftTemplate as Exclude<StructureTemplateId, "custom">,
         { replaceExisting: scopedBeats.length > 0 },
       );
-      toast.success(
-        `${result.sections} seções e ${result.beats} beats criados${result.replaced > 0 ? ` (${result.replaced} anteriores na lixeira)` : ""}`,
-      );
     } catch {
-      toast.error("Falha ao aplicar a estrutura");
     } finally {
       setConfirmOpen(false);
     }
@@ -336,20 +328,11 @@ export function StructurePanel({
       setEditing(created);
       setEditOpen(true);
     } catch {
-      toast.error("Falha ao criar o beat");
     }
   }
 
   async function remove(beat: PlotBeat) {
     await plotBeatRepository.softDelete(beat.id);
-    toast(`"${beat.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void plotBeatRepository.restore(beat.id);
-        },
-      },
-    });
   }
 
   // Deep link /outline?beat=<id> abre o beat direto.

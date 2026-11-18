@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,7 +55,7 @@ export function NarrativeArcDialog({
           description: description.trim() || null,
           color,
         });
-        toast.success("Arco atualizado");
+
       } else {
         await narrativeArcRepository.create({
           projectId,
@@ -64,12 +63,12 @@ export function NarrativeArcDialog({
           description: description.trim() || undefined,
           color,
         });
-        toast.success("Arco criado");
+
       }
       onSaved?.();
       onOpenChange(false);
     } catch {
-      toast.error("Falha ao salvar o arco");
+
     } finally {
       setSaving(false);
     }

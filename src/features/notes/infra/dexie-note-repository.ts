@@ -18,7 +18,10 @@ export class DexieNoteRepository implements NoteRepository {
     // chapter bug, soft-deleted rows are excluded from the max.
     const live = await getDatabase()
       .notes.filter(
-        (note) => note.projectId === input.projectId && !note.deletedAt,
+        (note) =>
+          note.projectId === input.projectId &&
+          !note.deletedAt &&
+          (note.folderId ?? null) === (input.folderId ?? null),
       )
       .toArray();
     let maxOrder = -1;
@@ -34,6 +37,7 @@ export class DexieNoteRepository implements NoteRepository {
       content: input.content ?? "",
       pinned: false,
       order: maxOrder + 1,
+      ...(input.folderId ? { folderId: input.folderId } : {}),
       tags: [],
       createdAt: now,
       updatedAt: now,

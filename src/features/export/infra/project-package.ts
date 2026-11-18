@@ -12,6 +12,7 @@ import {
 const PROJECT_DATA_TABLES = [
   "projects",
   "chapters",
+  "bookmarks",
   "scenes",
   "characters",
   "locations",
@@ -116,10 +117,12 @@ function parseProjectPackage(raw: unknown): ProjectPackage {
 
   const tables = {} as ProjectPackageTables;
   for (const tableName of PROJECT_DATA_TABLES) {
-    // Pacotes anteriores à v8 não têm structureSections: importa vazio.
+    // Pacotes antigos não têm structureSections/marcadores: importa vazio.
     const rows =
       raw.tables[tableName] ??
-      (tableName === "structureSections" ? [] : undefined);
+      (tableName === "structureSections" || tableName === "bookmarks"
+        ? []
+        : undefined);
     if (!Array.isArray(rows) || !rows.every(isRecord)) {
       return invalidProjectPackage();
     }
@@ -164,6 +167,15 @@ function parseProjectPackage(raw: unknown): ProjectPackage {
     tables.scenes.some(
       (scene) =>
         typeof scene.chapterId !== "string" || !chapterIds.has(scene.chapterId),
+    )
+  ) {
+    return invalidProjectPackage();
+  }
+  if (
+    tables.bookmarks.some(
+      (bookmark) =>
+        typeof bookmark.chapterId !== "string" ||
+        !chapterIds.has(bookmark.chapterId),
     )
   ) {
     return invalidProjectPackage();
@@ -423,6 +435,9 @@ function remapProjectRow(
         });
       }
       break;
+    case "bookmarks":
+      remapOptionalId(row, "chapterId", idMap);
+      break;
     case "folders":
       remapOptionalId(row, "parentId", idMap);
       break;
@@ -487,6 +502,7 @@ export async function buildProjectPackageBlob(
 
   const [
     chapters,
+    bookmarks,
     characters,
     locations,
     loreEntries,
@@ -504,6 +520,7 @@ export async function buildProjectPackageBlob(
     folders,
   ] = await Promise.all([
     db.chapters.where("projectId").equals(projectId).toArray(),
+    db.bookmarks.where("projectId").equals(projectId).toArray(),
     db.characters.where("projectId").equals(projectId).toArray(),
     db.locations.where("projectId").equals(projectId).toArray(),
     db.loreEntries.where("projectId").equals(projectId).toArray(),
@@ -575,6 +592,7 @@ export async function buildProjectPackageBlob(
     tables: {
       projects: [projectRecord],
       chapters: packageRecords(chapters),
+      bookmarks: packageRecords(bookmarks),
       scenes: packageRecords(scenes),
       characters: encodedCharacters,
       locations: packageRecords(locations),

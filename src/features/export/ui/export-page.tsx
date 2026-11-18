@@ -4,7 +4,6 @@ import { useRef, useState } from "react";
 
 import { useLiveQuery } from "dexie-react-hooks";
 import { Download, FileDown, FileUp, HardDriveDownload } from "lucide-react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useRouter } from "@/infra/navigation/use-app-router";
@@ -37,6 +36,7 @@ import {
 import { characterRepository } from "@/features/characters/infra/dexie-character-repository";
 import { locationRepository } from "@/features/world/infra/dexie-location-repository";
 import { loreEntryRepository } from "@/features/world/infra/dexie-lore-entry-repository";
+import { useProjectReady } from "@/features/projects/application/use-project-ready";
 import { useSelectedProject } from "@/features/projects/application/use-selected-project";
 import { chapterRepository } from "@/features/projects/infra/dexie-chapter-repository";
 import { narrativeArcRepository } from "@/features/plot/infra/dexie-narrative-arc-repository";
@@ -112,11 +112,12 @@ export function DataSection() {
       ? activeProjectId
       : projectIdOverride;
   const project = projects.find((item) => item.id === projectId) ?? null;
-  const contextChapters =
-    useLiveQuery(
-      () => (projectId ? chapterRepository.listByProject(projectId) : []),
-      [projectId],
-    ) ?? [];
+  const liveContextChapters = useLiveQuery(
+    () => (projectId ? chapterRepository.listByProject(projectId) : []),
+    [projectId],
+  );
+  useProjectReady(liveContextChapters !== undefined, projectId);
+  const contextChapters = liveContextChapters ?? [];
   const selectedContextChapterId = contextChapters.some(
     (chapter) => chapter.id === contextChapterId,
   )
@@ -169,9 +170,9 @@ export function DataSection() {
         new Blob([markdown], { type: "text/markdown;charset=utf-8" }),
         safeFilename(project!.title, "md"),
       );
-      toast.success("Projeto exportado em Markdown.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -181,7 +182,7 @@ export function DataSection() {
     if (!project || !selectedContextChapter) return;
     const budgetTokens = Number(contextBudget);
     if (!Number.isFinite(budgetTokens) || budgetTokens < 1) {
-      toast.error("Informe um limite de tokens maior que zero.");
+
       return;
     }
 
@@ -219,7 +220,7 @@ export function DataSection() {
       if (result.exceedsBudget) {
         const message = `Contexto essencial estima ${result.estimatedTokens} tokens; limite atual: ${result.budgetTokens}. Aumente o limite.`;
         setContextStatus(message);
-        toast.error(message);
+
         return;
       }
 
@@ -235,12 +236,12 @@ export function DataSection() {
         : "";
       const message = `Contexto baixado. Estimativa: ${result.estimatedTokens} tokens.${omitted}`;
       setContextStatus(message);
-      toast.success(message);
+
     } catch (error) {
       const message =
         error instanceof Error ? error.message : "Falha ao gerar contexto.";
       setContextStatus(message);
-      toast.error(message);
+
     } finally {
       setBusy(null);
     }
@@ -256,9 +257,9 @@ export function DataSection() {
         chapters.map((chapter) => ({ title: chapter.title, content: chapter.content })),
       );
       downloadBlob(blob, safeFilename(project!.title, "docx"));
-      toast.success("Projeto exportado em DOCX.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -274,9 +275,9 @@ export function DataSection() {
         chapters.map((chapter) => ({ title: chapter.title, content: chapter.content })),
       );
       downloadBlob(blob, safeFilename(project!.title, "pdf"));
-      toast.success("Projeto exportado em PDF.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -291,9 +292,9 @@ export function DataSection() {
         blob,
         safeFilename(`${project.title}-projeto-completo`, "json"),
       );
-      toast.success("Projeto completo exportado.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao exportar.");
+
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -304,9 +305,9 @@ export function DataSection() {
     try {
       const { blob, filename } = await buildBackupBlob();
       downloadBlob(blob, filename);
-      toast.success("Backup completo baixado.");
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao gerar backup.");
+
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -323,12 +324,10 @@ export function DataSection() {
       const imported = await importProjectPackageJson(await file.text());
       useUiStore.getState().setSelectedProjectId(imported.id);
       setProjectIdOverride(imported.id);
-      toast.success(`Projeto “${imported.title}” importado como novo projeto.`);
+
       router.push(`/projects/${imported.id}`);
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Falha ao importar projeto.",
-      );
+    } catch {
+
     } finally {
       setBusy(null);
     }
@@ -342,7 +341,7 @@ export function DataSection() {
       pendingBackupJson.current = await file.text();
       setBackupDialogOpen(true);
     } catch {
-      toast.error("Não foi possível ler o arquivo.");
+
     }
   }
 
@@ -353,11 +352,9 @@ export function DataSection() {
     if (!json) return;
     setBusy("import-backup");
     try {
-      const counts = await importBackupJson(json);
-      const total = Object.values(counts).reduce((sum, count) => sum + count, 0);
-      toast.success(`Backup restaurado (${total} registros).`);
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Falha ao restaurar.");
+      await importBackupJson(json);
+    } catch {
+
     } finally {
       setBusy(null);
     }

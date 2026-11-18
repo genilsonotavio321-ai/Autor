@@ -16,7 +16,6 @@ import Image from "@tiptap/extension-image";
 import TextAlign from "@tiptap/extension-text-align";
 import StarterKit from "@tiptap/starter-kit";
 import { BookOpen, Clapperboard, Link2, MapPin, User } from "lucide-react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import type { IdeaCard, Json } from "@/shared/types/database";
@@ -51,14 +50,7 @@ const DISPLAY_EXTENSIONS = [
 /** Exclui o card para a lixeira com toast de Desfazer. */
 export async function removeCard(card: IdeaCard) {
   await ideaCardRepository.softDelete(card.id);
-  toast(`"${card.title}" movido para a lixeira`, {
-    action: {
-      label: "Desfazer",
-      onClick: () => {
-        void ideaCardRepository.restore(card.id);
-      },
-    },
-  });
+
 }
 
 const LINK_SIDES = ["top", "right", "bottom", "left"] as const;
@@ -141,7 +133,7 @@ export function IdeaCardView({
           doc,
           content: plain ?? "",
         })
-        .catch(() => toast.error("Falha ao salvar a ideia"));
+        .catch(() => undefined);
     }, 800);
     return () => window.clearTimeout(timer);
   }, [editing, card.id, doc, plain]);
@@ -155,7 +147,7 @@ export function IdeaCardView({
           doc,
           content: plain ?? "",
         })
-        .catch(() => toast.error("Falha ao salvar a ideia"));
+        .catch(() => undefined);
     }
     onEditEnd();
   }, [card.id, doc, plain, onEditEnd]);

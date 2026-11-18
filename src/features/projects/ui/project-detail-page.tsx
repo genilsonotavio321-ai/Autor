@@ -2,10 +2,11 @@
 
 import { useLiveQuery } from "dexie-react-hooks";
 import {
+  Archive,
+  ArchiveRestore,
   ArrowLeft,
   ChevronDown,
   Frame,
-  MoreHorizontal,
   Pencil,
   Plus,
   Trash2,
@@ -13,21 +14,26 @@ import {
 import Link from "next/link";
 import { useRouter } from "@/infra/navigation/use-app-router";
 import { useEffect, useState } from "react";
-import { toast } from "sonner";
 
 import { EmptyState } from "@/components/layout/empty-state";
+import { PageActionBar } from "@/components/layout/action-bar";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatRelativeTime } from "@/shared/lib/dates";
 import { useUiStore } from "@/shared/store/ui-store";
 
+import { useProjectReady } from "../application/use-project-ready";
 import { PROJECT_STATUS_LABELS } from "../domain/repository";
 import { chapterRepository } from "../infra/dexie-chapter-repository";
 import { projectRepository } from "../infra/dexie-project-repository";
@@ -44,6 +50,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
     (state) => state.setSelectedProjectId,
   );
   const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
   // Capítulos arquivados só aparecem quando o usuário pede para revelar.
   const [showArchived, setShowArchived] = useState(false);
   // `null` (not `undefined`) marks "not found" — useLiveQuery uses undefined
@@ -57,6 +64,7 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
     () => chapterRepository.listByProject(projectId),
     [projectId],
   );
+  useProjectReady(chapters !== undefined, projectId);
 
   // Abrir a página de um projeto (inclusive deep link) o seleciona como
   // projeto carregado no app.
@@ -96,33 +104,18 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
   const archive = async () => {
     const next = project.status === "archived" ? "active" : "archived";
     await projectRepository.update(project.id, { status: next });
-    toast.success(
-      next === "archived" ? "Projeto arquivado" : "Projeto reativado",
-    );
   };
 
   const remove = async () => {
     await projectRepository.softDelete(project.id);
-    toast(`"${project.title}" movido para a lixeira`, {
-      action: {
-        label: "Desfazer",
-        onClick: () => {
-          void projectRepository.restore(project.id);
-        },
-      },
-    });
     router.push("/projects");
   };
 
   const addChapter = async () => {
-    const chapter = await chapterRepository.create({ projectId });
-    toast(`"${chapter.title}" criado`, {
-      action: {
-        label: "Abrir",
-        onClick: () => router.push(`/write/${chapter.id}`),
-      },
-    });
+    await chapterRepository.create({ projectId });
   };
+
+  const archived = project.status === "archived";
 
   return (
     <div className="space-y-8">
@@ -133,6 +126,61 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
         <ArrowLeft aria-hidden />
         Projetos
       </Link>
+
+      <PageActionBar>
+        <Button
+          size="icon"
+          className="rounded-full"
+          aria-label="Novo capítulo"
+          title="Novo capítulo"
+          onClick={() => void addChapter()}
+        >
+          <Plus aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label="Canvas"
+          title="Canvas"
+          onClick={() => {
+            setSelectedProjectId(project.id);
+            router.push("/canvas");
+          }}
+        >
+          <Frame aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label="Editar projeto"
+          title="Editar projeto"
+          onClick={() => setEditOpen(true)}
+        >
+          <Pencil aria-hidden />
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full"
+          aria-label={archived ? "Reativar projeto" : "Arquivar projeto"}
+          title={archived ? "Reativar projeto" : "Arquivar projeto"}
+          onClick={() => void archive()}
+        >
+          {archived ? <ArchiveRestore aria-hidden /> : <Archive aria-hidden />}
+        </Button>
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full text-destructive"
+          aria-label="Excluir projeto"
+          title="Excluir projeto"
+          onClick={() => setDeleteOpen(true)}
+        >
+          <Trash2 aria-hidden />
+        </Button>
+      </PageActionBar>
 
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="space-y-1">
@@ -152,40 +200,6 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
             atualizado {formatRelativeTime(project.updatedAt)}
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            onClick={() => {
-              setSelectedProjectId(project.id);
-              router.push("/canvas");
-            }}
-          >
-            <Frame aria-hidden />
-            Canvas
-          </Button>
-          <Button variant="outline" onClick={() => setEditOpen(true)}>
-            <Pencil aria-hidden />
-            Editar
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="icon" aria-label="Mais ações">
-                <MoreHorizontal aria-hidden />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
-              <DropdownMenuItem onClick={() => void archive()}>
-                {project.status === "archived"
-                  ? "Reativar projeto"
-                  : "Arquivar projeto"}
-              </DropdownMenuItem>
-              <DropdownMenuItem variant="destructive" onClick={() => void remove()}>
-                <Trash2 aria-hidden />
-                Excluir
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
       </header>
 
       {project.description ? (
@@ -195,15 +209,9 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
       ) : null}
 
       <section className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="font-serif text-2xl font-semibold tracking-tight">
-            Capítulos
-          </h2>
-          <Button onClick={() => void addChapter()}>
-            <Plus aria-hidden />
-            Novo capítulo
-          </Button>
-        </div>
+        <h2 className="font-serif text-2xl font-semibold tracking-tight">
+          Capítulos
+        </h2>
         <ChapterList chapters={activeChapters} />
       </section>
 
@@ -239,6 +247,24 @@ export function ProjectDetailPage({ projectId }: ProjectDetailPageProps) {
         onOpenChange={setEditOpen}
         project={project}
       />
+
+      <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir “{project.title}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              O projeto e todo o seu conteúdo vão para a lixeira. Você pode
+              restaurar depois em Lixeira.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => void remove()}>
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

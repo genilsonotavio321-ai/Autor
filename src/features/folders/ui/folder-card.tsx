@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { Folder as FolderIcon, Pencil, Trash2 } from "lucide-react";
+import { Folder as FolderIcon, GripVertical, Pencil, Trash2 } from "lucide-react";
 
 import {
   AlertDialog,
@@ -83,12 +83,21 @@ export function FolderCard({
           open();
         }
       }}
-      className={`flex cursor-pointer touch-none select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
+      className={`flex cursor-pointer touch-pan-y select-none flex-col rounded-lg border bg-card p-4 focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none ${
         isDragging ? "opacity-60" : ""
       } ${isOver ? "ring-2 ring-primary" : ""}`}
     >
       <div className="mb-2 flex items-start gap-2">
-        <FolderIcon aria-hidden className="mt-0.5 size-4 shrink-0 text-primary" />
+        <button
+          type="button"
+          {...dragProps}
+          aria-label={`Mover ${folder.name}`}
+          onClick={stop}
+          className="-ml-1 inline-flex size-7 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+        >
+          <GripVertical aria-hidden />
+        </button>
+        <FolderIcon aria-hidden className="mt-1 size-4 shrink-0 text-primary" />
         {editing ? (
           <Input
             ref={inputRef}
@@ -110,7 +119,6 @@ export function FolderCard({
         ) : (
           <button
             type="button"
-            onPointerDown={stop}
             onClick={(event) => {
               stop(event);
               open();

@@ -12,7 +12,7 @@ export interface SaveStatusIndicatorProps {
   savedAt: string | null;
 }
 
-/** Ícone de autosave do editor (fica ao lado do status do capítulo). */
+/** Ícone de autosave do editor (fica na sidebar, abaixo do status). */
 export function SaveStatusIndicator({
   status,
   dirty,
@@ -31,7 +31,7 @@ export function SaveStatusIndicator({
               ? `Salvo ${formatRelativeTime(savedAt)}`
               : "Nenhuma alteração ainda"
       }
-      className="inline-flex size-8 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
+      className="inline-flex size-9 items-center justify-center rounded-full border border-border/70 text-muted-foreground"
     >
       <Cloud
         aria-hidden

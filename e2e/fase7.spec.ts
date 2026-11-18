@@ -1,13 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { zipSync } from "fflate";
 
-import { createChapter, createProject } from "./helpers";
-
-async function waitNoToasts(page: import("@playwright/test").Page) {
-  await expect(page.locator("[data-sonner-toast]")).toHaveCount(0, {
-    timeout: 10_000,
-  });
-}
+import { createChapter, createProject, waitNoToasts } from "./helpers";
 
 test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
   test("painel exibe o gráfico de atividade recente", async ({ page }) => {
@@ -112,10 +106,6 @@ test.describe("Fase 7 — diff, import DOCX e gráfico de atividade", () => {
         buffer: Buffer.from(bytes),
       });
 
-    // Toast do Sonner (o nome do projeto também contém "Importado").
-    await expect(
-      page.locator("[data-sonner-toast]").filter({ hasText: "importado" }),
-    ).toBeVisible();
     await page.waitForURL(/\/projects\/[0-9a-f-]+/);
     await expect(
       page.getByRole("link", { name: "Capítulo Um" }),

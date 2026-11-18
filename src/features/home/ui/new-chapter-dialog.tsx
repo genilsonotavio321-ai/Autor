@@ -4,7 +4,6 @@ import { useLiveQuery } from "dexie-react-hooks";
 import { ChevronDown, FileText } from "lucide-react";
 import { useRouter } from "@/infra/navigation/use-app-router";
 import { useState } from "react";
-import { toast } from "sonner";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -56,7 +55,6 @@ export function NewChapterDialog({ open, onOpenChange }: NewChapterDialogProps) 
       onOpenChange(false);
       router.push(`/write/${chapter.id}`);
     } catch {
-      toast.error("Falha ao criar o capítulo");
     } finally {
       setCreating(false);
     }
