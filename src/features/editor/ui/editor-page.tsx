@@ -520,13 +520,12 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
 
   return (
     <div className="mx-auto w-full max-w-3xl pt-1">
-      <div
-        className="flex items-start gap-2"
-      >
+      <div className="relative flex items-center">
+        {/* Voltar flutua sobre o topo: o título fica centralizado na página. */}
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
-          className="mt-1 shrink-0"
+          className="absolute top-1 left-0 z-10 rounded-full"
           asChild
           aria-label="Voltar ao projeto"
         >
@@ -540,10 +539,10 @@ export function EditorPage({ chapterId }: { chapterId: string }) {
             setTitle(event.target.value);
             scheduleSave(event.target.value);
           }}
-          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-0 py-1 font-serif text-[2.1rem] font-medium tracking-[-0.015em] shadow-none focus-visible:border-border focus-visible:ring-0 dark:bg-transparent md:text-[2.6rem]"
+          className="h-auto min-w-0 flex-1 rounded-none border-0 border-b border-transparent bg-transparent px-12 py-1 text-center font-serif text-[2.1rem] font-medium tracking-[-0.015em] shadow-none focus-visible:border-border focus-visible:ring-0 dark:bg-transparent md:text-[2.6rem]"
           aria-label="Título do capítulo"
         />
-        <div className="mt-1 flex shrink-0 items-center gap-1.5">
+        <div className="absolute top-1 right-0 z-10 flex shrink-0 items-center gap-1.5">
           {/* O botão de expandir entra deslizando pela borda direita. */}
           <div className="size-9 shrink-0 overflow-hidden">
             <Button
